@@ -71,9 +71,9 @@ box(humanoid,.55,.19,.14,visor,0,1.74,-.32);for(const s of [-1,1]){box(humanoid,
 const player={pos:new THREE.Vector3(.5,0,.5),vy:0,grounded:true};
 let yawMovement=0;
 const keys=new Set(),touchMove=new THREE.Vector2(0,0);
-window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.code==='Digit1')setMode('place');if(e.code==='Digit2')setMode('mine');});
+window.addEventListener('keydown',e=>{if(e.target instanceof HTMLElement&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='Space'&&!e.repeat)jump();keys.add(e.code);if(e.code==='Digit1')setMode('place');if(e.code==='Digit2')setMode('mine');});
 window.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>keys.clear());
-function setMode(s){mode=s;$('place').classList.toggle('selected',s==='place');$('mine').classList.toggle('selected',s==='mine');$('mode').textContent=s==='place'?'설치':'파괴';}
+function setMode(s){mode=s;$('place').classList.toggle('selected',s==='place');$('mine').classList.toggle('selected',s==='mine');}
 $('place').onclick=()=>setMode('place');$('mine').onclick=()=>setMode('mine');
 $('jump').onclick=jump;
 function jump(){if(player.grounded){player.vy=6.7;player.grounded=false;}}
@@ -82,16 +82,16 @@ function move(dt){
  const dz=(keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-touchMove.y;
  const length=Math.hypot(dx,dz);if(length>.05){
  const a=Math.min(length,1),sx=dx/length,sz=dz/length;
- const dirX=sx*Math.cos(camYaw)+sz*Math.sin(camYaw);
- const dirZ=sx*(-Math.sin(camYaw))+sz*Math.cos(camYaw);
+ const dirX=sx*Math.cos(camYaw)-sz*Math.sin(camYaw);
+ const dirZ=-sx*Math.sin(camYaw)-sz*Math.cos(camYaw);
  const speed=4*a;
- const proposedX=player.pos.x+dirX*speed*dt,proposedZ=player.pos.z-dirZ*speed*dt;
+ const proposedX=player.pos.x+dirX*speed*dt,proposedZ=player.pos.z+dirZ*speed*dt;
  // Basic solid-volume collision near the player's waist and feet.
  if(!solidForBody(proposedX,player.pos.y,player.pos.z))player.pos.x=proposedX;
  if(!solidForBody(player.pos.x,player.pos.y,proposedZ))player.pos.z=proposedZ;
- humanoid.rotation.y=Math.atan2(-dirX,dirZ);yawMovement+=dt*9;
+ humanoid.rotation.y=Math.atan2(-dirX,-dirZ);yawMovement+=dt*9;
  }
- if(keys.has('Space'))jump();
+ 
  player.vy-=17*dt;player.vy=Math.max(player.vy,-19);
  const oldY=player.pos.y,newY=oldY+player.vy*dt;
  if(player.vy<=0){
@@ -133,7 +133,7 @@ async function interact(sx,sy){
 }
 function joystick(){
  const area=$('joystick'),knob=$('knob');let id=null;
- const update=e=>{const r=area.getBoundingClientRect();const x=Math.max(-1,Math.min(1,(e.clientX-r.left-r.width/2)/(r.width*.34))),y=Math.max(-1,Math.min(1,(e.clientY-r.top-r.height/2)/(r.height*.34)));touchMove.set(x,y);knob.style.transform='translate('+(x*31)+'px,'+(y*31)+'px)';};
+ const update=e=>{const r=area.getBoundingClientRect();const rawX=(e.clientX-r.left-r.width/2)/(r.width*.34),rawY=(e.clientY-r.top-r.height/2)/(r.height*.34);const len=Math.hypot(rawX,rawY);const scale=len>1?1/len:1;const x=rawX*scale,y=rawY*scale;touchMove.set(x,y);knob.style.transform='translate('+(x*31)+'px,'+(y*31)+'px)';};
  area.addEventListener('pointerdown',e=>{id=e.pointerId;area.setPointerCapture(id);update(e);});
  area.addEventListener('pointermove',e=>{if(e.pointerId===id)update(e);});
  const stop=e=>{if(e.pointerId!==id)return;id=null;touchMove.set(0,0);knob.style.transform='translate(0,0)'};
