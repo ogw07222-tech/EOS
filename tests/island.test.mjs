@@ -2,36 +2,40 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
-test('WebGL, 16x16, three dirt-only layers',()=>{
- assert.match(html,/new THREE\.WebGLRenderer/);
- assert.match(html,/SIZE=16,DEPTH=3/);
- assert.match(html,/texture\('grass'\)/);
- assert.match(html,/texture\('dirt'\)/);
- assert.doesNotMatch(html,/rockTex|stoneTex/);
+const game=readFileSync(new URL('../src/game.js',import.meta.url),'utf8');
+const server=readFileSync(new URL('../server.mjs',import.meta.url),'utf8');
+test('browser entry point loads active game module',()=>{
+ assert.match(html,/src="\/src\/game.js"/);
+ assert.match(html,/id="joystick"/);assert.match(html,/id="jump"/);
+ assert.match(html,/id="place"/);assert.match(html,/id="mine"/);
 });
-test('all block faces are the exposed surface only',()=>{
- assert.match(html,/for\(let x=0;x<SIZE;x\+\+\)for\(let z=0;z<SIZE;z\+\+\)/);
- assert.match(html,/if\(x===0\)quad/);
- assert.match(html,/if\(x===SIZE-1\)quad/);
- assert.match(html,/if\(z===0\)quad/);
- assert.match(html,/if\(z===SIZE-1\)quad/);
- assert.equal(16*16,256);
- assert.equal(4*16*3,192);
+test('client uses Three.js WebGL and exposed voxel faces',()=>{
+ assert.match(game,/three\.module\.js/);
+ assert.match(game,/new THREE\.WebGLRenderer/);
+ assert.match(game,/const SIZE=16/);
+ assert.match(game,/for\(let x=-8;x<8;x\+\+\)for\(let z=-8;z<8;z\+\+\)for\(let y=-3;y<0;y\+\+\)/);
+ assert.match(game,/if\(has\(x\+dx,y\+dy,z\+dz\)\)continue/);
+ assert.match(game,/const solids=new Set\(\)/);
+ assert.doesNotMatch(game,/stoneTex|rockTex/);
 });
-test('outer surface is flat and faces point outward',()=>{
- const p=html.indexOf('for(let x=0;x<SIZE;x++)for(let z=0;z<SIZE;z++)');
- const surface=html.slice(p,html.indexOf('const geos=',p));
- assert.match(surface,/const topY=0,bottomY=-DEPTH/);
- assert.match(surface,/quad\(0,\[\[x0,topY,z1\]/);
- assert.match(surface,/quad\(2,\[\[x0,bottomY,z0\]/);
- // Winding orientation of each side follows outward normals.
- assert.match(surface,/if\(x===0\)quad\(mat,\[\[x0,lo,z0\],\[x0,lo,z1\]/);
- assert.match(surface,/if\(x===SIZE-1\)quad\(mat,\[\[x1,lo,z1\],\[x1,lo,z0\]/);
- assert.match(surface,/if\(z===0\)quad\(mat,\[\[x1,lo,z0\],\[x0,lo,z0\]/);
- assert.match(surface,/if\(z===SIZE-1\)quad\(mat,\[\[x0,lo,z1\],\[x1,lo,z1\]/);
+test('cube winding is outward on all six normals',()=>{
+ const slice=game.substring(game.indexOf('const faces=['),game.indexOf('const grassMat='));
+ // Extract constant face definitions without running browser code.
+ const faces=Function(slice.replace('const faces=','return '))();
+ assert.equal(faces.length,6);
+ for(const face of faces){
+  const [a,b,c]=face.v;
+  const u=b.map((n,i)=>n-a[i]),v=c.map((n,i)=>n-a[i]);
+  const cross=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];
+  assert.deepEqual(cross,face.n,face.d.join(','));
+ }
 });
-test('mobile camera and starter decorations',()=>{
- assert.match(html,/touchmove/);assert.match(html,/addEventListener\('wheel'/);
- assert.match(html,/tree\(-5\.0,-4\.7,1\.0\);tree\(4\.8,4\.3,\.88\)/);
- assert.match(html,/edgeGroup\.visible=false/);
+test('movement, interaction and server save are connected',()=>{
+ assert.match(game,/function move\(dt\)/);assert.match(game,/function jump\(\)/);
+ assert.match(game,/function interact\(sx,sy\)/);assert.match(game,/fetch\(path/);
+ assert.match(game,/\/api\/world/);assert.match(game,/\/api\/action/);
+ assert.match(game,/world\.revision/);assert.match(game,/makeTree\(-5,-5,1\)/);
+ assert.match(server,/async function save\(/);
+ assert.match(server,/timingSafeEqual/);
+ assert.match(server,/if\(current\.inventory\.dirt<1\)/);
 });
