@@ -73,7 +73,7 @@ let yawMovement=0;
 const keys=new Set(),touchMove=new THREE.Vector2(0,0);
 window.addEventListener('keydown',e=>{if(e.target instanceof HTMLElement&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='Space'&&!e.repeat)jump();keys.add(e.code);if(e.code==='Digit1')setMode('place');if(e.code==='Digit2')setMode('mine');});
 window.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>keys.clear());
-function setMode(s){mode=s;$('place').classList.toggle('selected',s==='place');$('mine').classList.toggle('selected',s==='mine');}
+function setMode(s){cancelMine();mode=s;$('place').classList.toggle('selected',s==='place');$('mine').classList.toggle('selected',s==='mine');}
 $('place').onclick=()=>setMode('place');$('mine').onclick=()=>setMode('mine');
 $('jump').onclick=jump;
 function jump(){if(player.grounded){player.vy=6.7;player.grounded=false;}}
@@ -104,11 +104,79 @@ function move(dt){
 }
 function solidForBody(x,y,z){for(const oy of [.15,1.0])for(const ox of [-.18,.18])for(const oz of [-.18,.18])if(has(Math.floor(x+ox),Math.floor(y+oy),Math.floor(z+oz)))return true;return false;}
 const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
-let pressStart,dragCam=false,lastPoint,touchZoom=0;
-renderer.domElement.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&e.isPrimary===false)return;pressStart={x:e.clientX,y:e.clientY,t:Date.now()};lastPoint={x:e.clientX,y:e.clientY};dragCam=false;renderer.domElement.setPointerCapture(e.pointerId);});
-renderer.domElement.addEventListener('pointermove',e=>{if(!lastPoint)return;const dx=e.clientX-lastPoint.x,dy=e.clientY-lastPoint.y;lastPoint={x:e.clientX,y:e.clientY};if(Math.hypot(e.clientX-pressStart.x,e.clientY-pressStart.y)>7)dragCam=true;if(dragCam){camYaw-=dx*.006;camPitch=Math.max(.15,Math.min(1.22,camPitch+dy*.006));}});
-renderer.domElement.addEventListener('pointerup',e=>{if(pressStart&&!dragCam&&Date.now()-pressStart.t<500)interact(e.clientX,e.clientY);pressStart=null;lastPoint=null;});
-renderer.domElement.addEventListener('pointercancel',()=>{pressStart=null;lastPoint=null});
+const MINING_DURATION_MS=1200;
+let pressStart=null,dragCam=false,lastPoint=null,touchZoom=0,holdMining=null;
+const miningHud=$('mining'),miningFill=$('miningFill'),miningLabel=$('miningLabel');
+function cancelMine(){
+ holdMining=null;
+ miningHud.hidden=true;
+ miningFill.style.width='0%';
+}
+function targetBlock(sx,sy,action){
+ if(!world||!terrain)return null;
+ const rect=renderer.domElement.getBoundingClientRect();
+ ndc.set(((sx-rect.left)/rect.width)*2-1,-((sy-rect.top)/rect.height)*2+1);
+ ray.setFromCamera(ndc,camera);
+ const hit=ray.intersectObject(terrain,false)[0];if(!hit||hit.distance>20)return null;
+ const normal=hit.face.normal;
+ const point=hit.point.clone().addScaledVector(normal,action==='place'?.015:-.015);
+ const x=Math.floor(point.x),y=Math.floor(point.y),z=Math.floor(point.z);
+ const center=new THREE.Vector3(x+.5,y+.5,z+.5);
+ if(center.distanceTo(new THREE.Vector3(player.pos.x,player.pos.y+1,player.pos.z))>5.5)return null;
+ return {x,y,z};
+}
+function updateMine(now){
+ if(!holdMining||holdMining.done)return;
+ const {x,y,z}=holdMining.cell;
+ if(!world||!has(x,y,z)||busy){cancelMine();return;}
+ const elapsed=Math.max(0,now-holdMining.startedAt);
+ miningFill.style.width=Math.min(100,elapsed/MINING_DURATION_MS*100).toFixed(1)+'%';
+ miningLabel.textContent='채굴 중 '+Math.min(100,Math.floor(elapsed/MINING_DURATION_MS*100))+'%';
+ if(elapsed>=MINING_DURATION_MS){
+  const cell=holdMining.cell;
+  holdMining.done=true;cancelMine();
+  void interactCell(cell,'mine');
+ }
+}
+renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+renderer.domElement.addEventListener('pointerdown',e=>{
+ if(e.pointerType==='touch'&&!e.isPrimary){cancelMine();return;}
+ pressStart={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now()};
+ lastPoint={x:e.clientX,y:e.clientY};dragCam=false;
+ renderer.domElement.setPointerCapture(e.pointerId);
+ if(mode==='mine'&&!busy){
+  const cell=targetBlock(e.clientX,e.clientY,'mine');
+  if(cell){
+   holdMining={id:e.pointerId,cell,startedAt:performance.now(),done:false};
+   miningHud.hidden=false;miningFill.style.width='0%';miningLabel.textContent='채굴 중 0%';
+  }
+ }
+});
+renderer.domElement.addEventListener('pointermove',e=>{
+ if(!pressStart||e.pointerId!==pressStart.id||!lastPoint)return;
+ const dx=e.clientX-lastPoint.x,dy=e.clientY-lastPoint.y;
+ lastPoint={x:e.clientX,y:e.clientY};
+ if(Math.hypot(e.clientX-pressStart.x,e.clientY-pressStart.y)>12){
+  if(holdMining)cancelMine();
+  dragCam=true;
+ }
+ if(dragCam){camYaw-=dx*.006;camPitch=Math.max(.15,Math.min(1.22,camPitch+dy*.006));}
+});
+renderer.domElement.addEventListener('pointerup',e=>{
+ if(!pressStart||e.pointerId!==pressStart.id)return;
+ if(mode==='place'&&!dragCam&&performance.now()-pressStart.t<500)void interact(e.clientX,e.clientY);
+ cancelMine();pressStart=null;lastPoint=null;
+});
+renderer.domElement.addEventListener('pointercancel',e=>{
+ if(pressStart?.id!==e.pointerId)return;
+ cancelMine();pressStart=null;lastPoint=null;
+});
+renderer.domElement.addEventListener('lostpointercapture',e=>{
+ if(pressStart?.id!==e.pointerId)return;
+ cancelMine();pressStart=null;lastPoint=null;
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelMine();});
+window.addEventListener('blur',cancelMine);
 renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();camDistance=Math.min(17,Math.max(4,camDistance+Math.sign(e.deltaY)*.65));},{passive:false});
 renderer.domElement.addEventListener('touchmove',e=>{if(e.touches.length===2){const a=e.touches[0],b=e.touches[1],d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);if(touchZoom)camDistance=Math.max(4,Math.min(17,camDistance*touchZoom/d));touchZoom=d;}},{passive:true});
 renderer.domElement.addEventListener('touchend',()=>touchZoom=0);
@@ -116,19 +184,19 @@ function notice(message){$('notice').textContent=message;clearTimeout(notice.tim
 function inventory(){ $('dirt').textContent=world.inventory.dirt;$('dirtSmall').textContent='×'+world.inventory.dirt;$('revision').textContent='저장 버전 '+world.revision; }
 async function api(path,opts){const r=await fetch(path,{credentials:'same-origin',...opts});let payload;try{payload=await r.json()}catch{throw Error('서버 응답 오류');}if(!r.ok){const e=new Error(payload.error||'요청 실패');e.world=payload.world;throw e;}return payload;}
 async function interact(sx,sy){
- if(busy||!terrain)return;
- const rect=renderer.domElement.getBoundingClientRect();
- ndc.set(((sx-rect.left)/rect.width)*2-1,-((sy-rect.top)/rect.height)*2+1);ray.setFromCamera(ndc,camera);
- const hit=ray.intersectObject(terrain,false)[0];if(!hit)return;
- if(hit.distance>20){notice('너무 먼 블록이야.');return;}
- const normal=hit.face.normal.clone();const point=hit.point.clone().addScaledVector(normal,mode==='place'?.015:-.015);
- const x=Math.floor(point.x),y=Math.floor(point.y),z=Math.floor(point.z);
+ const cell=targetBlock(sx,sy,'place');
+ if(!cell){notice('가까운 블록을 선택해줘.');return;}
+ return interactCell(cell,'place');
+}
+async function interactCell({x,y,z},action){
+ if(busy||!world)return;
  const center=new THREE.Vector3(x+.5,y+.5,z+.5);
  if(center.distanceTo(new THREE.Vector3(player.pos.x,player.pos.y+1,player.pos.z))>5.5){notice('가까운 블록만 편집할 수 있어.');return;}
- if(mode==='place'&&Math.abs(center.x-player.pos.x)<.65&&Math.abs(center.z-player.pos.z)<.65&&center.y>=player.pos.y&&center.y<=player.pos.y+1.8){notice('플레이어 위치에는 설치할 수 없어.');return;}
+ if(action==='place'&&Math.abs(center.x-player.pos.x)<.65&&Math.abs(center.z-player.pos.z)<.65&&center.y>=player.pos.y&&center.y<=player.pos.y+1.8){notice('플레이어 위치에는 설치할 수 없어.');return;}
+ if(action==='mine'&&!has(x,y,z))return;
  busy=true;
- try{const data=await api('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:mode,x,y,z,revision:world.revision})});
- world=data.world;inventory();rebuild();notice(mode==='place'?'흙 블록 설치 완료 · 서버에 저장됨':'흙 블록 회수 완료 · 서버에 저장됨');
+ try{const data=await api('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:action,x,y,z,revision:world.revision})});
+ world=data.world;inventory();rebuild();notice(action==='place'?'흙 블록 설치 완료 · 서버에 저장됨':'흙 블록 회수 완료 · 서버에 저장됨');
  }catch(e){if(e.world){world=e.world;inventory();rebuild();}notice('작업 실패: '+e.message);}finally{busy=false;}
 }
 function joystick(){
@@ -142,6 +210,7 @@ function joystick(){
 let then=performance.now();
 function loop(now){requestAnimationFrame(loop);const dt=Math.min(.033,(now-then)/1000);then=now;
  if(world)move(dt);
+ updateMine(now);
  const target=player.pos.clone().add(new THREE.Vector3(0,1.15,0));
  camera.position.set(target.x+camDistance*Math.sin(camYaw)*Math.cos(camPitch),target.y+camDistance*Math.sin(camPitch)+1.2,target.z+camDistance*Math.cos(camYaw)*Math.cos(camPitch));camera.lookAt(target);
  renderer.render(scene,camera);
