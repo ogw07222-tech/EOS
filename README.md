@@ -8,7 +8,7 @@ An **individual sky-island game hosted by a central Node.js server**. Multiplaye
 - Flat 16×16 starting island, three layers of dirt, green grass surface, two decorative block trees; no underground mines or stone layer.
 - Keyboard: **WASD / arrows** to move, **Space** to jump; mouse drag to orbit, wheel to zoom.
 - Tablet/mobile: virtual joystick, jump button, drag camera, pinch zoom.
-- Tap/click a nearby island block with **Place** or **Mine** selected to modify the island.
+- **Place:** tap/click a nearby block face to place dirt. **Mine:** press and hold the target block for 1.2 seconds; a progress bar appears, and releasing early or dragging cancels mining.
 - Dirt inventory is checked and updated on the server; your changes persist on the server between sessions when the same browser keeps its guest cookie.
 - Players get isolated **guest island saves**, not shared multiplayer worlds.
 - Existing drill + conveyor proof of concept is archived at [`prototypes/mining-conveyor.html`](prototypes/mining-conveyor.html).
@@ -41,6 +41,8 @@ This checks browser entry point and mesh invariants, preserves checks for the ar
 ## Architecture and boundaries
 
 See [`docs/SERVER_ARCHITECTURE.md`](docs/SERVER_ARCHITECTURE.md).
+
+The 1.2-second mining duration is currently enforced by the browser interaction code; the prototype server still accepts direct mine API calls without measuring a mining session. Implement server-side timing validation before public release.
 
 **Not implemented:** permanent accounts/authentication, public production deployment, secure server-side movement verification, cloud database, crafting, usable ore nodes, production machinery, portals, combat, and offline factory progression. Guest cookies are not a substitute for a durable account.
 
