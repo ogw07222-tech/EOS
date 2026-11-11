@@ -21,14 +21,20 @@ button.selected{border-color:#d7f2a9;background:#23675c}button:focus-visible{out
 #help{position:absolute;right:15px;top:166px;width:160px;font-size:11px;line-height:1.65;color:#c4d9e2}
 #loading{position:absolute;inset:0;display:grid;place-items:center;background:#0c1c2d;color:#d3f0e3;font-size:16px;pointer-events:auto;text-align:center;padding:20px}
 #loading[hidden]{display:none}
+#mining{position:absolute;left:50%;top:64%;transform:translate(-50%,-50%);width:min(250px,68vw);background:#102d3cda;border:1px solid #a0cbcb;border-radius:11px;padding:10px 12px;text-align:center;box-shadow:0 5px 20px #061a2b88;pointer-events:none}
+#mining[hidden]{display:none}
+#miningLabel{font-size:12px;font-weight:700;margin-bottom:6px}
+#miningTrack{width:100%;height:10px;background:#334956;border-radius:6px;overflow:hidden}
+#miningFill{width:0%;height:100%;background:linear-gradient(90deg,#86bd87,#f0d37f);transition:none}
 @media(pointer:fine){#joystick,#jump{opacity:.38}#joystick:hover,#jump:hover{opacity:1}}
 @media(max-width:620px){#top{left:8px;right:8px}.panel{padding:8px 9px}h1{font-size:13px}#hotbar{bottom:max(11px,env(safe-area-inset-bottom));gap:4px}#hotbar button{padding:9px 10px;font-size:11px}#joystick{width:105px;height:105px;bottom:60px;left:8px}#jump{width:64px;height:64px;bottom:85px;right:10px}#help{display:none}#grid{top:100px;right:8px;font-size:11px}#notice{top:77px;font-size:11px}}
 </style></head><body>
 <div id="hud">
  <div id="top"><div class="panel"><h1>TERRA <span style="color:#93d7b2">/ MY ISLAND</span></h1><small>1인 전용 서버 기반 스카이랜드</small></div><div class="panel" id="right"><span id="revision">저장 상태 확인 중</span><div id="stats">16×16 시작 섬</div></div></div>
  <div id="notice" role="status" aria-live="polite"></div>
+ <div id="mining" hidden role="status" aria-live="off"><div id="miningLabel">채굴 중 0%</div><div id="miningTrack"><div id="miningFill"></div></div></div>
  <button id="grid">블록 윤곽</button>
- <div id="help">WASD: 이동<br>Space: 점프<br>화면 드래그: 카메라 회전<br>블록 탭/클릭: 상호작용<br>흙: <span id="dirt">—</span>개</div>
+ <div id="help">WASD: 이동<br>Space: 점프<br>화면 드래그: 카메라 회전<br>설치: 탭 · 채굴: 길게 누르기<br>흙: <span id="dirt">—</span>개</div>
  <div id="joystick" aria-label="이동 조이스틱"><div id="knob"></div></div>
  <button id="jump">점프</button>
  <div id="hotbar"><button id="place" class="selected">흙 설치 <span id="dirtSmall"></span></button><button id="mine">블록 파괴</button><button disabled title="다음 버전">광맥 (예정)</button></div>
