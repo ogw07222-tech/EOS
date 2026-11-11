@@ -1,33 +1,49 @@
-# TERRA / EOS
+# TERRA / EOS — First playable server prototype
 
-A mobile-first 3D sky-island factory automation prototype.
+An **individual sky-island game hosted by a central Node.js server**. Multiplayer and player-hosted dedicated servers are deliberately out of scope.
 
-## Current world: starter island
+## Implemented (v0.1 prototype)
 
-The default `index.html` displays the first TERRA starter sky island:
-- Flat 16×16 block grass surface, three blocks thick.
-- **Dirt only** beneath grass; no stone strata, caves or mines.
-- Pixel-textured grass, grassy dirt edge, and exposed brown dirt sides.
-- No interior block faces are rendered; sides and underside are generated as outward-facing WebGL surfaces.
-- Two removable-in-view voxel trees, togglable block grid, camera rotation, zoom and top-down view.
-- Built with Three.js WebGL, designed for mouse and tablet touch input.
+- The previous orbital camera-only viewer has become a **third-person game**.
+- Flat 16×16 starting island, three layers of dirt, green grass surface, two decorative block trees; no underground mines or stone layer.
+- Keyboard: **WASD / arrows** to move, **Space** to jump; mouse drag to orbit, wheel to zoom.
+- Tablet/mobile: virtual joystick, jump button, drag camera, pinch zoom.
+- Tap/click a nearby island block with **Place** or **Mine** selected to modify the island.
+- Dirt inventory is checked and updated on the server; your changes persist on the server between sessions when the same browser keeps its guest cookie.
+- Players get isolated **guest island saves**, not shared multiplayer worlds.
+- Existing drill + conveyor proof of concept is archived at [`prototypes/mining-conveyor.html`](prototypes/mining-conveyor.html).
 
-Launch using a local HTTP server, e.g. `python -m http.server 8080`, and open `http://localhost:8080`. The Three.js ES module is loaded from a CDN, so internet access is required.
+## Run the game
 
-## Earlier mining logistics prototype
+Requires **Node.js 22+** and internet access for the Three.js CDN.
 
-The preserved drill, ore and conveyor demonstrator is at [`prototypes/mining-conveyor.html`](prototypes/mining-conveyor.html).
+```bash
+git clone https://github.com/ogw07222-tech/EOS.git
+cd EOS
+export TERRA_SESSION_SECRET="$(openssl rand -hex 32)"
+npm start
+```
 
-## Checks
+Open **http://localhost:3000** in your browser.
 
-Run `node --test tests/*.test.mjs` to check structural invariants. These do not replace manual WebGL and mobile device testing.
+On Windows PowerShell, set the secret with `$env:TERRA_SESSION_SECRET = "a-long-random-secret-of-at-least-32-chars"` before running `npm start`.
 
-## Project design principles
+For a mobile device on the same LAN, open `http://YOUR_COMPUTER_LAN_IP:3000` if your local firewall/network permits access. This is intended for private local testing, **not production Internet hosting**.
 
-- Sky-island expansion by placing blocks.
-- All mineable industrial stone/metals come from placed renewable resource nodes, **not underground mining**.
-- Deliberately slow ore production/processing, with low construction requirements.
-- Optional portal travel to additional adventure/resource islands.
-- Hostable dedicated multiplayer servers are a future goal, not yet implemented.
+## Test
 
-No GitHub Actions workflows have been added or executed.
+```bash
+npm test
+```
+
+This checks browser entry point and mesh invariants, preserves checks for the archived conveyor prototype, and exercises the server through HTTP including isolated guest worlds, stale write rejection, block transactions, and save/restart.
+
+## Architecture and boundaries
+
+See [`docs/SERVER_ARCHITECTURE.md`](docs/SERVER_ARCHITECTURE.md).
+
+**Not implemented:** permanent accounts/authentication, public production deployment, secure server-side movement verification, cloud database, crafting, usable ore nodes, production machinery, portals, combat, and offline factory progression. Guest cookies are not a substitute for a durable account.
+
+Design goals: Islands-style block expansion, renewable placed ore nodes (including stone), deliberately slow production and processing with affordable machine recipes, portal-gated adventure islands, and single-player server persistence.
+
+**No GitHub Actions were triggered or configured.**
