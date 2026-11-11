@@ -29,8 +29,12 @@ function rebuild(){
  if(outlines){scene.remove(outlines);outlines.geometry.dispose();}
  const pos=[],norm=[],col=[],index=[],outlinePos=[];
  let count=0,facesCount=0;
- for(let x=-64;x<64;x++)for(let z=-64;z<64;z++)for(let y=-8;y<=16;y++){
- if(!has(x,y,z))continue;count++;
+ // Render actual solid blocks only; avoid scanning the entire 128×128×25 edit envelope.
+ const solids=new Set();
+ for(let x=-8;x<8;x++)for(let z=-8;z<8;z++)for(let y=-3;y<0;y++)solids.add(x+','+y+','+z);
+ for(const [k,value] of Object.entries(world.edits)){if(value==='dirt')solids.add(k);else solids.delete(k);}
+ for(const k of solids){
+ const [x,y,z]=k.split(',').map(Number);count++;
  for(const f of faces){
  const [dx,dy,dz]=f.d;if(has(x+dx,y+dy,z+dz))continue;
  const h=hash(x,y,z),shade=f.d[1]===1?colors.top:f.d[1]===-1?colors.bottom:colors.side;
