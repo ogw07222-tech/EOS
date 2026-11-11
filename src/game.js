@@ -47,6 +47,18 @@ function rebuild(){
  const edge= new THREE.EdgesGeometry(g,19);outlines=new THREE.LineSegments(edge,edgesMat);outlines.visible=gridVisible;scene.add(outlines);
  $('stats').textContent='블록 '+count.toLocaleString()+' · 노출면 '+facesCount.toLocaleString();
 }
+// Lightweight stylized voxel trees; decoration only, no resource collection yet.
+const treeTrunk=new THREE.MeshLambertMaterial({color:0x74533a});
+const treeCanopy=new THREE.MeshLambertMaterial({color:0x488469});
+const treeTop=new THREE.MeshLambertMaterial({color:0x66a17a});
+function makeTree(x,z,scale=1){
+ const g=new THREE.Group();g.position.set(x,0,z);g.scale.setScalar(scale);scene.add(g);
+ const tr=new THREE.Mesh(new THREE.BoxGeometry(.63,2.4,.63),treeTrunk);tr.position.y=1.2;tr.castShadow=true;g.add(tr);
+ for(const [dx,dy,dz,w,h,d,mat] of [[0,2.6,0,2.3,1.2,2.3,treeCanopy],[-.4,3.35,.2,1.7,1.1,1.9,treeTop],[.4,2.85,-.5,1.8,1,1.4,treeCanopy]]){
+ const leaf=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);leaf.position.set(dx,dy,dz);leaf.castShadow=true;g.add(leaf);
+ }
+}
+makeTree(-5,-5,1);makeTree(5,4,.9);
 const humanoid=new THREE.Group();scene.add(humanoid);
 const skin=new THREE.MeshLambertMaterial({color:0xe4c6a5}),suit=new THREE.MeshLambertMaterial({color:0x3e6c82}),visor=new THREE.MeshLambertMaterial({color:0x122f43}),boots=new THREE.MeshLambertMaterial({color:0x253d4a});
 function box(parent,w,h,d,mat,x,y,z){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);o.position.set(x,y,z);o.castShadow=true;parent.add(o);return o}
@@ -97,7 +109,7 @@ renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();camDistance=
 renderer.domElement.addEventListener('touchmove',e=>{if(e.touches.length===2){const a=e.touches[0],b=e.touches[1],d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);if(touchZoom)camDistance=Math.max(4,Math.min(17,camDistance*touchZoom/d));touchZoom=d;}},{passive:true});
 renderer.domElement.addEventListener('touchend',()=>touchZoom=0);
 function notice(message){$('notice').textContent=message;clearTimeout(notice.timer);notice.timer=setTimeout(()=>$('notice').textContent='',3000);}
-function inventory(){ $('dirt').textContent=world.inventory.dirt;$('revision').textContent='저장 버전 '+world.revision; }
+function inventory(){ $('dirt').textContent=world.inventory.dirt;$('dirtSmall').textContent='×'+world.inventory.dirt;$('revision').textContent='저장 버전 '+world.revision; }
 async function api(path,opts){const r=await fetch(path,{credentials:'same-origin',...opts});let payload;try{payload=await r.json()}catch{throw Error('서버 응답 오류');}if(!r.ok){const e=new Error(payload.error||'요청 실패');e.world=payload.world;throw e;}return payload;}
 async function interact(sx,sy){
  if(busy||!terrain)return;
