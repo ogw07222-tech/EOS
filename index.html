@@ -78,7 +78,7 @@ const gear=cylinder(drill,.20,.20,.12,MAT.dark,.07,.65,.47,16);gear.rotation.x=M
 for(let i=0;i<12;i++){const a=i*Math.PI/6;box(drill,.10,.10,.07,MAT.light,.07+Math.cos(a)*.21,.65+Math.sin(a)*.21,.54);}
 box(drill,.25,.23,.25,MAT.dark,.45,.39,0); // rear output
 // One tile = 1 x 1 world units; center-line at z=0 until the turn.
-const tileData=[{type:'straight',x:-1,z:0,y:0},{type:'up',x:0,z:0,y:0},{type:'turn',x:1,z:0,y:1},{type:'straight',x:1,z:1,y:1,rot:Math.PI/2}];
+const tileData=[{type:'straight',x:-1,z:0,y:0},{type:'up',x:0,z:0,y:0},{type:'turn',x:1,z:0,y:1},{type:'straight',x:1,z:1,y:1,rot:-Math.PI/2}];
 const arrows=[];
 function arrow(groupObj,pts){const curve=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)));const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,24,.022,6,false),MAT.yellow);groupObj.add(mesh);arrows.push(mesh);const end=curve.getPoint(1),prev=curve.getPoint(.88);const dir=end.clone().sub(prev).normalize();const head=new THREE.Mesh(new THREE.ConeGeometry(.085,.18,7),MAT.yellow);head.position.copy(end);head.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);groupObj.add(head);arrows.push(head);}
 function deck(g,y,rotation=0){const b=box(g,.96,.14,.91,MAT.dark,0,y-.17,0);const top=box(g,.84,.035,.76,MAT.belt,0,y,0);return top}
