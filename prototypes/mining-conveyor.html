@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TERRA | Mining Logistics Prototype</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;background:#101923;color:#edf5f8}
+*{box-sizing:border-box}body{margin:0;overflow:hidden}canvas{display:block;touch-action:none}
+#hud{position:fixed;top:env(safe-area-inset-top,0);left:0;right:0;pointer-events:none;padding:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.panel{background:#152430df;border:1px solid #466171;box-shadow:0 6px 22px #0006;border-radius:13px;padding:12px;pointer-events:auto;backdrop-filter:blur(8px)}
+h1{font-size:17px;margin:0 0 4px;letter-spacing:.16em}small{color:#abc1ce}#status{font-size:12px;color:#b7cbd5;margin-top:5px}
+#controls{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:8px;width:min(96vw,720px);background:#152430e8;border:1px solid #466171;border-radius:15px;padding:10px}
+button{color:#fff;background:#36586c;border:1px solid #66879a;border-radius:10px;padding:11px 13px;font-size:13px;cursor:pointer;touch-action:manipulation}button:focus-visible{outline:2px solid #f5cc64}button.active{background:#16796d}
+#legend{position:fixed;right:12px;top:86px;font-size:12px;pointer-events:none;max-width:210px}
+#toast{position:fixed;bottom:95px;left:50%;transform:translateX(-50%);background:#1b3943dd;padding:8px 12px;border-radius:9px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+@media(max-width:600px){#hud{padding:8px}.panel{padding:9px}h1{font-size:14px}#legend{top:97px;right:8px;font-size:10px}#controls{gap:6px;padding:7px}button{padding:9px;font-size:12px}}
+</style>
+</head>
+<body>
+<div id="hud"><div class="panel"><h1>TERRA <small>· EOS</small></h1><small>Mining + Conveyor / Three.js WebGL</small><div id="status">초기화 중…</div></div><div class="panel"><small>수거한 철광석</small><div style="font-weight:800;font-size:22px" id="inventory">0</div></div></div>
+<div id="legend" class="panel">드래그: 회전 · 휠/핀치: 확대<br>드릴 → 직선 → 상향 (+1) → 우회전 → 직선<br>노란 화살표: 각 벨트당 1개</div>
+<div id="toast" role="status"></div>
+<div id="controls"><button id="pause">일시정지</button><button id="speed">속도 ×1</button><button id="pick">광석 수동 수거</button><button id="arrows">화살표 숨기기</button><button id="reset">시점 초기화</button></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x12212c);
+scene.fog=new THREE.Fog(0x12212c,16,40);
+const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,120);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+document.body.prepend(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xd5f2ff,0x313b45,2));
+const sun=new THREE.DirectionalLight(0xffefcf,2.6);sun.position.set(-4,10,7);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-10;sun.shadow.camera.right=10;sun.shadow.camera.top=10;sun.shadow.camera.bottom=-10;scene.add(sun);
+const MAT={
+metal:new THREE.MeshStandardMaterial({color:0x637785,metalness:.65,roughness:.43}),
+light:new THREE.MeshStandardMaterial({color:0x9daeb9,metalness:.65,roughness:.35}),
+dark:new THREE.MeshStandardMaterial({color:0x273b49,metalness:.35,roughness:.68}),
+belt:new THREE.MeshStandardMaterial({color:0x293b46,roughness:.87}),
+yellow:new THREE.MeshStandardMaterial({color:0xfbd36d,emissive:0x76551a,emissiveIntensity:.26,side:THREE.DoubleSide}),
+ore:new THREE.MeshStandardMaterial({color:0x5ab3de,emissive:0x125071,emissiveIntensity:.4,roughness:.4}),
+rock:new THREE.MeshStandardMaterial({color:0x66717b,roughness:1}),
+ground:new THREE.MeshStandardMaterial({color:0x53675f,roughness:1}),
+green:new THREE.MeshStandardMaterial({color:0x4e9d81,metalness:.25,roughness:.6}),
+red:new THREE.MeshStandardMaterial({color:0xda744c,metalness:.25,roughness:.6})
+};
+function box(parent,w,h,d,mat,x=0,y=0,z=0){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m}
+function cylinder(parent,r1,r2,height,mat,x=0,y=0,z=0,segments=18){const m=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,height,segments),mat);m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m}
+function group(x=0,y=0,z=0){const g=new THREE.Group();g.position.set(x,y,z);scene.add(g);return g}
+function lineMesh(parent,points,radius,material){const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,Math.max(8,points.length*8),radius,7,false),material);mesh.castShadow=true;parent.add(mesh);return mesh}
+const floor=box(scene,13,.24,9,MAT.ground,-.15,-.2,0);
+const grid=new THREE.GridHelper(13,13,0x7e8e83,0x455b53);grid.position.y=-.075;scene.add(grid);
+const oreNode=group(-3.45,.5,0);
+box(oreNode,1,1,1,MAT.rock);
+for(const [x,y,z] of [[0,.51,.09],[-.51,0,.16],[.51,.03,-.17],[.1,.06,.51],[-.1,.03,-.51]]){
+const face=Math.abs(y)>.5?'top':Math.abs(x)>.5?'x':'z';
+for(let i=0;i<4;i++){
+const a=-.30+(i%2)*.34,b=-.26+Math.floor(i/2)*.32;
+const p=face==='top'?[a,y+.008,b]:face==='x'?[x+Math.sign(x)*.008,a,b]:[a,b,z+Math.sign(z)*.008];
+box(oreNode,.16,.15,.16,MAT.ore,...p);
+}}
+const drill=group(-2.20,0,0);
+box(drill,.89,.57,.85,MAT.metal,0,.42,0);
+box(drill,.73,.17,.74,MAT.light,0,.78,0);
+for(const z of [-.32,.32])box(drill,.75,.15,.12,MAT.dark,0,.12,z);
+box(drill,.20,.21,.28,MAT.green,.25,.52,.32);
+const rotor=new THREE.Group();rotor.position.set(-.54,.45,0);drill.add(rotor);
+const shaft=cylinder(rotor,.13,.13,.85,MAT.light,-.38,0,0,20);shaft.rotation.z=Math.PI/2;
+const tip=new THREE.Mesh(new THREE.ConeGeometry(.22,.31,20),MAT.light);
+tip.rotation.z=Math.PI/2;tip.position.x=-.96;rotor.add(tip);
+const flightPoints=[];for(let i=0;i<=75;i++){const t=i/75;const theta=t*Math.PI*6;flightPoints.push([-.76+t*.65,.18*Math.cos(theta),.18*Math.sin(theta)]);}
+lineMesh(rotor,flightPoints,.045,MAT.yellow);
+const gear=cylinder(drill,.20,.20,.12,MAT.dark,.07,.65,.47,16);gear.rotation.x=Math.PI/2;
+for(let i=0;i<12;i++){const a=i*Math.PI/6;box(drill,.10,.10,.07,MAT.light,.07+Math.cos(a)*.21,.65+Math.sin(a)*.21,.54);}
+box(drill,.25,.23,.25,MAT.dark,.45,.39,0); // rear output
+// One tile = 1 x 1 world units; center-line at z=0 until the turn.
+const tileData=[{type:'straight',x:-1,z:0,y:0},{type:'up',x:0,z:0,y:0},{type:'turn',x:1,z:0,y:1},{type:'straight',x:1,z:1,y:1,rot:-Math.PI/2}];
+const arrows=[];
+function arrow(groupObj,pts){const curve=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)));const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,24,.022,6,false),MAT.yellow);groupObj.add(mesh);arrows.push(mesh);const end=curve.getPoint(1),prev=curve.getPoint(.88);const dir=end.clone().sub(prev).normalize();const head=new THREE.Mesh(new THREE.ConeGeometry(.085,.18,7),MAT.yellow);head.position.copy(end);head.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);groupObj.add(head);arrows.push(head);}
+function deck(g,y,rotation=0){const b=box(g,.96,.14,.91,MAT.dark,0,y-.17,0);const top=box(g,.84,.035,.76,MAT.belt,0,y,0);return top}
+function support(g,y){for(const x of [-.34,.34])for(const z of [-.30,.30])box(g,.09,Math.max(.2,y-.10),.09,MAT.metal,x,(y-.10)/2-.015,z);}
+function tile(t){const g=group(t.x,0,t.z);
+ if(t.type==='straight'){
+ const y=t.y+.29; deck(g,y);support(g,y);
+ if(t.rot)g.rotation.y=t.rot;
+ for(const z of [-.41,.41])box(g,.98,.12,.065,MAT.light,0,y+.03,z);
+ arrow(g,[[-.25,y+.045,0],[.22,y+.045,0]]);
+ } else if(t.type==='up'){
+ // lower input is at y=.29, upper output at y=1.29
+ const ya=.29,yb=1.29;
+ const m=box(g,.95,.095,1.16,MAT.belt,0,(ya+yb)/2,0);m.rotation.z=Math.atan2(yb-ya,1);
+ // slope is along x, footprint remains inside one tile
+ m.geometry.dispose();
+ const length=Math.sqrt(2);m.geometry=new THREE.BoxGeometry(length,.09,.79);
+ m.rotation.z=Math.PI/4;
+ for(const z of [-.41,.41]){const rail=box(g,length,.12,.06,MAT.light,0,(ya+yb)/2,z);rail.rotation.z=Math.PI/4;}
+ box(g,.91,.14,.91,MAT.dark,0,.14,0);
+ arrow(g,[[-.28,.52,0],[0,.80,0],[.28,1.08,0]]);
+ } else {
+ const y=1.29;deck(g,y);support(g,y);
+ // Right turn in local coordinates: approach +X, exit +Z, all within 1x1 tile.
+ for(const x of [-.42,.42])box(g,.065,.10,.86,MAT.light,x,y+.05,0);
+ for(const z of [-.42,.42])box(g,.86,.10,.065,MAT.light,0,y+.05,z);
+ arrow(g,[[-.29,y+.055,0],[-.04,y+.055,0],[.17,y+.055,.07],[.27,y+.055,.27]]);
+ }
+}
+tileData.forEach(tile);
+// Bridges between cells align centerline: straight x=-1 -> ramp x=0 -> turn x=1.
+// The ramp top elevation at its +X edge is exactly +1 above lower belt.
+const oreGeo=new THREE.BoxGeometry(.20,.20,.20);
+const pieces=[];
+function makePiece(offset){const root=new THREE.Group();const m=new THREE.Mesh(oreGeo,MAT.ore);root.add(m);scene.add(root);return {root,progress:offset};}
+for(let i=0;i<5;i++)pieces.push(makePiece(-i*1.02));
+const path=[
+new THREE.Vector3(-1.62,.45,0),
+new THREE.Vector3(-1.0,.45,0),
+new THREE.Vector3(-.5,.45,0),
+new THREE.Vector3(0,.95,0),
+new THREE.Vector3(.5,1.45,0),
+new THREE.Vector3(.85,1.45,0),
+new THREE.Vector3(1.16,1.45,.07),
+new THREE.Vector3(1.42,1.45,.35),
+new THREE.Vector3(1.42,1.45,.56),
+new THREE.Vector3(1.42,1.45,1.0),
+new THREE.Vector3(1.42,1.45,1.46)
+];
+let cumulative=[0];for(let i=1;i<path.length;i++)cumulative.push(cumulative[i-1]+path[i].distanceTo(path[i-1]));
+const total=cumulative.at(-1);
+function pathAt(dist){const d=Math.max(0,Math.min(total,dist));let idx=1;while(idx<cumulative.length-1&&cumulative[idx]<d)idx++;const span=cumulative[idx]-cumulative[idx-1];return path[idx-1].clone().lerp(path[idx],span?(d-cumulative[idx-1])/span:0);}
+const state={running:true,speed:1,arrows:true,inventory:0,last:0};
+const status=document.getElementById('status'),inventory=document.getElementById('inventory');
+function pick(){const item=pieces.find(p=>p.progress>=0&&p.progress<=total);if(!item){toast('수거할 광석이 없어');return;}item.progress=-.85;state.inventory++;inventory.textContent=state.inventory;toast('철광석 +1 · 수동 획득');}
+let toastTimeout;function toast(t){const el=document.getElementById('toast');el.textContent=t;el.style.opacity=1;clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.style.opacity=0,1250);}
+document.getElementById('pick').onclick=pick;
+document.getElementById('pause').onclick=e=>{state.running=!state.running;e.target.textContent=state.running?'일시정지':'재생';e.target.classList.toggle('active',!state.running);};
+document.getElementById('speed').onclick=e=>{state.speed=state.speed===1?2:state.speed===2?.5:1;e.target.textContent='속도 ×'+state.speed;};
+document.getElementById('arrows').onclick=e=>{state.arrows=!state.arrows;for(const o of arrows)o.visible=state.arrows;e.target.textContent=state.arrows?'화살표 숨기기':'화살표 표시';};
+let yaw=-.75,pitch=.65,radius=8.6,dragging=false,prevX=0,prevY=0,pinch=0;
+function reset(){yaw=-.75;pitch=.65;radius=8.6;}document.getElementById('reset').onclick=reset;
+const canvas=renderer.domElement;
+canvas.addEventListener('pointerdown',e=>{dragging=true;prevX=e.clientX;prevY=e.clientY;canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointerup',()=>dragging=false);
+canvas.addEventListener('pointercancel',()=>dragging=false);
+canvas.addEventListener('pointermove',e=>{if(!dragging)return;yaw-=(e.clientX-prevX)*.006;pitch=Math.max(.12,Math.min(1.48,pitch+(e.clientY-prevY)*.006));prevX=e.clientX;prevY=e.clientY;});
+canvas.addEventListener('wheel',e=>{e.preventDefault();radius=Math.max(3.5,Math.min(15,radius+Math.sign(e.deltaY)*.55));},{passive:false});
+canvas.addEventListener('touchmove',e=>{if(e.touches.length===2){const a=e.touches[0],b=e.touches[1];const d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);if(pinch)radius=Math.max(3.5,Math.min(15,radius*pinch/d));pinch=d;}},{passive:true});
+canvas.addEventListener('touchend',()=>{pinch=0;});
+function frame(t){requestAnimationFrame(frame);const dt=Math.min(.05,(t-state.last)/1000||0);state.last=t;
+if(state.running){rotor.rotation.x+=dt*state.speed*7;
+for(const p of pieces){p.progress+=dt*state.speed*.85;if(p.progress>total+.15)p.progress=-.95;}}
+for(const p of pieces){p.root.visible=p.progress>=0&&p.progress<=total;if(p.root.visible){p.root.position.copy(pathAt(p.progress));p.root.rotation.y+=dt*.65;}}
+const target=new THREE.Vector3(-.05,.8,.4);camera.position.set(target.x+radius*Math.cos(pitch)*Math.sin(yaw),target.y+radius*Math.sin(pitch),target.z+radius*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(target);
+status.textContent='WebGL · '+(state.running?'가동 중':'일시정지')+' · '+pieces.filter(p=>p.root.visible).length+'개 운송 중';
+renderer.render(scene,camera);
+}
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+requestAnimationFrame(frame);
+</script>
+</body></html>
