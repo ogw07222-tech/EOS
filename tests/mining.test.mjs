@@ -7,11 +7,12 @@ function miningModule(){
  const section=(a,b)=>{const i=code.indexOf(a),j=code.indexOf(b,i);assert.ok(i>=0&&j>i,'missing '+a);return code.slice(i,j);};
  const script=\`
  const MINING_DURATION_MS=1200;let holdMining=null,busy=false,world={nodeDefs:{},nodes:{}};let equipped='shovel';
- const miningHud={hidden:true},miningFill={style:{width:''}},miningLabel={textContent:''};
+ const miningHud={hidden:true},miningFill={style:{width:''}};
+ function updateMiningMarker(){}
  const requests=[];function has(){return true}
  function interactCell(cell,type){requests.push([cell,type])}
  \`+section('function cancelMine(){','function targetBlock(')+section('function updateMine(now){',"renderer.domElement.addEventListener('contextmenu'")+\`
- return {start:(t)=>{holdMining={cell:{kind:'block',x:0,y:-1,z:0},startedAt:t,done:false};miningHud.hidden=false;},cancelMine,updateMine,requests,miningHud,miningFill,miningLabel};
+ return {start:(t)=>{holdMining={cell:{kind:'block',x:0,y:-1,z:0},startedAt:t,done:false};miningHud.hidden=false;},cancelMine,updateMine,requests,miningHud,miningFill};
  \`;
  return Function(script)();
 }
@@ -39,5 +40,7 @@ test('mine uses hold, place remains click, HUD components exist',()=>{
  assert.match(code,/if\(mode==='mine'&&!busy\)/);
  assert.match(code,/if\(mode==='place'&&!dragCam/);
  assert.match(code,/void interactCell\(cell,cell\.kind==='node'\?'harvest':'mine'\)/);
- assert.match(html,/id="mining" hidden/);assert.match(html,/id="miningFill"/);assert.match(html,/길게 눌러 채집/);
+ assert.match(html,/id="mining" hidden/);assert.match(html,/id="miningFill"/);
+ assert.doesNotMatch(html,/id="miningLabel"/);
+ assert.match(code,/worldRoot\.localToWorld\(origin\)\.project\(camera\)/);
 });
