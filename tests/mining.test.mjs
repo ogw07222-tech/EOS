@@ -6,7 +6,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 function miningModule(){
  const section=(a,b)=>{const i=code.indexOf(a),j=code.indexOf(b,i);assert.ok(i>=0&&j>i,'missing '+a);return code.slice(i,j);};
  const script=\`
- const MINING_DURATION_MS=1200;let holdMining=null,busy=false,world={nodeDefs:{},nodes:{}};
+ const MINING_DURATION_MS=1200;let holdMining=null,busy=false,world={nodeDefs:{},nodes:{}};let equipped='shovel';
  const miningHud={hidden:true},miningFill={style:{width:''}},miningLabel={textContent:''};
  const requests=[];function has(){return true}
  function interactCell(cell,type){requests.push([cell,type])}
