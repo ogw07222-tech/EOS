@@ -123,8 +123,14 @@ function animateWalk(dt,moving){
 }
 const shaftMat=new THREE.MeshLambertMaterial({color:0x8f643d}),metalMat=new THREE.MeshLambertMaterial({color:0xa7bcc5});
 const shovelMat=new THREE.MeshLambertMaterial({color:0x85979d});
+const heldDirtMat=new THREE.MeshLambertMaterial({color:0x866447}),heldSandMat=new THREE.MeshLambertMaterial({color:0xd5bf83});
 function equipVisual(kind){
  while(toolDisplay.children.length){const child=toolDisplay.children[0];toolDisplay.remove(child);child.geometry?.dispose();}
+ if(kind==='dirt'||kind==='sand'){
+  toolDisplay.visible=true;
+  const cube=new THREE.Mesh(new THREE.BoxGeometry(.26,.26,.26),kind==='sand'?heldSandMat:heldDirtMat);
+  cube.castShadow=true;toolDisplay.add(cube);return;
+ }
  if(!['pickaxe','shovel','axe'].includes(kind)){toolDisplay.visible=false;return;}
  toolDisplay.visible=true;
  const shaft=new THREE.Mesh(new THREE.BoxGeometry(.055,.58,.055),shaftMat);shaft.position.y=-.04;shaft.castShadow=true;toolDisplay.add(shaft);
