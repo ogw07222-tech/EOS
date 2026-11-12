@@ -26,7 +26,7 @@ function equipment(world){return Array.isArray(world.tools)?world.tools.filter(t
 function nodes(world){return world.nodes||{};}
 const nativeBlock=(x,y,z)=>x>=-8&&x<8&&z>=-8&&z<8&&y>=-3&&y<0?'dirt':null;
 function block(world,x,y,z){const k=key(x,y,z);return Object.hasOwn(world.edits,k)?world.edits[k]:nativeBlock(x,y,z);}
-function fresh(){return {schema:1,revision:0,inventory:{dirt:48,sand:0,wood:0,stone:0,ironOre:0},tools:[...TOOL_TYPES],nodes:{},edits:{},createdAt:Date.now(),updatedAt:Date.now()};}
+function fresh(){return {schema:1,revision:0,inventory:{dirt:48,sand:8,wood:0,stone:0,ironOre:0},tools:[...TOOL_TYPES],nodes:{},edits:{},createdAt:Date.now(),updatedAt:Date.now()};}
 function validWorld(w){
  return !!(w&&w.schema===1&&Number.isSafeInteger(w.revision)&&w.revision>=0&&w.inventory
  &&ITEM_TYPES.every(k=>w.inventory[k]===undefined||(Number.isSafeInteger(w.inventory[k])&&w.inventory[k]>=0&&w.inventory[k]<=1000000))
