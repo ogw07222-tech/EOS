@@ -7,10 +7,11 @@ An **individual sky-island game hosted by a central Node.js server**. Multiplaye
 - The previous orbital camera-only viewer has become a **third-person game**.
 - Flat 16×16 starting island, three layers of dirt, green grass surface, two decorative block trees; no underground mines or stone layer.
 - **Metric scale:** 1 terrain block = **1 metre** (1×1×1 m); the player is **1.78 m tall** and approximately **0.68 m wide with arms down**, using the same metre-based coordinate system. The Three.js worldRoot uses a shared 3.75× rendering conversion for both terrain and avatar, so visual proportions match the physical units. Existing 16×16 island save coordinates remain unchanged.
-- Keyboard: **WASD / arrows** to move, **Space** to jump; mouse drag to orbit, wheel to zoom.
-- Tablet/mobile: virtual joystick, jump button, drag camera, pinch zoom.
-- **Hotbar/inventory:** equip **pickaxe** for stone/iron ore nodes, **shovel** for dirt/sand blocks, **axe** for tree/wood nodes. Select dirt or sand in the hotbar to place blocks. Keyboard slots **1–5**; mobile hotbar taps.
-- **Mining:** press and hold a valid target for 1.2 seconds. Releasing early or dragging cancels progress. Incorrect tools cannot harvest the target.
+- Keyboard: **WASD / arrows** move, **Space** jump, **1–8** select hotbar slots, **E** open/close inventory, **Esc** close inventory. Mouse drag orbits and wheel zooms.
+- Tablet/mobile: virtual joystick, jump button, drag camera, pinch zoom, tap hotbar or inventory button.
+- **Eight-slot hotbar:** pickaxe for stone/iron, shovel for dirt/sand, axe for trees; dirt and sand can be held to place. Stone, iron ore and wood are inventory items only at this stage.
+- **Harvesting:** hold for 1.2 seconds while using the correct tool. A small progress bar floats over the target (no percentage text); a small bottom-right popup displays actual inventory gains.
+- **Player animation:** subtle alternating arm/leg swings while moving, relaxing smoothly at rest.
 - Starter stone, iron and wood nodes are backed by server-stored quantities; sand placement and harvesting persist in inventory.
 - Dirt inventory is checked and updated on the server; your changes persist on the server between sessions when the same browser keeps its guest cookie.
 - Players get isolated **guest island saves**, not shared multiplayer worlds.
