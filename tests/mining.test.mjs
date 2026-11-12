@@ -6,12 +6,12 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 function miningModule(){
  const section=(a,b)=>{const i=code.indexOf(a),j=code.indexOf(b,i);assert.ok(i>=0&&j>i,'missing '+a);return code.slice(i,j);};
  const script=\`
- const MINING_DURATION_MS=1200;let holdMining=null,busy=false,world={};
+ const MINING_DURATION_MS=1200;let holdMining=null,busy=false,world={nodeDefs:{},nodes:{}};
  const miningHud={hidden:true},miningFill={style:{width:''}},miningLabel={textContent:''};
  const requests=[];function has(){return true}
  function interactCell(cell,type){requests.push([cell,type])}
  \`+section('function cancelMine(){','function targetBlock(')+section('function updateMine(now){',"renderer.domElement.addEventListener('contextmenu'")+\`
- return {start:(t)=>{holdMining={cell:{x:0,y:-1,z:0},startedAt:t,done:false};miningHud.hidden=false;},cancelMine,updateMine,requests,miningHud,miningFill,miningLabel};
+ return {start:(t)=>{holdMining={cell:{kind:'block',x:0,y:-1,z:0},startedAt:t,done:false};miningHud.hidden=false;},cancelMine,updateMine,requests,miningHud,miningFill,miningLabel};
  \`;
  return Function(script)();
 }
@@ -33,11 +33,11 @@ test('drag, lost capture, hidden browser and mode change cancel mining',()=>{
  assert.match(code,/if\(holdMining\)cancelMine\(\)/);
  assert.match(code,/addEventListener\('lostpointercapture'/);
  assert.match(code,/document\.hidden\)cancelMine\(\)/);
- assert.match(code,/function setMode\(s\)\{cancelMine\(\)/);
+ assert.match(code,/function setMode\(s\)\{\s*cancelMine\(\)/);
 });
 test('mine uses hold, place remains click, HUD components exist',()=>{
  assert.match(code,/if\(mode==='mine'&&!busy\)/);
  assert.match(code,/if\(mode==='place'&&!dragCam/);
- assert.match(code,/void interactCell\(cell,'mine'\)/);
- assert.match(html,/id="mining" hidden/);assert.match(html,/id="miningFill"/);assert.match(html,/길게 누르기/);
+ assert.match(code,/void interactCell\(cell,cell\.kind==='node'\?'harvest':'mine'\)/);
+ assert.match(html,/id="mining" hidden/);assert.match(html,/id="miningFill"/);assert.match(html,/길게 눌러 채집/);
 });
