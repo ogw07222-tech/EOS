@@ -17,9 +17,10 @@ renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;d
 scene.add(new THREE.HemisphereLight(0xf4fbff,0x536477,2.2));
 const light=new THREE.DirectionalLight(0xffeed2,2.5);light.position.set(-22,40,20);light.castShadow=true;
 light.shadow.mapSize.set(1024,1024);light.shadow.camera.left=-70;light.shadow.camera.right=70;light.shadow.camera.top=70;light.shadow.camera.bottom=-70;scene.add(light);
-const colors={top:['#70ac69','#80b875','#669c61','#89bd7b'],side:['#8e694d','#956b50','#79583f','#9a7556'],bottom:['#6b4b36','#82583f']};
+const colors={top:['#70ac69','#80b875','#669c61','#89bd7b'],side:['#8e694d','#956b50','#79583f','#9a7556'],bottom:['#6b4b36','#82583f'],sand:['#d9be81','#e9d39c','#c9ad72','#e0c68c']};
 function hash(x,y,z){let n=Math.imul(x+101,73856093)^Math.imul(y+211,19349663)^Math.imul(z+307,83492791);n=Math.imul(n^(n>>>13),1274126177);return (n^(n>>>16))>>>0;}
-function has(x,y,z){const k=x+','+y+','+z;if(Object.prototype.hasOwnProperty.call(world.edits,k))return world.edits[k]==='dirt';return x>=-8&&x<8&&z>=-8&&z<8&&y>=-3&&y<0;}
+function blockType(x,y,z){const k=x+','+y+','+z;if(Object.prototype.hasOwnProperty.call(world.edits,k))return world.edits[k];return x>=-8&&x<8&&z>=-8&&z<8&&y>=-3&&y<0?'dirt':null;}
+function has(x,y,z){return blockType(x,y,z)!==null;}
 const faces=[
  {d:[0,1,0],n:[0,1,0],v:[[0,1,1],[1,1,1],[1,1,0],[0,1,0]]},
  {d:[0,-1,0],n:[0,-1,0],v:[[0,0,0],[1,0,0],[1,0,1],[0,0,1]]},
@@ -44,7 +45,7 @@ function rebuild(){
  const [x,y,z]=k.split(',').map(Number);count++;
  for(const f of faces){
  const [dx,dy,dz]=f.d;if(has(x+dx,y+dy,z+dz))continue;
- const h=hash(x,y,z),shade=f.d[1]===1?colors.top:f.d[1]===-1?colors.bottom:colors.side;
+ const h=hash(x,y,z),shade=blockType(x,y,z)==='sand'?colors.sand:f.d[1]===1?colors.top:f.d[1]===-1?colors.bottom:colors.side;
  const rgb=new THREE.Color(shade[(h+facesCount)%shade.length]);
  // Surface is grassy only where an exposed top face exists.
  const start=pos.length/3;
@@ -72,7 +73,7 @@ function makeTree(x,z,scale=1){
 }
 const resourceGroups=[],resourceHitMeshes=[];
 function syncNodes(){
- for(const g of resourceGroups)worldRoot.remove(g);
+ for(const g of resourceGroups){worldRoot.remove(g);if(g.userData.nodeId?.startsWith('stone')||g.userData.nodeId?.startsWith('iron'))g.traverse(obj=>{if(obj.isMesh){obj.geometry.dispose();obj.material.dispose();}});}
  resourceGroups.length=0;resourceHitMeshes.length=0;
  if(!world?.nodeDefs)return;
  for(const [id,def] of Object.entries(world.nodeDefs)){
@@ -107,7 +108,7 @@ const toolDisplay=new THREE.Group();toolDisplay.position.set(-.31,.93,-.21);huma
 const shaftMat=new THREE.MeshLambertMaterial({color:0x8f643d}),metalMat=new THREE.MeshLambertMaterial({color:0xa7bcc5});
 const shovelMat=new THREE.MeshLambertMaterial({color:0x85979d});
 function equipVisual(kind){
- while(toolDisplay.children.length){const child=toolDisplay.children.pop();child.parent=null;child.geometry?.dispose();}
+ while(toolDisplay.children.length){const child=toolDisplay.children[0];toolDisplay.remove(child);child.geometry?.dispose();}
  if(!['pickaxe','shovel','axe'].includes(kind)){toolDisplay.visible=false;return;}
  toolDisplay.visible=true;
  const shaft=new THREE.Mesh(new THREE.BoxGeometry(.055,.58,.055),shaftMat);shaft.position.y=-.04;shaft.castShadow=true;toolDisplay.add(shaft);
