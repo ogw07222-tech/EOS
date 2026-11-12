@@ -2,15 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../src/game.js',import.meta.url),'utf8');
-test('island renders at 3.75x while avatar stays 2.5x',()=>{
+test('one logical voxel is one metre and the avatar uses the same world scale',()=>{
  assert.match(source,/const WORLD_SCALE=3\.75;/);
  assert.match(source,/worldRoot\.scale\.setScalar\(WORLD_SCALE\)/);
  assert.match(source,/worldRoot\.add\(terrain\)/);
  assert.match(source,/worldRoot\.add\(outlines\)/);
  assert.match(source,/worldRoot\.add\(humanoid\)/);
- assert.match(source,/const AVATAR_SCALE=2\.5 \/ WORLD_SCALE;/);
- assert.match(source,/humanoid\.scale\.setScalar\(AVATAR_SCALE\)/);
- assert.equal(3.75*(2.5/3.75),2.5);
+ assert.match(source,/const BLOCK_METERS=1;/);
+ assert.match(source,/const PLAYER_HEIGHT_METERS=1\.78;/);
+ assert.match(source,/const PLAYER_HALF_WIDTH_METERS=0\.34;/);
+ assert.doesNotMatch(source,/humanoid\.scale\.setScalar/);
  assert.match(source,/g\.scale\.setScalar\(scale\);worldRoot\.add\(g\)/);
 });
 test('selection resolves scaled world intersections back into unscaled grid coordinates',()=>{
@@ -23,7 +24,7 @@ test('selection resolves scaled world intersections back into unscaled grid coor
  }
 });
 test('follow camera and projection use rendered coordinates and wider distances',()=>{
- assert.match(source,/const target=player\.pos\.clone\(\)\.add\(new THREE\.Vector3\(0,0\.9,0\)\)\.multiplyScalar\(WORLD_SCALE\)/);
+ assert.match(source,/const target=player\.pos\.clone\(\)\.add\(new THREE\.Vector3\(0,PLAYER_HEIGHT_METERS\*\.54,0\)\)\.multiplyScalar\(WORLD_SCALE\)/);
  assert.match(source,/camDistance=14\.5;/);
  assert.match(source,/Math\.min\(38,Math\.max\(8,camDistance\+/);
  assert.match(source,/hit\.distance>75/);
@@ -34,4 +35,13 @@ test('simulation grid and player physics remain in original block coordinates',(
  assert.match(source,/const player=\{pos:new THREE\.Vector3\(\.5,0,\.5\)/);
  assert.match(source,/function solidForBody\(x,y,z\)/);
  assert.match(source,/const proposedX=player\.pos\.x\+dirX\*speed\*dt/);
+});
+
+test('human height and arm span fit one-metre voxel dimensions',()=>{
+ assert.match(source,/box\(humanoid,\.28,\.28,\.27,skin,0,1\.64,0\)/);
+ assert.match(source,/box\(humanoid,\.12,\.60,\.19,suit,side\*\.28,1\.12,0\)/);
+ const headTop=1.64+.28/2,armHalfSpan=.28+.12/2;
+ assert.ok(Math.abs(headTop-1.78)<1e-12);
+ assert.ok(Math.abs(armHalfSpan-.34)<1e-12);
+ assert.match(source,/for\(const oy of \[\.1,\.9,PLAYER_HEIGHT_METERS-\.08\]\)/);
 });
