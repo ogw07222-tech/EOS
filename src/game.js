@@ -40,7 +40,7 @@ function rebuild(){
  // Render actual solid blocks only; avoid scanning the entire 128×128×25 edit envelope.
  const solids=new Set();
  for(let x=-8;x<8;x++)for(let z=-8;z<8;z++)for(let y=-3;y<0;y++)solids.add(x+','+y+','+z);
- for(const [k,value] of Object.entries(world.edits)){if(value==='dirt')solids.add(k);else solids.delete(k);}
+ for(const [k,value] of Object.entries(world.edits)){if(value==='dirt'||value==='sand')solids.add(k);else solids.delete(k);}
  for(const k of solids){
  const [x,y,z]=k.split(',').map(Number);count++;
  for(const f of faces){
@@ -59,7 +59,7 @@ function rebuild(){
  const edge= new THREE.EdgesGeometry(g,19);outlines=new THREE.LineSegments(edge,edgesMat);outlines.visible=gridVisible;worldRoot.add(outlines);
  $('stats').textContent='블록 '+count.toLocaleString()+' · 노출면 '+facesCount.toLocaleString();
 }
-// Lightweight stylized voxel trees; decoration only, no resource collection yet.
+// Harvestable trees are linked to server resource nodes.
 const treeTrunk=new THREE.MeshLambertMaterial({color:0x74533a});
 const treeCanopy=new THREE.MeshLambertMaterial({color:0x488469});
 const treeTop=new THREE.MeshLambertMaterial({color:0x66a17a});
@@ -189,7 +189,7 @@ function targetBlock(sx,sy,action){
 function updateMine(now){
  if(!holdMining||holdMining.done)return;
  const cell=holdMining.cell;
- if(!world||busy||cell.kind==='node'&&(world.nodes[cell.nodeId]??world.nodeDefs[cell.nodeId].capacity)<=0||cell.kind==='block'&&!has(cell.x,cell.y,cell.z)){cancelMine();return;}
+ if(!world||busy||cell.kind==='node'&&(world.nodes[cell.nodeId]??world.nodeDefs[cell.nodeId].capacity)<=0||cell.kind==='block'&&(!has(cell.x,cell.y,cell.z)||equipped!=='shovel')){cancelMine();return;}
  const elapsed=Math.max(0,now-holdMining.startedAt);
  miningFill.style.width=Math.min(100,elapsed/MINING_DURATION_MS*100).toFixed(1)+'%';
  miningLabel.textContent='채굴 중 '+Math.min(100,Math.floor(elapsed/MINING_DURATION_MS*100))+'%';
@@ -208,7 +208,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
  if(mode==='mine'&&!busy){
   const cell=targetBlock(e.clientX,e.clientY,'mine');
   if(cell){
-   const needed=cell.kind==='node'?cell.tool:'shovel';
+   const needed=cell.kind==='node'?cell.tool:blockType(cell.x,cell.y,cell.z)==='dirt'||blockType(cell.x,cell.y,cell.z)==='sand'?'shovel':'pickaxe';
    if(equipped!==needed){notice('이 자원에는 '+slotNames[needed]+'가 필요해.');return;}
    holdMining={id:e.pointerId,cell,startedAt:performance.now(),done:false};
    miningHud.hidden=false;miningFill.style.width='0%';miningLabel.textContent='채굴 중 0%';
@@ -264,6 +264,7 @@ async function interactCell(cell,action){
  if(action==='place'&&Math.abs(center.x-player.pos.x)<.65&&Math.abs(center.z-player.pos.z)<.65&&center.y>=player.pos.y&&center.y<=player.pos.y+1.8){notice('플레이어 위치에는 설치할 수 없어.');return;}
  if(action==='mine'&&!has(x,y,z))return;
  if(action==='harvest'&&!world.nodeDefs[cell.nodeId])return;
+ if(action==='harvest'&&equipped!==world.nodeDefs[cell.nodeId].tool){notice('올바른 도구를 장착해줘.');return;}
  busy=true;
  try{const data=await api('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:action,x,y,z,nodeId:cell.nodeId,tool:['dirt','sand'].includes(equipped)?'shovel':equipped,item:['dirt','sand'].includes(equipped)?equipped:null,revision:world.revision})});
  world=data.world;inventory();rebuild();syncNodes();notice(action==='place'?'블록 설치 완료 · 서버에 저장됨':action==='harvest'?'자원을 획득했어.':'블록을 캤어.');
@@ -287,5 +288,5 @@ function loop(now){requestAnimationFrame(loop);const dt=Math.min(.033,(now-then)
 }
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 $('grid').onclick=()=>{gridVisible=!gridVisible;$('grid').classList.toggle('selected',gridVisible);if(outlines)outlines.visible=gridVisible;};
-async function init(){try{world=await api('/api/world');rebuild();syncNodes();inventory();$('loading').hidden=true;notice('개인 섬을 불러왔어. 블록을 눌러 설치·파괴해봐.');}catch(e){$('loading').textContent='서버 연결 실패: '+e.message+' · node server.mjs로 실행해야 해.';}}
+async function init(){try{world=await api('/api/world');rebuild();syncNodes();inventory();$('loading').hidden=true;notice('도구를 선택해 길게 눌러 채집하거나, 흙·모래를 선택해 설치해봐.');}catch(e){$('loading').textContent='서버 연결 실패: '+e.message+' · node server.mjs로 실행해야 해.';}}
 requestAnimationFrame(loop);init();
