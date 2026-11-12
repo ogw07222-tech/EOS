@@ -1,10 +1,12 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 const $=id=>document.getElementById(id);
 const SIZE=16;
-// One simulation block stays 1 grid unit. All visible world objects render 2.5x larger.
-const WORLD_SCALE=2.5;
-let world,meshes=[],terrain=null,gridVisible=false,mode='place',busy=false,camYaw=.78,camPitch=.55,camDistance=12;
-const scene=new THREE.Scene();scene.background=new THREE.Color('#94c5e7');scene.fog=new THREE.Fog('#94c5e7',65,165);
+// Logical block coordinates remain unchanged. Blocks are now 3.75x their original render size;
+// the avatar retains its previous 2.5x size.
+const WORLD_SCALE=3.75;
+const AVATAR_SCALE=2.5 / WORLD_SCALE;
+let world,meshes=[],terrain=null,gridVisible=false,mode='place',busy=false,camYaw=.78,camPitch=.55,camDistance=14.5;
+const scene=new THREE.Scene();scene.background=new THREE.Color('#94c5e7');scene.fog=new THREE.Fog('#94c5e7',90,240);
 const worldRoot=new THREE.Group();worldRoot.scale.setScalar(WORLD_SCALE);scene.add(worldRoot);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.12,260);
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
@@ -12,7 +14,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.setSize(innerWi
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;document.body.append(renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xf4fbff,0x536477,2.2));
 const light=new THREE.DirectionalLight(0xffeed2,2.5);light.position.set(-22,40,20);light.castShadow=true;
-light.shadow.mapSize.set(1024,1024);light.shadow.camera.left=-46;light.shadow.camera.right=46;light.shadow.camera.top=46;light.shadow.camera.bottom=-46;scene.add(light);
+light.shadow.mapSize.set(1024,1024);light.shadow.camera.left=-70;light.shadow.camera.right=70;light.shadow.camera.top=70;light.shadow.camera.bottom=-70;scene.add(light);
 const colors={top:['#70ac69','#80b875','#669c61','#89bd7b'],side:['#8e694d','#956b50','#79583f','#9a7556'],bottom:['#6b4b36','#82583f']};
 function hash(x,y,z){let n=Math.imul(x+101,73856093)^Math.imul(y+211,19349663)^Math.imul(z+307,83492791);n=Math.imul(n^(n>>>13),1274126177);return (n^(n>>>16))>>>0;}
 function has(x,y,z){const k=x+','+y+','+z;if(Object.prototype.hasOwnProperty.call(world.edits,k))return world.edits[k]==='dirt';return x>=-8&&x<8&&z>=-8&&z<8&&y>=-3&&y<0;}
@@ -66,7 +68,7 @@ function makeTree(x,z,scale=1){
  }
 }
 makeTree(-5,-5,1);makeTree(5,4,.9);
-const humanoid=new THREE.Group();worldRoot.add(humanoid);
+const humanoid=new THREE.Group();humanoid.scale.setScalar(AVATAR_SCALE);worldRoot.add(humanoid);
 const skin=new THREE.MeshLambertMaterial({color:0xe4c6a5}),suit=new THREE.MeshLambertMaterial({color:0x3e6c82}),visor=new THREE.MeshLambertMaterial({color:0x122f43}),boots=new THREE.MeshLambertMaterial({color:0x253d4a});
 function box(parent,w,h,d,mat,x,y,z){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);o.position.set(x,y,z);o.castShadow=true;parent.add(o);return o}
 box(humanoid,.62,.75,.34,suit,0,1.05,0);box(humanoid,.53,.52,.51,skin,0,1.72,0);
@@ -120,7 +122,7 @@ function targetBlock(sx,sy,action){
  const rect=renderer.domElement.getBoundingClientRect();
  ndc.set(((sx-rect.left)/rect.width)*2-1,-((sy-rect.top)/rect.height)*2+1);
  ray.setFromCamera(ndc,camera);
- const hit=ray.intersectObject(terrain,false)[0];if(!hit||hit.distance>50)return null;
+ const hit=ray.intersectObject(terrain,false)[0];if(!hit||hit.distance>75)return null;
  const normal=hit.face.normal;
  const point=worldRoot.worldToLocal(hit.point.clone()).addScaledVector(normal,action==='place'?.015:-.015);
  const x=Math.floor(point.x),y=Math.floor(point.y),z=Math.floor(point.z);
@@ -180,8 +182,8 @@ renderer.domElement.addEventListener('lostpointercapture',e=>{
 });
 document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelMine();});
 window.addEventListener('blur',cancelMine);
-renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();camDistance=Math.min(30,Math.max(7,camDistance+Math.sign(e.deltaY)*.85));},{passive:false});
-renderer.domElement.addEventListener('touchmove',e=>{if(e.touches.length===2){const a=e.touches[0],b=e.touches[1],d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);if(touchZoom)camDistance=Math.max(7,Math.min(30,camDistance*touchZoom/d));touchZoom=d;}},{passive:true});
+renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();camDistance=Math.min(38,Math.max(8,camDistance+Math.sign(e.deltaY)*1.05));},{passive:false});
+renderer.domElement.addEventListener('touchmove',e=>{if(e.touches.length===2){const a=e.touches[0],b=e.touches[1],d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);if(touchZoom)camDistance=Math.max(8,Math.min(38,camDistance*touchZoom/d));touchZoom=d;}},{passive:true});
 renderer.domElement.addEventListener('touchend',()=>touchZoom=0);
 function notice(message){$('notice').textContent=message;clearTimeout(notice.timer);notice.timer=setTimeout(()=>$('notice').textContent='',3000);}
 function inventory(){ $('dirt').textContent=world.inventory.dirt;$('dirtSmall').textContent='×'+world.inventory.dirt;$('revision').textContent='저장 버전 '+world.revision; }
@@ -214,7 +216,7 @@ let then=performance.now();
 function loop(now){requestAnimationFrame(loop);const dt=Math.min(.033,(now-then)/1000);then=now;
  if(world)move(dt);
  updateMine(now);
- const target=player.pos.clone().add(new THREE.Vector3(0,1.15,0)).multiplyScalar(WORLD_SCALE);
+ const target=player.pos.clone().add(new THREE.Vector3(0,0.9,0)).multiplyScalar(WORLD_SCALE);
  camera.position.set(target.x+camDistance*Math.sin(camYaw)*Math.cos(camPitch),target.y+camDistance*Math.sin(camPitch)+2.0,target.z+camDistance*Math.cos(camYaw)*Math.cos(camPitch));camera.lookAt(target);
  renderer.render(scene,camera);
 }
