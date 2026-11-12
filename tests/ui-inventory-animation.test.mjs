@@ -25,6 +25,12 @@ test('block placement occurs only when holding a placeable block',()=>{
  assert.match(game,/mode=placeableSlots\.has\(s\)\?'place':toolSlots\.has\(s\)\?'mine':'none'/);
  assert.match(game,/if\(mode==='place'&&!dragCam/);
 });
+test('selected dirt or sand is visibly held as a block',()=>{
+ assert.match(game,/if\(kind==='dirt'\|\|kind==='sand'\)/);
+ assert.match(game,/new THREE\.BoxGeometry\(\.26,\.26,\.26\)/);
+ assert.match(game,/kind==='sand'\?heldSandMat:heldDirtMat/);
+ assert.match(game,/toolDisplay\.position\.set\(0,-\.49,-\.19\)/);
+});
 test('mining bar follows selected resource with no percentage readout',()=>{
  assert.match(html,/id="miningFill"/);
  assert.doesNotMatch(html,/id="miningLabel"/);
