@@ -7,7 +7,7 @@ const server=readFileSync(new URL('../server.mjs',import.meta.url),'utf8');
 test('browser entry point loads active game module',()=>{
  assert.match(html,/src="\/src\/game.js"/);
  assert.match(html,/id="joystick"/);assert.match(html,/id="jump"/);
- for(const id of ['pickaxe','shovel','axe','dirtSlot','sandSlot'])assert.match(html,new RegExp('id="'+id+'"'));
+ for(const id of ['slot-pickaxe','slot-shovel','slot-axe','slot-dirt','slot-sand','slot-stone','slot-ironOre','slot-wood'])assert.match(html,new RegExp('id="'+id+'"'));
 });
 test('client uses Three.js WebGL and exposed voxel faces',()=>{
  assert.match(game,/three\.module\.js/);
