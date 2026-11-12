@@ -7,7 +7,7 @@ const BLOCK_METERS=1;
 const PLAYER_HEIGHT_METERS=1.78;
 const PLAYER_HALF_WIDTH_METERS=0.34;
 const WORLD_SCALE=3.75;
-let world,meshes=[],terrain=null,gridVisible=false,mode='place',busy=false,camYaw=.78,camPitch=.55,camDistance=14.5;
+let world,meshes=[],terrain=null,gridVisible=false,mode='mine',equipped='shovel',busy=false,camYaw=.78,camPitch=.55,camDistance=14.5;
 const scene=new THREE.Scene();scene.background=new THREE.Color('#94c5e7');scene.fog=new THREE.Fog('#94c5e7',90,240);
 const worldRoot=new THREE.Group();worldRoot.scale.setScalar(WORLD_SCALE);scene.add(worldRoot);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.12,260);
@@ -68,8 +68,28 @@ function makeTree(x,z,scale=1){
  for(const [dx,dy,dz,w,h,d,mat] of [[0,2.6,0,2.3,1.2,2.3,treeCanopy],[-.4,3.35,.2,1.7,1.1,1.9,treeTop],[.4,2.85,-.5,1.8,1,1.4,treeCanopy]]){
  const leaf=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);leaf.position.set(dx,dy,dz);leaf.castShadow=true;g.add(leaf);
  }
+ return g;
 }
-makeTree(-5,-5,1);makeTree(5,4,.9);
+const resourceGroups=[],resourceHitMeshes=[];
+function syncNodes(){
+ for(const g of resourceGroups)worldRoot.remove(g);
+ resourceGroups.length=0;resourceHitMeshes.length=0;
+ if(!world?.nodeDefs)return;
+ for(const [id,def] of Object.entries(world.nodeDefs)){
+  if((world.nodes[id]??def.capacity)<=0)continue;
+  let group;
+  if(def.kind==='wood')group=makeTree(def.x,def.z,id==='tree-a'?1:.9);
+  else{
+   group=new THREE.Group();group.position.set(def.x,0,def.z);
+   const mat=new THREE.MeshLambertMaterial({color:def.kind==='ironOre'?0x927b68:0x858d8e});
+   const ore=new THREE.Mesh(new THREE.DodecahedronGeometry(def.kind==='ironOre'?.6:.7,0),mat);
+   ore.position.y=.63;ore.castShadow=true;group.add(ore);worldRoot.add(group);
+  }
+  group.userData.nodeId=id;
+  group.traverse(obj=>{if(obj.isMesh){obj.userData.nodeId=id;resourceHitMeshes.push(obj);}});
+  resourceGroups.push(group);
+ }
+}
 const humanoid=new THREE.Group();worldRoot.add(humanoid);
 const skin=new THREE.MeshLambertMaterial({color:0xe4c6a5}),suit=new THREE.MeshLambertMaterial({color:0x3e6c82}),visor=new THREE.MeshLambertMaterial({color:0x122f43}),boots=new THREE.MeshLambertMaterial({color:0x253d4a});
 function box(parent,w,h,d,mat,x,y,z){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);o.position.set(x,y,z);o.castShadow=true;parent.add(o);return o}
@@ -85,10 +105,16 @@ for(const side of [-1,1]){
 const player={pos:new THREE.Vector3(.5,0,.5),vy:0,grounded:true};
 let yawMovement=0;
 const keys=new Set(),touchMove=new THREE.Vector2(0,0);
-window.addEventListener('keydown',e=>{if(e.target instanceof HTMLElement&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='Space'&&!e.repeat)jump();keys.add(e.code);if(e.code==='Digit1')setMode('place');if(e.code==='Digit2')setMode('mine');});
+window.addEventListener('keydown',e=>{if(e.target instanceof HTMLElement&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='Space'&&!e.repeat)jump();keys.add(e.code);if(e.code==='Digit1')setMode('pickaxe');if(e.code==='Digit2')setMode('shovel');if(e.code==='Digit3')setMode('axe');if(e.code==='Digit4')setMode('dirt');});
 window.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>keys.clear());
-function setMode(s){cancelMine();mode=s;$('place').classList.toggle('selected',s==='place');$('mine').classList.toggle('selected',s==='mine');}
-$('place').onclick=()=>setMode('place');$('mine').onclick=()=>setMode('mine');
+const slotNames={pickaxe:'곡괭이',shovel:'삽',axe:'도끼',dirt:'흙 블록'};
+function setMode(s){
+ cancelMine();
+ equipped=s;mode=s==='dirt'?'place':'mine';
+ for(const key of Object.keys(slotNames))$(key==='dirt'?'dirtSlot':key).classList.toggle('selected',key===s);
+ $('equipName').textContent=slotNames[s];
+}
+for(const slot of Object.keys(slotNames))$(slot==='dirt'?'dirtSlot':slot).onclick=()=>setMode(slot);
 $('jump').onclick=jump;
 function jump(){if(player.grounded){player.vy=6.7;player.grounded=false;}}
 function move(dt){
@@ -131,25 +157,31 @@ function targetBlock(sx,sy,action){
  const rect=renderer.domElement.getBoundingClientRect();
  ndc.set(((sx-rect.left)/rect.width)*2-1,-((sy-rect.top)/rect.height)*2+1);
  ray.setFromCamera(ndc,camera);
- const hit=ray.intersectObject(terrain,false)[0];if(!hit||hit.distance>75)return null;
+ const hits=ray.intersectObjects([terrain,...resourceHitMeshes],false);
+ const hit=hits[0];if(!hit||hit.distance>75)return null;
+ if(hit.object.userData.nodeId){
+  const nodeId=hit.object.userData.nodeId,def=world.nodeDefs[nodeId];
+  if(action==='place')return null;
+  return {kind:'node',nodeId,tool:def.tool,x:def.x,y:0,z:def.z};
+ }
  const normal=hit.face.normal;
  const point=worldRoot.worldToLocal(hit.point.clone()).addScaledVector(normal,action==='place'?.015:-.015);
  const x=Math.floor(point.x),y=Math.floor(point.y),z=Math.floor(point.z);
  const center=new THREE.Vector3(x+.5,y+.5,z+.5);
  if(center.distanceTo(new THREE.Vector3(player.pos.x,player.pos.y+1,player.pos.z))>5.5)return null;
- return {x,y,z};
+ return {kind:'block',x,y,z};
 }
 function updateMine(now){
  if(!holdMining||holdMining.done)return;
- const {x,y,z}=holdMining.cell;
- if(!world||!has(x,y,z)||busy){cancelMine();return;}
+ const cell=holdMining.cell;
+ if(!world||busy||cell.kind==='node'&&(world.nodes[cell.nodeId]??world.nodeDefs[cell.nodeId].capacity)<=0||cell.kind==='block'&&!has(cell.x,cell.y,cell.z)){cancelMine();return;}
  const elapsed=Math.max(0,now-holdMining.startedAt);
  miningFill.style.width=Math.min(100,elapsed/MINING_DURATION_MS*100).toFixed(1)+'%';
  miningLabel.textContent='채굴 중 '+Math.min(100,Math.floor(elapsed/MINING_DURATION_MS*100))+'%';
  if(elapsed>=MINING_DURATION_MS){
   const cell=holdMining.cell;
   holdMining.done=true;cancelMine();
-  void interactCell(cell,'mine');
+  void interactCell(cell,cell.kind==='node'?'harvest':'mine');
  }
 }
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
@@ -161,6 +193,8 @@ renderer.domElement.addEventListener('pointerdown',e=>{
  if(mode==='mine'&&!busy){
   const cell=targetBlock(e.clientX,e.clientY,'mine');
   if(cell){
+   const needed=cell.kind==='node'?cell.tool:'shovel';
+   if(equipped!==needed){notice('이 자원에는 '+slotNames[needed]+'가 필요해.');return;}
    holdMining={id:e.pointerId,cell,startedAt:performance.now(),done:false};
    miningHud.hidden=false;miningFill.style.width='0%';miningLabel.textContent='채굴 중 0%';
   }
@@ -195,23 +229,29 @@ renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();camDistance=
 renderer.domElement.addEventListener('touchmove',e=>{if(e.touches.length===2){const a=e.touches[0],b=e.touches[1],d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);if(touchZoom)camDistance=Math.max(8,Math.min(38,camDistance*touchZoom/d));touchZoom=d;}},{passive:true});
 renderer.domElement.addEventListener('touchend',()=>touchZoom=0);
 function notice(message){$('notice').textContent=message;clearTimeout(notice.timer);notice.timer=setTimeout(()=>$('notice').textContent='',3000);}
-function inventory(){ $('dirt').textContent=world.inventory.dirt;$('dirtSmall').textContent='×'+world.inventory.dirt;$('revision').textContent='저장 버전 '+world.revision; }
+function inventory(){
+ for(const item of ['dirt','sand','stone','ironOre','wood'])$(item).textContent=world.inventory[item]||0;
+ $('dirtSmall').textContent='×'+(world.inventory.dirt||0);
+ $('revision').textContent='저장 버전 '+world.revision;
+}
 async function api(path,opts){const r=await fetch(path,{credentials:'same-origin',...opts});let payload;try{payload=await r.json()}catch{throw Error('서버 응답 오류');}if(!r.ok){const e=new Error(payload.error||'요청 실패');e.world=payload.world;throw e;}return payload;}
 async function interact(sx,sy){
  const cell=targetBlock(sx,sy,'place');
  if(!cell){notice('가까운 블록을 선택해줘.');return;}
  return interactCell(cell,'place');
 }
-async function interactCell({x,y,z},action){
+async function interactCell(cell,action){
  if(busy||!world)return;
+ const {x,y,z}=cell;
  const center=new THREE.Vector3(x+.5,y+.5,z+.5);
  if(center.distanceTo(new THREE.Vector3(player.pos.x,player.pos.y+1,player.pos.z))>5.5){notice('가까운 블록만 편집할 수 있어.');return;}
  if(action==='place'&&Math.abs(center.x-player.pos.x)<.65&&Math.abs(center.z-player.pos.z)<.65&&center.y>=player.pos.y&&center.y<=player.pos.y+1.8){notice('플레이어 위치에는 설치할 수 없어.');return;}
  if(action==='mine'&&!has(x,y,z))return;
+ if(action==='harvest'&&!world.nodeDefs[cell.nodeId])return;
  busy=true;
- try{const data=await api('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:action,x,y,z,revision:world.revision})});
- world=data.world;inventory();rebuild();notice(action==='place'?'흙 블록 설치 완료 · 서버에 저장됨':'흙 블록 회수 완료 · 서버에 저장됨');
- }catch(e){if(e.world){world=e.world;inventory();rebuild();}notice('작업 실패: '+e.message);}finally{busy=false;}
+ try{const data=await api('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:action,x,y,z,nodeId:cell.nodeId,tool:equipped==='dirt'?'shovel':equipped,item:equipped==='dirt'?'dirt':null,revision:world.revision})});
+ world=data.world;inventory();rebuild();syncNodes();notice(action==='place'?'흙 블록 설치 완료 · 서버에 저장됨':action==='harvest'?'자원을 획득했어.':'흙 블록을 캤어.');
+ }catch(e){if(e.world){world=e.world;inventory();rebuild();syncNodes();}notice('작업 실패: '+e.message);}finally{busy=false;}
 }
 function joystick(){
  const area=$('joystick'),knob=$('knob');let id=null;
@@ -231,5 +271,5 @@ function loop(now){requestAnimationFrame(loop);const dt=Math.min(.033,(now-then)
 }
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 $('grid').onclick=()=>{gridVisible=!gridVisible;$('grid').classList.toggle('selected',gridVisible);if(outlines)outlines.visible=gridVisible;};
-async function init(){try{world=await api('/api/world');rebuild();inventory();$('loading').hidden=true;notice('개인 섬을 불러왔어. 블록을 눌러 설치·파괴해봐.');}catch(e){$('loading').textContent='서버 연결 실패: '+e.message+' · node server.mjs로 실행해야 해.';}}
+async function init(){try{world=await api('/api/world');rebuild();syncNodes();inventory();$('loading').hidden=true;notice('개인 섬을 불러왔어. 블록을 눌러 설치·파괴해봐.');}catch(e){$('loading').textContent='서버 연결 실패: '+e.message+' · node server.mjs로 실행해야 해.';}}
 requestAnimationFrame(loop);init();
