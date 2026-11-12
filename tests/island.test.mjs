@@ -7,7 +7,7 @@ const server=readFileSync(new URL('../server.mjs',import.meta.url),'utf8');
 test('browser entry point loads active game module',()=>{
  assert.match(html,/src="\/src\/game.js"/);
  assert.match(html,/id="joystick"/);assert.match(html,/id="jump"/);
- assert.match(html,/id="place"/);assert.match(html,/id="mine"/);
+ for(const id of ['pickaxe','shovel','axe','dirtSlot','sandSlot'])assert.match(html,new RegExp('id="'+id+'"'));
 });
 test('client uses Three.js WebGL and exposed voxel faces',()=>{
  assert.match(game,/three\.module\.js/);
@@ -34,8 +34,8 @@ test('movement, interaction and server save are connected',()=>{
  assert.match(game,/function move\(dt\)/);assert.match(game,/function jump\(\)/);
  assert.match(game,/function interact\(sx,sy\)/);assert.match(game,/fetch\(path/);
  assert.match(game,/\/api\/world/);assert.match(game,/\/api\/action/);
- assert.match(game,/world\.revision/);assert.match(game,/makeTree\(-5,-5,1\)/);
+ assert.match(game,/world\.revision/);assert.match(game,/function syncNodes\(\)/);
  assert.match(server,/async function save\(/);
  assert.match(server,/timingSafeEqual/);
- assert.match(server,/if\(current\.inventory\.dirt<1\)/);
+ assert.match(server,/if\(tool!=='shovel'\)/);
 });
