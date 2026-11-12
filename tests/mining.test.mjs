@@ -34,7 +34,7 @@ test('drag, lost capture, hidden browser and mode change cancel mining',()=>{
  assert.match(code,/if\(holdMining\)cancelMine\(\)/);
  assert.match(code,/addEventListener\('lostpointercapture'/);
  assert.match(code,/document\.hidden\)cancelMine\(\)/);
- assert.match(code,/function setMode\(s\)\{\s*cancelMine\(\)/);
+ assert.match(code,/function setMode\(s\)\{\s*if\(!hotbarSlots\.includes\(s\)\)return;\s*cancelMine\(\)/);
 });
 test('mine uses hold, place remains click, HUD components exist',()=>{
  assert.match(code,/if\(mode==='mine'&&!busy\)/);
