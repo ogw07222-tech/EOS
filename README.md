@@ -6,7 +6,7 @@ An **individual sky-island game hosted by a central Node.js server**. Multiplaye
 
 - The previous orbital camera-only viewer has become a **third-person game**.
 - Flat 16×16 starting island, three layers of dirt, green grass surface, two decorative block trees; no underground mines or stone layer.
-- World blocks and the island now render at **3.75× their original size** (an additional 1.5×), while the player avatar remains **2.5×**. Third-person camera, shadows and raycast coordinate conversion have been adjusted. The saved grid remains 16×16 and existing island data is unaffected.
+- **Metric scale:** 1 terrain block = **1 metre** (1×1×1 m); the player is **1.78 m tall** and approximately **0.68 m wide with arms down**, using the same metre-based coordinate system. The Three.js worldRoot uses a shared 3.75× rendering conversion for both terrain and avatar, so visual proportions match the physical units. Existing 16×16 island save coordinates remain unchanged.
 - Keyboard: **WASD / arrows** to move, **Space** to jump; mouse drag to orbit, wheel to zoom.
 - Tablet/mobile: virtual joystick, jump button, drag camera, pinch zoom.
 - **Place:** tap/click a nearby block face to place dirt. **Mine:** press and hold the target block for 1.2 seconds; a progress bar appears, and releasing early or dragging cancels mining.
