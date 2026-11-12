@@ -1,10 +1,12 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 const $=id=>document.getElementById(id);
 const SIZE=16;
-// Logical block coordinates remain unchanged. Blocks are now 3.75x their original render size;
-// the avatar retains its previous 2.5x size.
+// Simulation units are metres: one voxel grid cell measures 1 m on each axis.
+// WORLD_SCALE is a renderer-only conversion; both blocks and the avatar share it.
+const BLOCK_METERS=1;
+const PLAYER_HEIGHT_METERS=1.78;
+const PLAYER_HALF_WIDTH_METERS=0.34;
 const WORLD_SCALE=3.75;
-const AVATAR_SCALE=2.5 / WORLD_SCALE;
 let world,meshes=[],terrain=null,gridVisible=false,mode='place',busy=false,camYaw=.78,camPitch=.55,camDistance=14.5;
 const scene=new THREE.Scene();scene.background=new THREE.Color('#94c5e7');scene.fog=new THREE.Fog('#94c5e7',90,240);
 const worldRoot=new THREE.Group();worldRoot.scale.setScalar(WORLD_SCALE);scene.add(worldRoot);
@@ -68,11 +70,18 @@ function makeTree(x,z,scale=1){
  }
 }
 makeTree(-5,-5,1);makeTree(5,4,.9);
-const humanoid=new THREE.Group();humanoid.scale.setScalar(AVATAR_SCALE);worldRoot.add(humanoid);
+const humanoid=new THREE.Group();worldRoot.add(humanoid);
 const skin=new THREE.MeshLambertMaterial({color:0xe4c6a5}),suit=new THREE.MeshLambertMaterial({color:0x3e6c82}),visor=new THREE.MeshLambertMaterial({color:0x122f43}),boots=new THREE.MeshLambertMaterial({color:0x253d4a});
 function box(parent,w,h,d,mat,x,y,z){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);o.position.set(x,y,z);o.castShadow=true;parent.add(o);return o}
-box(humanoid,.62,.75,.34,suit,0,1.05,0);box(humanoid,.53,.52,.51,skin,0,1.72,0);
-box(humanoid,.55,.19,.14,visor,0,1.74,-.32);for(const s of [-1,1]){box(humanoid,.20,.64,.25,suit,s*.48,1.06,0);box(humanoid,.23,.60,.27,boots,s*.18,.35,0);}
+// Ordinary adult proportions in metres: 1.78 m tall, ~0.68 m arm-to-arm width.
+// Feet sit at y=0, and the top of the head is exactly PLAYER_HEIGHT_METERS.
+box(humanoid,.44,.65,.25,suit,0,1.105,0); // torso: 0.78–1.43 m
+box(humanoid,.28,.28,.27,skin,0,1.64,0); // head: 1.50–1.78 m
+box(humanoid,.23,.09,.05,visor,0,1.65,-.16);
+for(const side of [-1,1]){
+ box(humanoid,.12,.60,.19,suit,side*.28,1.12,0); // shoulders/arms, outside x=±0.34 m
+ box(humanoid,.18,.78,.22,boots,side*.125,.39,0); // legs: 0–0.78 m
+}
 const player={pos:new THREE.Vector3(.5,0,.5),vy:0,grounded:true};
 let yawMovement=0;
 const keys=new Set(),touchMove=new THREE.Vector2(0,0);
@@ -107,7 +116,7 @@ function move(dt){
  if(player.pos.y < -13){player.pos.set(.5,3,.5);player.vy=0;notice('섬 아래로 떨어져 시작 위치로 복귀했어.');}
  humanoid.position.copy(player.pos);
 }
-function solidForBody(x,y,z){for(const oy of [.15,1.0])for(const ox of [-.18,.18])for(const oz of [-.18,.18])if(has(Math.floor(x+ox),Math.floor(y+oy),Math.floor(z+oz)))return true;return false;}
+function solidForBody(x,y,z){for(const oy of [.1,.9,PLAYER_HEIGHT_METERS-.08])for(const ox of [-PLAYER_HALF_WIDTH_METERS,PLAYER_HALF_WIDTH_METERS])for(const oz of [-.19,.19])if(has(Math.floor(x+ox),Math.floor(y+oy),Math.floor(z+oz)))return true;return false;}
 const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
 const MINING_DURATION_MS=1200;
 let pressStart=null,dragCam=false,lastPoint=null,touchZoom=0,holdMining=null;
@@ -216,7 +225,7 @@ let then=performance.now();
 function loop(now){requestAnimationFrame(loop);const dt=Math.min(.033,(now-then)/1000);then=now;
  if(world)move(dt);
  updateMine(now);
- const target=player.pos.clone().add(new THREE.Vector3(0,0.9,0)).multiplyScalar(WORLD_SCALE);
+ const target=player.pos.clone().add(new THREE.Vector3(0,PLAYER_HEIGHT_METERS*.54,0)).multiplyScalar(WORLD_SCALE);
  camera.position.set(target.x+camDistance*Math.sin(camYaw)*Math.cos(camPitch),target.y+camDistance*Math.sin(camPitch)+2.0,target.z+camDistance*Math.cos(camYaw)*Math.cos(camPitch));camera.lookAt(target);
  renderer.render(scene,camera);
 }
