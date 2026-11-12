@@ -20,7 +20,7 @@ test('camera-relative WASD is correct in all four cardinal camera rotations',()=
 test('UI mode changes do not reference missing mode element',()=>{
  assert.match(code,/function setMode\(s\)/);
  assert.doesNotMatch(code,/\$\('mode'\)/);
- assert.match(code,/const slotNames=\{pickaxe:/);
+ assert.match(code,/const hotbarSlots=\['pickaxe','shovel','axe','dirt','sand','stone','ironOre','wood'\]/);
  assert.match(code,/equipVisual\(s\)/);
 });
 test('jump key uses keydown edge; joystick is radial normalized',()=>{
