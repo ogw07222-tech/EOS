@@ -39,7 +39,8 @@ test('simulation grid and player physics remain in original block coordinates',(
 
 test('human height and arm span fit one-metre voxel dimensions',()=>{
  assert.match(source,/box\(humanoid,\.28,\.28,\.27,skin,0,1\.64,0\)/);
- assert.match(source,/box\(humanoid,\.12,\.60,\.19,suit,side\*\.28,1\.12,0\)/);
+ assert.match(source,/box\(arm,\.12,\.60,\.19,suit,0,-\.30,0\)/);
+ assert.match(source,/arm\.position\.set\(side\*\.28,1\.41,0\)/);
  const headTop=1.64+.28/2,armHalfSpan=.28+.12/2;
  assert.ok(Math.abs(headTop-1.78)<1e-12);
  assert.ok(Math.abs(armHalfSpan-.34)<1e-12);
