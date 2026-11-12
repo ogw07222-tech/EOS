@@ -102,19 +102,33 @@ for(const side of [-1,1]){
  box(humanoid,.12,.60,.19,suit,side*.28,1.12,0); // shoulders/arms, outside x=±0.34 m
  box(humanoid,.18,.78,.22,boots,side*.125,.39,0); // legs: 0–0.78 m
 }
+// Simple low-poly tool held in the right hand. Visual model follows equipped slot.
+const toolDisplay=new THREE.Group();toolDisplay.position.set(-.31,.93,-.21);humanoid.add(toolDisplay);
+const shaftMat=new THREE.MeshLambertMaterial({color:0x8f643d}),metalMat=new THREE.MeshLambertMaterial({color:0xa7bcc5});
+const shovelMat=new THREE.MeshLambertMaterial({color:0x85979d});
+function equipVisual(kind){
+ while(toolDisplay.children.length){const child=toolDisplay.children.pop();child.parent=null;child.geometry?.dispose();}
+ if(!['pickaxe','shovel','axe'].includes(kind)){toolDisplay.visible=false;return;}
+ toolDisplay.visible=true;
+ const shaft=new THREE.Mesh(new THREE.BoxGeometry(.055,.58,.055),shaftMat);shaft.position.y=-.04;shaft.castShadow=true;toolDisplay.add(shaft);
+ const head=kind==='pickaxe'?new THREE.BoxGeometry(.43,.08,.10):kind==='axe'?new THREE.BoxGeometry(.27,.24,.095):new THREE.BoxGeometry(.19,.24,.06);
+ const tip=new THREE.Mesh(head,kind==='shovel'?shovelMat:metalMat);
+ tip.position.set(kind==='shovel'?0:.075,.22,0);tip.castShadow=true;toolDisplay.add(tip);
+}
+equipVisual('shovel');
 const player={pos:new THREE.Vector3(.5,0,.5),vy:0,grounded:true};
 let yawMovement=0;
 const keys=new Set(),touchMove=new THREE.Vector2(0,0);
-window.addEventListener('keydown',e=>{if(e.target instanceof HTMLElement&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='Space'&&!e.repeat)jump();keys.add(e.code);if(e.code==='Digit1')setMode('pickaxe');if(e.code==='Digit2')setMode('shovel');if(e.code==='Digit3')setMode('axe');if(e.code==='Digit4')setMode('dirt');});
+window.addEventListener('keydown',e=>{if(e.target instanceof HTMLElement&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='Space'&&!e.repeat)jump();keys.add(e.code);if(e.code==='Digit1')setMode('pickaxe');if(e.code==='Digit2')setMode('shovel');if(e.code==='Digit3')setMode('axe');if(e.code==='Digit4')setMode('dirt');if(e.code==='Digit5')setMode('sand');});
 window.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>keys.clear());
-const slotNames={pickaxe:'곡괭이',shovel:'삽',axe:'도끼',dirt:'흙 블록'};
+const slotNames={pickaxe:'곡괭이',shovel:'삽',axe:'도끼',dirt:'흙 블록',sand:'모래 블록'};
 function setMode(s){
  cancelMine();
- equipped=s;mode=s==='dirt'?'place':'mine';
- for(const key of Object.keys(slotNames))$(key==='dirt'?'dirtSlot':key).classList.toggle('selected',key===s);
- $('equipName').textContent=slotNames[s];
+ equipped=s;mode=['dirt','sand'].includes(s)?'place':'mine';
+ for(const key of Object.keys(slotNames))$((key==='dirt'||key==='sand')?key+'Slot':key).classList.toggle('selected',key===s);
+ $('equipName').textContent=slotNames[s];equipVisual(s);
 }
-for(const slot of Object.keys(slotNames))$(slot==='dirt'?'dirtSlot':slot).onclick=()=>setMode(slot);
+for(const slot of Object.keys(slotNames))$((slot==='dirt'||slot==='sand')?slot+'Slot':slot).onclick=()=>setMode(slot);
 $('jump').onclick=jump;
 function jump(){if(player.grounded){player.vy=6.7;player.grounded=false;}}
 function move(dt){
@@ -232,6 +246,7 @@ function notice(message){$('notice').textContent=message;clearTimeout(notice.tim
 function inventory(){
  for(const item of ['dirt','sand','stone','ironOre','wood'])$(item).textContent=world.inventory[item]||0;
  $('dirtSmall').textContent='×'+(world.inventory.dirt||0);
+ $('sandSmall').textContent='×'+(world.inventory.sand||0);
  $('revision').textContent='저장 버전 '+world.revision;
 }
 async function api(path,opts){const r=await fetch(path,{credentials:'same-origin',...opts});let payload;try{payload=await r.json()}catch{throw Error('서버 응답 오류');}if(!r.ok){const e=new Error(payload.error||'요청 실패');e.world=payload.world;throw e;}return payload;}
@@ -249,8 +264,8 @@ async function interactCell(cell,action){
  if(action==='mine'&&!has(x,y,z))return;
  if(action==='harvest'&&!world.nodeDefs[cell.nodeId])return;
  busy=true;
- try{const data=await api('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:action,x,y,z,nodeId:cell.nodeId,tool:equipped==='dirt'?'shovel':equipped,item:equipped==='dirt'?'dirt':null,revision:world.revision})});
- world=data.world;inventory();rebuild();syncNodes();notice(action==='place'?'흙 블록 설치 완료 · 서버에 저장됨':action==='harvest'?'자원을 획득했어.':'흙 블록을 캤어.');
+ try{const data=await api('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:action,x,y,z,nodeId:cell.nodeId,tool:['dirt','sand'].includes(equipped)?'shovel':equipped,item:['dirt','sand'].includes(equipped)?equipped:null,revision:world.revision})});
+ world=data.world;inventory();rebuild();syncNodes();notice(action==='place'?'블록 설치 완료 · 서버에 저장됨':action==='harvest'?'자원을 획득했어.':'블록을 캤어.');
  }catch(e){if(e.world){world=e.world;inventory();rebuild();syncNodes();}notice('작업 실패: '+e.message);}finally{busy=false;}
 }
 function joystick(){
