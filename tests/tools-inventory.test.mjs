@@ -35,7 +35,7 @@ test('sand placement and shovel recovery preserve quantity',()=>{
  assert.equal(w.inventory.sand,7);assert.equal(w.edits['0,0,0'],'sand');
  assert.match(change(w,{type:'mine',x:0,y:0,z:0,tool:'axe',revision:1}).error,/shovel/);
  w=change(w,{type:'mine',x:0,y:0,z:0,tool:'shovel',revision:1}).next;
- assert.equal(w.inventory.sand,8);assert.equal(w.edits['0,0,0'],null);
+ assert.equal(w.inventory.sand,8);assert.equal(Object.hasOwn(w.edits,'0,0,0'),false);
 });
 test('legacy saves without tools/nodes remain usable',()=>{
  const {validWorld,change}=rules();
