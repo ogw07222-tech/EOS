@@ -1,0 +1,6 @@
+    mHiddenWhileProfileLockedState=false
+  Window #24 Window{325430a u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}:
+    mDisplayId=16 taskId=8310 mSession=Session{282d8b9 7403:u0a10326} mClient=android.os.BinderProxy@cef4775
+    mOwnerUid=10326 showForAllUsers=false package=dev.terra.vdtest appop=NONE
+    mAttrs={(0,0)(fillxfill) sim={adjust=resize forwardNavigation} layoutInDisplayCutoutMode=always ty=BASE_APPLICATION wanim=0x1030318
+      fl=81810180

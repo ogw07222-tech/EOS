@@ -1,28 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
-import {mkdtemp,rm,writeFile} from 'node:fs/promises';
+import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {once} from 'node:events';
 import net from 'node:net';
 import {createHmac} from 'node:crypto';
-import {treeWoodYieldForRoll} from '../src/farming-rules.mjs';
+import {pathToFileURL} from 'node:url';
+import {isFarmTileWatered,treeWoodYieldForRoll} from '../src/farming-rules.mjs';
 
 const root=resolve(import.meta.dirname,'..');
 const secret='testing_secret_for_terra_game_1234567890';
 async function randomPort(){const s=net.createServer();s.listen(0,'127.0.0.1');await once(s,'listening');const p=s.address().port;await new Promise(r=>s.close(r));return p;}
-async function boot(port,dir){const child=spawn(process.execPath,['server.mjs'],{cwd:root,env:{...process.env,PORT:String(port),TERRA_SAVE_DIR:dir,TERRA_SESSION_SECRET:secret},stdio:['ignore','pipe','pipe']});let stderr='';child.stderr.on('data',b=>stderr+=b.toString());await new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=>reject(Error('server startup timed out: '+stderr)),5000);child.stdout.on('data',b=>{out+=b;if(out.includes('TERRA prototype server:')){clearTimeout(timer);resolve();}});child.once('exit',code=>{clearTimeout(timer);reject(Error(`server exited ${code}: ${stderr}`));});});return child;}
+async function boot(port,dir,nodeEnv,virtualTime=false){const clock=join(root,'tests','fixtures','virtual-clock.mjs');const child=spawn(process.execPath,['server.mjs'],{cwd:root,env:{...process.env,PORT:String(port),TERRA_SAVE_DIR:dir,TERRA_SESSION_SECRET:secret,...(nodeEnv?{NODE_ENV:nodeEnv}:{}),...(virtualTime?{NODE_OPTIONS:`--import=${pathToFileURL(clock).href}`,TERRA_VIRTUAL_TIME_STEP_MS:'100'}:{})},stdio:['ignore','pipe','pipe']});let stderr='';child.stderr.on('data',b=>stderr+=b.toString());await new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=>reject(Error('server startup timed out: '+stderr)),5000);child.stdout.on('data',b=>{out+=b;if(out.includes('TERRA prototype server:')){clearTimeout(timer);resolve();}});child.once('exit',code=>{clearTimeout(timer);reject(Error(`server exited ${code}: ${stderr}`));});});return child;}
 async function stop(child){if(child&&child.exitCode===null){child.kill('SIGTERM');await once(child,'exit');}}
 async function req(port,path,body,cookie){const r=await fetch(`http://127.0.0.1:${port}${path}`,{method:body?'POST':'GET',headers:{...(cookie?{Cookie:cookie}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});return {status:r.status,cookie:r.headers.get('set-cookie'),body:await r.json()};}
 async function freshWorld(){const dir=await mkdtemp(join(tmpdir(),'terra-farm-'));const port=await randomPort();const proc=await boot(port,dir);const r=await req(port,'/api/world');return {dir,port,proc,cookie:r.cookie.split(';')[0],world:r.body};}
-async function preparedWorld(crops){const dir=await mkdtemp(join(tmpdir(),'terra-farm-fixture-'));const id='abcdef0123456789abcdef0123456789';const world={schema:1,worldVersion:3,islandSize:10,revision:0,inventory:{dirt:48,wood:0,stone:0,wheat:0,wheat_seed:0,sapling:0,items:{},tools:{wood_pickaxe:1,wood_axe:1,wood_shovel:1,hoe:1,scythe:1,watering_can:1},quickSlots:['wood_pickaxe','wood_axe','wood_shovel','hoe','watering_can','scythe',null,null],selectedSlot:5,wateringCanUses:10},edits:{},machines:[],trees:[],harvestedTrees:[],tilled:crops.map(c=>[c.x,c.y,c.z]),crops:crops.map((c,i)=>({id:`crop_${i}`,stage:4,progress:0,lastTick:Date.now(),...c})),watered:{},harvestedCrops:[],oreNodes:[],player:{x:.5,y:0,z:.5,grounded:true}};await writeFile(join(dir,id+'.json'),JSON.stringify(world));const port=await randomPort(),proc=await boot(port,dir),sig=createHmac('sha256',secret).update(id).digest('hex');return {dir,port,proc,cookie:`terra_session=${id}.${sig}`,world};}
+async function preparedWorld(crops,options={}){const dir=await mkdtemp(join(tmpdir(),'terra-farm-fixture-'));const id='abcdef0123456789abcdef0123456789';const inventory={dirt:48,wood:0,stone:0,wheat:0,wheat_seed:0,sapling:0,items:{},tools:{wood_pickaxe:1,wood_axe:1,wood_shovel:1,hoe:1,scythe:1,watering_can:1},quickSlots:['wood_pickaxe','wood_axe','wood_shovel','hoe','watering_can','scythe',null,null],selectedSlot:5,wateringCanUses:10,...options.inventory};const world={schema:1,worldVersion:3,islandSize:10,revision:options.revision??0,coins:options.coins??100,inventory,edits:{},machines:[],trees:options.trees||[],harvestedTrees:[],tilled:options.tilled||crops.map(c=>[c.x,c.y,c.z]),crops:crops.map((c,i)=>({id:`crop_${i}`,stage:4,progress:0,lastTick:Date.now(),...c})),watered:options.watered||{},waterSources:options.waterSources||[],harvestedCrops:[],oreNodes:[],player:options.player||{x:.5,y:0,z:.5,grounded:true}};await writeFile(join(dir,id+'.json'),JSON.stringify(world));const port=await randomPort(),proc=await boot(port,dir,options.nodeEnv,options.virtualTime),sig=createHmac('sha256',secret).update(id).digest('hex');return {dir,port,proc,cookie:`terra_session=${id}.${sig}`,world,id};}
 const farm=(port,cookie,action,x,y,z,tool,revision)=>req(port,'/api/farm',{action,x,y,z,tool,revision},cookie);
 
 test('tree wood probability boundary is 70 percent for two and 30 percent for three',()=>{
  assert.equal(treeWoodYieldForRoll(0),2);assert.equal(treeWoodYieldForRoll(0.699999),2);
  assert.equal(treeWoodYieldForRoll(0.7),3);assert.equal(treeWoodYieldForRoll(0.999999),3);
  assert.throws(()=>treeWoodYieldForRoll(1),RangeError);
+});
+
+test('farm moisture is interpreted as positive remaining game milliseconds',async()=>{
+ assert.equal(isFarmTileWatered(300000),true);assert.equal(isFarmTileWatered(1),true);
+ for(const remaining of [0,-1,null,undefined,NaN,Infinity,'300000'])assert.equal(isFarmTileWatered(remaining),false);
+ const client=await readFile(join(root,'src','game.js'),'utf8');
+ assert.ok(client.includes("isFarmTileWatered(world.watered?.[[x,y,z].join(',')])"));
 });
 
 test('new island has the complete flat starter farm and persists a hand harvest',async()=>{
@@ -92,6 +100,66 @@ test('water doubles active-session crop progress while restart time is excluded'
   const crop=r.body.crops[0];assert.ok(crop.progress<60000);
   await stop(c.proc);c.proc=await boot(c.port,c.dir);await new Promise(resolve=>setTimeout(resolve,40));
   r=await req(c.port,'/api/world',null,c.cookie);assert.equal(r.body.crops[0].stage,2,'time spent offline must not advance the crop');
+ }finally{await stop(c.proc);await rm(c.dir,{recursive:true,force:true});}
+});
+
+test('save, guest isolation, and restart preserve crops at every growth stage without offline catch-up',async()=>{
+ const stages=[1,2,3,4].map((stage,i)=>({id:`stage_${stage}`,x:i-1,y:0,z:3,stage,progress:12000,lastTick:Date.now()}));
+ const c=await preparedWorld(stages,{revision:17,coins:321,inventory:{wheat:8,wheat_seed:6,wateringCanUses:7},watered:{'0,0,3':240000}});try{
+  let r=await req(c.port,'/api/world',null,c.cookie);assert.equal(r.body.revision,17);assert.deepEqual(r.body.crops.map(v=>v.stage),[1,2,3,4]);
+  assert.equal(r.body.coins,321);assert.equal(r.body.inventory.wheat,8);assert.equal(r.body.inventory.wheat_seed,6);assert.equal(r.body.inventory.wateringCanUses,7);assert.ok(r.body.watered['0,0,3']>0);
+  const persisted=JSON.parse(await readFile(join(c.dir,c.id+'.json'),'utf8'));assert.deepEqual(persisted.crops.map(v=>v.stage),[1,2,3,4]);
+  const guest=await req(c.port,'/api/world');assert.equal(guest.body.coins,100);assert.equal(guest.body.crops.length,5);assert.ok(!guest.body.crops.some(v=>v.id.startsWith('stage_')),'another guest must not see the fixture crops');
+  await stop(c.proc);c.proc=await boot(c.port,c.dir);await new Promise(resolve=>setTimeout(resolve,80));
+  r=await req(c.port,'/api/world',null,c.cookie);assert.deepEqual(r.body.crops.map(v=>v.stage),[1,2,3,4],'offline duration must not grow crops');assert.equal(r.body.revision,17);assert.equal(r.body.inventory.wheat,8);assert.equal(r.body.inventory.wheat_seed,6);assert.equal(r.body.inventory.wateringCanUses,7);assert.ok(r.body.watered['0,0,3']>0);
+ }finally{await stop(c.proc);await rm(c.dir,{recursive:true,force:true});}
+});
+
+test('watering uses are capped, timers do not stack, and an empty can can refill at a source',async()=>{
+ const c=await preparedWorld([{x:0,y:0,z:3,stage:1}],{waterSources:[{x:0,y:0,z:0}],inventory:{selectedSlot:4,wateringCanUses:1}});try{
+  let r=await farm(c.port,c.cookie,'water',0,0,3,'watering_can',0);assert.equal(r.status,200,r.body.error);assert.equal(r.body.world.inventory.wateringCanUses,0);
+  const first=r.body.world.watered['0,0,3'];assert.ok(first>0&&first<=300000);
+  r=await farm(c.port,c.cookie,'water',0,0,3,'watering_can',r.body.world.revision);assert.equal(r.status,400);assert.equal(r.body.world.inventory.wateringCanUses,0);
+  r=await farm(c.port,c.cookie,'refill',0,0,0,'watering_can',r.body.world.revision);assert.equal(r.status,200,r.body.error);assert.equal(r.body.world.inventory.wateringCanUses,10);
+  r=await farm(c.port,c.cookie,'water',0,0,3,'watering_can',r.body.world.revision);assert.equal(r.status,200,r.body.error);assert.equal(r.body.world.inventory.wateringCanUses,9);
+  const reset=r.body.world.watered['0,0,3'];assert.ok(reset>0&&reset<=300000);assert.ok(reset<=first+1000,'rewatering resets the duration instead of stacking it');
+ }finally{await stop(c.proc);await rm(c.dir,{recursive:true,force:true});}
+});
+
+test('concurrent repeated planting and harvesting are revision-safe and award once',async()=>{
+ const c=await preparedWorld([{id:'mature',x:0,y:0,z:3,stage:4}],{tilled:[[0,0,3],[1,0,3]],inventory:{wheat_seed:2}});try{
+  await req(c.port,'/api/world',null,c.cookie); // initialize the serialized session before racing requests
+  const plants=await Promise.all(Array.from({length:10},()=>farm(c.port,c.cookie,'plant',1,0,3,'hoe',0)));
+  assert.equal(plants.filter(v=>v.status===200).length,1);assert.equal(plants.filter(v=>v.status===409).length,9);
+  let w=(await req(c.port,'/api/world',null,c.cookie)).body;assert.equal(w.inventory.wheat_seed,1);assert.equal(w.crops.filter(v=>v.x===1).length,1);
+  const harvests=await Promise.all(Array.from({length:10},()=>farm(c.port,c.cookie,'harvest',0,0,3,null,w.revision)));
+  assert.equal(harvests.filter(v=>v.status===200).length,1);assert.equal(harvests.filter(v=>v.status===409).length,9);
+  w=(await req(c.port,'/api/world',null,c.cookie)).body;assert.equal(w.inventory.wheat,1);assert.equal(w.inventory.wheat_seed,2);assert.equal(w.harvestedCrops.filter(id=>id==='mature').length,1);
+  const guest=(await req(c.port,'/api/world')).body;assert.equal(guest.inventory.wheat,0);assert.equal(guest.inventory.wheat_seed,0);
+ }finally{await stop(c.proc);await rm(c.dir,{recursive:true,force:true});}
+});
+
+test('thirty full farming loops run on an isolated virtual 50x clock with growth, water, and save checks',async()=>{
+ const c=await preparedWorld([],{nodeEnv:'development',virtualTime:true,tilled:[[0,0,3]],waterSources:[{x:0,y:0,z:0}],inventory:{wheat_seed:1,selectedSlot:3,wateringCanUses:10}});try{
+  let r=await req(c.port,'/api/world',null,c.cookie);assert.equal(r.body.devtoolsEnabled,true);
+  r=await req(c.port,'/api/dev/time',{multiplier:50},c.cookie);assert.equal(r.status,200);assert.equal(r.body.gameClock.multiplier,50);
+  let expectedRevision=0;
+  for(let i=0;i<30;i++){
+   let w=(await req(c.port,'/api/world',null,c.cookie)).body;
+   r=await req(c.port,'/api/slot',{selectedSlot:3},c.cookie);assert.equal(r.status,200);w=r.body.world;
+   r=await farm(c.port,c.cookie,'plant',0,0,3,'hoe',w.revision);assert.equal(r.status,200,`loop ${i+1} plant: ${r.body.error}`);w=r.body.world;assert.equal(w.inventory.wheat_seed,0);
+   r=await req(c.port,'/api/slot',{selectedSlot:4},c.cookie);assert.equal(r.status,200);w=r.body.world;
+   if(w.inventory.wateringCanUses===0){r=await farm(c.port,c.cookie,'refill',0,0,0,'watering_can',w.revision);assert.equal(r.status,200,`loop ${i+1} refill: ${r.body.error}`);w=r.body.world;assert.equal(w.inventory.wateringCanUses,10);}
+   r=await farm(c.port,c.cookie,'water',0,0,3,'watering_can',w.revision);assert.equal(r.status,200,`loop ${i+1} water: ${r.body.error}`);w=r.body.world;
+   assert.ok(w.watered['0,0,3']>0&&w.watered['0,0,3']<=300000);assert.equal(w.inventory.wateringCanUses,((i%10)===9)?0:9-(i%10));
+   await req(c.port,'/api/dev/time',null,c.cookie);await req(c.port,'/api/dev/time',null,c.cookie);
+   w=(await req(c.port,'/api/world',null,c.cookie)).body;const crop=w.crops.find(v=>v.x===0&&v.z===3);assert.equal(crop.stage,4,`loop ${i+1} must mature through virtual active game time`);
+   r=await farm(c.port,c.cookie,'harvest',0,0,3,null,w.revision);assert.equal(r.status,200,`loop ${i+1} harvest: ${r.body.error}`);w=r.body.world;
+   expectedRevision=w.revision;
+   assert.equal(w.crops.some(v=>v.x===0&&v.z===3),false);assert.equal(w.inventory.wheat,i+1);assert.equal(w.inventory.wheat_seed,1);assert.equal(w.harvestedCrops.length,i+1);
+  }
+  const persisted=JSON.parse(await readFile(join(c.dir,c.id+'.json'),'utf8'));assert.ok(expectedRevision>=150);assert.equal(persisted.revision,expectedRevision);assert.equal(persisted.inventory.wheat,30);assert.equal(persisted.inventory.wheat_seed,1);assert.equal(persisted.harvestedCrops.length,30);
+  await stop(c.proc);c.proc=await boot(c.port,c.dir,'development',true);r=await req(c.port,'/api/world',null,c.cookie);assert.equal(r.body.revision,expectedRevision);assert.equal(r.body.inventory.wheat,30);assert.equal(r.body.inventory.wheat_seed,1);assert.equal(r.body.harvestedCrops.length,30);assert.equal(r.body.crops.length,0,'restart must preserve the harvested farm state');
  }finally{await stop(c.proc);await rm(c.dir,{recursive:true,force:true});}
 });
 

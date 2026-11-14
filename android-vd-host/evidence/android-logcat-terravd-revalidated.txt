@@ -1,0 +1,3 @@
+11-14 20:46:11.805  7403  7403 I TERRAVD : CREATE display=16
+11-14 20:46:12.245  7403  7403 I TERRAVD : PAGE_FINISHED display=16 url=http://127.0.0.1:38173/ title=TERRA — My Island
+11-14 20:46:13.451  7403  7403 I TERRAVD : WEBGL display=16 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":true,"width":1280}

@@ -1,0 +1,9 @@
+  Window #0 Window{748264b u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}:
+    mDisplayId=16 taskId=8315 mSession=Session{ed7cc0e 22541:u0a10326} mClient=android.os.BinderProxy@d489b1a
+    mOwnerUid=10326 showForAllUsers=false package=dev.terra.vdtest appop=NONE
+    mBaseLayer=21000 mSubLayer=0    mToken=ActivityRecord{199908764 u0 dev.terra.vdtest/.BrowserActivity t8315}
+    mActivityRecord=ActivityRecord{199908764 u0 dev.terra.vdtest/.BrowserActivity t8315}
+    WindowStateAnimator{3d4a3e dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}:
+      mSurface=Surface(name=dev.terra.vdtest/dev.terra.vdtest.BrowserActivity$_22541#992977)/@0xabb09f
+    mListeners #8 {type:2, display:-1, package=dev.terra.vdtest, container=DefaultTaskDisplayArea_d0@225626859}
+    mListeners #12 {type:2, display:-1, package=dev.terra.vdtest, container=DefaultTaskDisplayArea_d16@31765639}

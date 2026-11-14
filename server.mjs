@@ -36,7 +36,7 @@ const RECIPES={
  conveyor:{cost:{wood:4,dirt:5},station:'workbench'},
  smelter:{cost:{wood:6,dirt:10},station:'drill'}
 };
-const allowedFiles=new Map([['/','index.html'],['/index.html','index.html'],['/src/game.js','src/game.js'],['/src/farmer-npc.js','src/farmer-npc.js']]);
+const allowedFiles=new Map([['/','index.html'],['/index.html','index.html'],['/src/game.js','src/game.js'],['/src/farmer-npc.js','src/farmer-npc.js'],['/src/farming-rules.mjs','src/farming-rules.mjs']]);
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8'};
 const devFiles=new Map([['/devtools/time-control.js','devtools/time-control.js'],['/devtools/dev-panel.css','devtools/dev-panel.css']]);
 const localAddress=req=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress);

@@ -1,5 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 import { createFarmerNpc } from './farmer-npc.js';
+import { isFarmTileWatered } from './farming-rules.mjs';
 const $=id=>document.getElementById(id);
 const SIZE=10;
 // Simulation units are metres: one voxel grid cell measures 1 m on each axis.
@@ -93,7 +94,7 @@ function makeWheat(crop){
  }
 }
 const farmRoots=[];
-function rebuildFarmVisuals(){for(const o of farmRoots){worldRoot.remove(o);o.geometry?.dispose();o.material?.dispose();}farmRoots.length=0;for(const [x,y,z] of world.tilled||[]){const wet=(world.watered?.[[x,y,z].join(',')]||0)>Date.now();const m=new THREE.Mesh(new THREE.BoxGeometry(.91,.035,.91),new THREE.MeshLambertMaterial({color:wet?0x604d37:0x74583d}));m.position.set(x+.5,y+.018,z+.5);m.receiveShadow=true;worldRoot.add(m);farmRoots.push(m);}}
+function rebuildFarmVisuals(){for(const o of farmRoots){worldRoot.remove(o);o.geometry?.dispose();o.material?.dispose();}farmRoots.length=0;for(const [x,y,z] of world.tilled||[]){const wet=isFarmTileWatered(world.watered?.[[x,y,z].join(',')]);const m=new THREE.Mesh(new THREE.BoxGeometry(.91,.035,.91),new THREE.MeshLambertMaterial({color:wet?0x604d37:0x74583d}));m.position.set(x+.5,y+.018,z+.5);m.receiveShadow=true;worldRoot.add(m);farmRoots.push(m);}}
 function makeOreNode(node){
  const g=new THREE.Group();g.position.set(node.x+.5,node.y,node.z+.5);g.userData.resourceId=node.id;worldRoot.add(g);resourceRoots.push(g);oreGroups.push(g);
  const stones=[[-.20,.31,0,.42,.58,.42], [.18,.25,.15,.40,.48,.38], [.03,.23,-.22,.46,.43,.37],[-.01,.48,.06,.38,.35,.39]];

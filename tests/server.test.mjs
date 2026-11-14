@@ -65,6 +65,7 @@ test('new guest gets the designed island, tools, crops and resource harvesting',
   assert.equal(Object.keys(w.inventory.tools).some(k=>k.includes('iron')),false);
   assert.equal(w.crops.length,5);assert.ok(w.crops.every(c=>c.stage===4));assert.equal(w.tilled.length,9);assert.equal(w.oreNodes.length,1);assert.equal(w.trees.length,1);
   assert.equal(w.machines.filter(m=>m.type==='t1_bench').length,1);
+  const farmingRules=await fetch(`http://127.0.0.1:${port}/src/farming-rules.mjs`);assert.equal(farmingRules.status,200);assert.match(farmingRules.headers.get('content-type'),/javascript/);assert.match(await farmingRules.text(),/isFarmTileWatered/);
   const headers={Cookie:cookie,'Content-Type':'application/json'};
   const wrongTool=await request(port,'/api/mine',{method:'POST',headers,body:JSON.stringify({type:'start',targetType:'block',x:0,y:-1,z:0,tool:'wood_pickaxe',revision:w.revision})});
   assert.equal(wrongTool.status,400);

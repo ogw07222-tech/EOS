@@ -1,0 +1,3 @@
+Read-only observation after ACTION_VIEW was explicitly requested with --display 16:
+Samsung Internet Activity com.sec.android.app.sbrowser/.SBrowserMainActivity was recorded under Task #8 name=MinimizedDesk_7, rootTaskId=8, mode=freeform, visible=false, bounds=[1902,818][2449,1365] in Display #0 activity state. Display #16 resumed Termux rather than the browser.
+No touch input was sent to the Samsung Internet task. This is an observed Samsung routing result; the OEM internal routing reason is not asserted.

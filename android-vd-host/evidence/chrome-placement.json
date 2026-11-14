@@ -1,0 +1,8 @@
+{
+  "package": "com.android.chrome",
+  "installed": true,
+  "activity_record_present": false,
+  "window_present": false,
+  "display_id": null,
+  "interpretation": "Chrome is installed but has no current ActivityRecord or Window, so it is not running on a display. It was not launched during QA."
+}

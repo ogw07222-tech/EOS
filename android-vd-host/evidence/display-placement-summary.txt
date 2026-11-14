@@ -1,0 +1,2 @@
+TERRA window mDisplayId=16 (see window-display.txt)
+Display 0 Activity section contains TERRA host: False

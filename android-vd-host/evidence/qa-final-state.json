@@ -1,0 +1,83 @@
+{
+  "revision": 6,
+  "inventory": {
+    "dirt": 48,
+    "wood": 12,
+    "stone": 6,
+    "wheat": 2,
+    "wheat_seed": 5,
+    "sapling": 0,
+    "items": {
+      "workbench": 0,
+      "farming_bench": 0,
+      "drill": 0,
+      "conveyor": 0,
+      "smelter": 0,
+      "hoe": 0,
+      "watering_can": 0,
+      "scythe": 0
+    },
+    "tools": {
+      "wood_pickaxe": 1,
+      "wood_axe": 1,
+      "wood_shovel": 1,
+      "hoe": 1,
+      "watering_can": 1,
+      "scythe": 0
+    },
+    "quickSlots": [
+      "wood_pickaxe",
+      "wood_axe",
+      "wood_shovel",
+      "hoe",
+      "watering_can",
+      null,
+      null,
+      null
+    ],
+    "selectedSlot": 4,
+    "wateringCanUses": 9
+  },
+  "tilled": [
+    [
+      0,
+      0,
+      0
+    ]
+  ],
+  "plantedCropPresent": false,
+  "harvestedCrops": [
+    "wheat_2",
+    "cab08a1d7612bcf1"
+  ],
+  "crops": [
+    {
+      "id": "wheat_1",
+      "x": -4,
+      "y": 0,
+      "z": 3,
+      "stage": 4
+    },
+    {
+      "id": "wheat_3",
+      "x": -2,
+      "y": 0,
+      "z": 3,
+      "stage": 4
+    },
+    {
+      "id": "wheat_4",
+      "x": -1,
+      "y": 0,
+      "z": 3,
+      "stage": 4
+    },
+    {
+      "id": "wheat_5",
+      "x": 0,
+      "y": 0,
+      "z": 3,
+      "stage": 4
+    }
+  ]
+}
