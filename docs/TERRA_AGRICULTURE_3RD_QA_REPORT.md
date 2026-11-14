@@ -33,3 +33,5 @@ The server persists a guest island as one JSON file. It has no chunk generation,
 The isolated evidence directory [`android-vd-host/evidence/third-qa`](../android-vd-host/evidence/third-qa/) contains Display 16 WebGL and touch captures, the focused touch trace, host WebGL probe records/logs, and the final disposable-world state. `before.png`, `scythe-success.png`, `scythe-failure.png`, `water-success.png`, and `water-empty.png` are captures from the ECLIPSE host-owned VirtualDisplay surface. All captured QA touch events target ID 16.
 
 No GitHub Actions were run and nothing was pushed. This result covers implemented agriculture behavior and the secondary-display host on the tested SM-X820; it does not cover chunk streaming or Chrome on a secondary display.
+
+Test, fixture and evidence bundle commit: `87cf63c` (`test: add TERRA third agriculture boundary QA`). This report's finalization is a subsequent local documentation commit.
