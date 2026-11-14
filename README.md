@@ -42,6 +42,12 @@ npm test
 
 This checks browser entry point and mesh invariants, preserves checks for the archived conveyor prototype, and exercises the server through HTTP including isolated guest worlds, stale write rejection, block transactions, and save/restart.
 
+## 확정 게임 설계 및 로드맵
+
+지금까지 합의한 전체 게임 설계, 기능별 **구현/미구현** 구분, 제작 순서와 검증 기준은 **[TERRA 게임 설계 및 로드맵](docs/GAME_DESIGN_AND_ROADMAP.md)** 참조.
+
+주요 확정 규칙: **블록 1칸 = 1m**, 시작 섬 **16×16×3**, 8칸 퀵슬롯과 도구별 채집, **개인 섬 중심 싱글플레이**, 이동·배치 가능한 광맥의 초저속 재생, 자동화·가공·포탈 탐험, **현실 1분 = 게임 12분인 단일 시계**, **접속 중에만 진행하고 오프라인에서는 완전 정지**. 마지막 다섯 항목은 계획이며 현재 코드에 전부 구현된 것은 아니다.
+
 ## Architecture and boundaries
 
 See [`docs/SERVER_ARCHITECTURE.md`](docs/SERVER_ARCHITECTURE.md).
@@ -50,6 +56,6 @@ The 1.2-second mining duration is currently enforced by the browser interaction 
 
 **Not implemented:** permanent accounts/authentication, public production deployment, secure server-side movement verification, cloud database, crafting, ore regeneration, production machinery, portals, combat, and offline factory progression. Guest cookies are not a substitute for a durable account.
 
-Design goals: Islands-style block expansion, renewable placed ore nodes (including stone), deliberately slow production and processing with affordable machine recipes, portal-gated adventure islands, and single-player server persistence.
+Design goals and unimplemented work are tracked in [the agreed design roadmap](docs/GAME_DESIGN_AND_ROADMAP.md), not treated as shipped functionality.
 
 **No GitHub Actions were triggered or configured.**
