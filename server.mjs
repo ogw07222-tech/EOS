@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { readFile, mkdir, writeFile, rename } from 'node:fs/promises';
+import { readFile, mkdir, writeFile, rename, access } from 'node:fs/promises';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { join, resolve, extname } from 'node:path';
 import { treeWoodYieldForRoll } from './src/farming-rules.mjs';
@@ -9,6 +9,14 @@ const SAVE_DIR=resolve(process.env.TERRA_SAVE_DIR || join(ROOT,'data','worlds'))
 const PORT=Number(process.env.PORT || 3000);
 const SECRET=process.env.TERRA_SESSION_SECRET || '';
 if(SECRET.length<32) { console.error('Set TERRA_SESSION_SECRET (at least 32 characters).'); process.exit(1); }
+let devClockModule=null;
+if(process.env.NODE_ENV==='development'){
+ try{await access(join(ROOT,'devtools','index.mjs'));devClockModule=await import('./devtools/index.mjs');if(typeof devClockModule.createTimeControl!=='function')devClockModule=null;}
+ catch{devClockModule=null;}
+}
+let developerMultiplier=1,devtimeQueue=Promise.resolve();
+const devtoolsEnabled=!!devClockModule;
+const BASE_GAME_MINUTES_PER_REAL_MINUTE=devClockModule?.BASE_GAME_MINUTES_PER_REAL_MINUTE||12;
 const sessions=new Map();
 const MINING_DURATION_MS=1200;
 const PLAYER_HEIGHT=1.78,PLAYER_HALF_WIDTH=.34,MOVE_SPEED=4,GRAVITY=17,JUMP_SPEED=6.7;
@@ -28,6 +36,8 @@ const RECIPES={
 };
 const allowedFiles=new Map([['/','index.html'],['/index.html','index.html'],['/src/game.js','src/game.js']]);
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8'};
+const devFiles=new Map([['/devtools/time-control.js','devtools/time-control.js'],['/devtools/dev-panel.css','devtools/dev-panel.css']]);
+const localAddress=req=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
 const key=(x,y,z)=>[x,y,z].join(',');
 const inBounds=(x,y,z)=>Number.isInteger(x)&&Number.isInteger(y)&&Number.isInteger(z)&&x>=-64&&x<64&&z>=-64&&z<64&&y>=-8&&y<=16;
 const nativeBlock=(size,x,y,z)=>{const half=size/2;return x>=-half&&x<half&&z>=-half&&z<half&&y>=-3&&y<0?'dirt':null;};
@@ -39,11 +49,18 @@ function gatherTarget(world,type,id){
 }
 function gathered(world,type,id){return type==='tree'?world.harvestedTrees.includes(id):type==='wheat'?world.harvestedCrops.includes(id):true;}
 function equipped(inv,id){return !!id&&inv.quickSlots?.[inv.selectedSlot]===id&&(inv.tools?.[id]||0)>0;}
-function advanceGrowth(world,now=Date.now()){
- const elapsed=Math.max(0,now-(world.lastGameTick||now)),dt=elapsed<=6000?elapsed:0;world.lastGameTick=now;let changed=dt>0;
- const wetTime={};for(const [tile,remainingValue] of Object.entries(world.watered)){const remaining=Math.max(0,Number(remainingValue)||0),wet=Math.min(dt,remaining);wetTime[tile]=wet;if(remaining<=dt)delete world.watered[tile];else world.watered[tile]=remaining-dt;}
- for(const c of world.crops)if(c.stage<4&&dt){c.progress+=dt+(wetTime[key(c.x,c.y,c.z)]||0);while(c.progress>=WHEAT_STAGE_MS&&c.stage<4){c.progress-=WHEAT_STAGE_MS;c.stage++;}changed=true;}
- for(const t of world.trees)if(t.stage<3&&dt){t.progress+=dt;while(t.progress>=WHEAT_STAGE_MS*3&&t.stage<3){t.progress-=WHEAT_STAGE_MS*3;t.stage++;}changed=true;}
+function advanceGrowth(world,now=Date.now(),devMultiplier=1,gameDeltaOverride){
+ // One real millisecond advances 12 game milliseconds at 1×, multiplied once
+ // by the developer clock. Keep the 6-second activity window in real time so
+ // slow requests/freezes cannot turn into offline catch-up.
+ const multiplier=[1,2,5,10,50].includes(devMultiplier)?devMultiplier:1;
+ const elapsed=Math.max(0,now-(world.lastGameTick||now)),realDt=elapsed<=6000?elapsed:0;
+ const gameDt=Number.isFinite(gameDeltaOverride)?Math.max(0,gameDeltaOverride):realDt*BASE_GAME_MINUTES_PER_REAL_MINUTE*multiplier;world.lastGameTick=now;let changed=gameDt>0;
+ // Water duration uses game milliseconds too, so it accelerates with crops
+ // while preserving the exact 2× wet growth bonus.
+ const wetTime={};for(const [tile,remainingValue] of Object.entries(world.watered)){const remaining=Math.max(0,Number(remainingValue)||0),wet=Math.min(gameDt,remaining);wetTime[tile]=wet;if(remaining<=gameDt)delete world.watered[tile];else world.watered[tile]=remaining-gameDt;}
+ for(const c of world.crops)if(c.stage<4&&gameDt){c.progress+=gameDt+(wetTime[key(c.x,c.y,c.z)]||0);while(c.progress>=WHEAT_STAGE_MS&&c.stage<4){c.progress-=WHEAT_STAGE_MS;c.stage++;}changed=true;}
+ for(const t of world.trees)if(t.stage<3&&gameDt){t.progress+=gameDt;while(t.progress>=WHEAT_STAGE_MS*3&&t.stage<3){t.progress-=WHEAT_STAGE_MS*3;t.stage++;}changed=true;}
  return changed;
 }
 function refreshOreNodes(world){let changed=false;const now=Date.now();for(const node of world.oreNodes){if(node.remaining===0&&node.regenAt&&node.regenAt<=now){node.remaining=node.max||ORE_CAPACITY;node.regenAt=null;changed=true;}}return changed;}
@@ -95,9 +112,17 @@ async function load(id){if(sessions.has(id))return sessions.get(id);
  const loadedAt=Date.now();for(const c of w.crops){if(!Number.isInteger(c.stage))c.stage=4;if(!Number.isFinite(c.progress))c.progress=0;c.lastTick=loadedAt;}
  for(const t of w.trees){if(!Number.isInteger(t.stage))t.stage=3;if(!Number.isFinite(t.progress))t.progress=0;t.lastTick=loadedAt;t.harvested=w.harvestedTrees.includes(t.id);}
  if(!Array.isArray(w.oreNodes))w.oreNodes=[];
- const session={world:w,queue:Promise.resolve(),mining:null,harvesting:null,player:{...w.player,vy:0,grounded:w.player.grounded===true,lastAt:Date.now()},lastPlayerSaveAt:Date.now()};sessions.set(id,session);return session;
+ const sessionLoadedAt=Date.now();w.lastGameTick=sessionLoadedAt;for(const c of w.crops)c.lastTick=sessionLoadedAt;for(const t of w.trees)t.lastTick=sessionLoadedAt;
+ const gameClock=devtoolsEnabled?devClockModule.createTimeControl({now:sessionLoadedAt}):null;
+ if(gameClock&&developerMultiplier!==1)gameClock.setMultiplier(developerMultiplier,sessionLoadedAt);
+ const session={world:w,queue:Promise.resolve(),mining:null,harvesting:null,gameClock,player:{...w.player,vy:0,grounded:w.player.grounded===true,lastAt:sessionLoadedAt},lastPlayerSaveAt:sessionLoadedAt};sessions.set(id,session);return session;
 }
-async function save(id,w){await mkdir(SAVE_DIR,{recursive:true});const target=join(SAVE_DIR,id+'.json');const tmp=target+'.'+randomBytes(4).toString('hex')+'.tmp';await writeFile(tmp,JSON.stringify(w));await rename(tmp,target);}
+function advanceSessionTime(session,now=Date.now(),multiplierOverride){
+ const multiplier=multiplierOverride??(devtoolsEnabled?(session.gameClock?.snapshot().multiplier||developerMultiplier):1);
+ const clockTick=session.gameClock?.tick(now);
+ return advanceGrowth(session.world,now,multiplier,clockTick?.deltaGameMs);
+}
+async function save(id,w){await mkdir(SAVE_DIR,{recursive:true});const target=join(SAVE_DIR,id+'.json');const tmp=target+'.'+randomBytes(4).toString('hex')+'.tmp';const persisted={...w,crops:(w.crops||[]).map(({lastTick,...crop})=>crop),trees:(w.trees||[]).map(({lastTick,...tree})=>tree)};delete persisted.lastGameTick;await writeFile(tmp,JSON.stringify(persisted));await rename(tmp,target);}
 function send(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));}
 function error(res,status,message){send(res,status,{error:message});}
 async function jsonBody(req){let body='';for await(const chunk of req){body+=chunk.toString();if(body.length>4096)throw Object.assign(Error('Request too large'),{status:413});}try{return JSON.parse(body);}catch{throw Object.assign(Error('Invalid JSON'),{status:400});}}
@@ -150,19 +175,45 @@ async function handler(req,res){
   const file=allowedFiles.get(new URL(req.url,'http://localhost').pathname);
   try{const bytes=await readFile(join(ROOT,file));res.writeHead(200,{'Content-Type':mime[extname(file)],'X-Content-Type-Options':'nosniff','Cache-Control':'no-cache'});res.end(bytes);}catch{error(res,404,'Not found');}return;
  }
+ const requestPath=new URL(req.url,'http://localhost').pathname;
+ if(devFiles.has(requestPath)){
+  if(req.method!=='GET'){error(res,405,'Method not allowed');return;}
+  if(!devtoolsEnabled||!localAddress(req)){error(res,404,'Not found');return;}
+  try{const file=devFiles.get(requestPath),bytes=await readFile(join(ROOT,file));res.writeHead(200,{'Content-Type':extname(file)==='.css'?'text/css; charset=utf-8':'text/javascript; charset=utf-8','X-Content-Type-Options':'nosniff','Cache-Control':'no-cache'});res.end(bytes);}catch{error(res,404,'Not found');}return;
+ }
  if(!['GET','POST'].includes(req.method)){error(res,405,'Method not allowed');return;}
- const path=new URL(req.url,'http://localhost').pathname;
- if(path!=='/api/world'&&path!=='/api/action'&&path!=='/api/mine'&&path!=='/api/move'&&path!=='/api/harvest'&&path!=='/api/farm'&&path!=='/api/slot'&&path!=='/api/craft'&&path!=='/api/machine/place'){error(res,404,'Not found');return;}
+ const path=requestPath;
+ const devTimePath=path==='/api/dev/time';
+ if(devTimePath&&(!devtoolsEnabled||!localAddress(req))){error(res,404,'Not found');return;}
+ if(path!=='/api/world'&&path!=='/api/action'&&path!=='/api/mine'&&path!=='/api/move'&&path!=='/api/harvest'&&path!=='/api/farm'&&path!=='/api/slot'&&path!=='/api/craft'&&path!=='/api/machine/place'&&!devTimePath){error(res,404,'Not found');return;}
  // Cross-origin browser actions should not mutate a player's island.
  const origin=req.headers.origin;if(origin&&origin!== 'http://'+req.headers.host && origin!=='https://'+req.headers.host){error(res,403,'Origin denied');return;}
  const who=identity(req);
  if(who.isNew)res.setHeader('Set-Cookie','terra_session='+cookieValue(who.id)+'; HttpOnly; SameSite=Lax; Path=/'+(req.socket.encrypted?'; Secure':''));
  const session=await load(who.id);
+ if(!devTimePath||req.method==='GET')await devtimeQueue;
+ if(devTimePath){
+  if(req.method==='GET'){const changed=advanceSessionTime(session);if(changed)await save(who.id,session.world);const snapshot=session.gameClock.snapshot();send(res,200,{gameClock:{...snapshot,gameMinutes:snapshot.gameTimeMinutes}});return;}
+  const body=await jsonBody(req),nextMultiplier=body?.multiplier;
+  if(!devClockModule.DEV_TIME_MULTIPLIERS.includes(nextMultiplier)){const snapshot=session.gameClock.snapshot();send(res,400,{error:'Unsupported developer time multiplier',gameClock:{...snapshot,gameMinutes:snapshot.gameTimeMinutes}});return;}
+  const job=devtimeQueue.catch(()=>{}).then(async()=>{
+   const now=Date.now(),oldMultiplier=developerMultiplier;developerMultiplier=nextMultiplier;
+   await Promise.all([...sessions.entries()].map(([id,active])=>{
+    const settle=active.queue.catch(()=>{}).then(async()=>{
+     advanceSessionTime(active,now,oldMultiplier);
+     active.gameClock.setMultiplier(nextMultiplier,now);
+     await save(id,active.world);
+    });active.queue=settle;return settle;
+   }));
+   const snapshot=session.gameClock.snapshot();return {gameClock:{...snapshot,gameMinutes:snapshot.gameTimeMinutes}};
+  });devtimeQueue=job.then(()=>undefined,()=>undefined);
+  try{send(res,200,await job);}catch(err){console.error('Developer clock update failed:',err);error(res,500,'Unable to update developer clock');}return;
+ }
  if(path==='/api/slot'&&req.method==='POST'){const body=await jsonBody(req);const slot=body?.selectedSlot??body?.slot;if(!Number.isInteger(slot)||slot<0||slot>7)return error(res,400,'Invalid quick slot');const item=session.world.inventory.quickSlots[slot];if(item&&!(session.world.inventory.tools?.[item]>0))return error(res,400,'Item is unavailable');const next={...session.world,inventory:{...session.world.inventory,selectedSlot:slot},revision:session.world.revision+1,updatedAt:Date.now()};await save(who.id,next);session.world=next;send(res,200,{world:next});return;}
- if(path==='/api/world'&&req.method==='GET'){const changed=refreshOreNodes(session.world)|advanceGrowth(session.world);if(changed)await save(who.id,session.world);send(res,200,{...session.world,player:{x:session.player.x,y:session.player.y,z:session.player.z,grounded:session.player.grounded}});return;}
+ if(path==='/api/world'&&req.method==='GET'){const now=Date.now(),changed=refreshOreNodes(session.world)|advanceSessionTime(session,now);if(changed)await save(who.id,session.world);const payload={...session.world,player:{x:session.player.x,y:session.player.y,z:session.player.z,grounded:session.player.grounded}};if(devtoolsEnabled&&localAddress(req)){const snapshot=session.gameClock.snapshot();payload.devtoolsEnabled=true;payload.gameClock={...snapshot,gameMinutes:snapshot.gameTimeMinutes};}send(res,200,payload);return;}
  if(path==='/api/farm'&&req.method==='POST'){
   const body=await jsonBody(req),action=body?.action;const job=session.queue.catch(()=>{}).then(async()=>{
-   const w=session.world;advanceGrowth(w);const inv={...w.inventory,tools:{...w.inventory.tools},items:{...w.inventory.items}},p=session.player;
+   const w=session.world;advanceSessionTime(session);const inv={...w.inventory,tools:{...w.inventory.tools},items:{...w.inventory.items}},p=session.player;
    if(!Number.isSafeInteger(body.revision)||body.revision!==w.revision)return {status:409,data:{error:'Revision conflict',world:w}};
    const point=([x,y,z])=>({x:x+.5,y:y+.5,z:z+.5});
    const validCell=Number.isInteger(body.x)&&Number.isInteger(body.y)&&Number.isInteger(body.z)&&inBounds(body.x,body.y,body.z);
@@ -207,7 +258,7 @@ async function handler(req,res){
  if(path==='/api/move'&&req.method==='POST'){
   const body=await jsonBody(req);
   const job=session.queue.catch(()=>{}).then(async()=>{
-   if(!stepPlayer(session,body))return {status:400,data:{error:'Invalid movement input'}};advanceGrowth(session.world);
+   if(!stepPlayer(session,body))return {status:400,data:{error:'Invalid movement input'}};advanceSessionTime(session);
    const now=Date.now();
    if(now-session.lastPlayerSaveAt>=5000){try{await save(who.id,session.world);session.lastPlayerSaveAt=now;}catch(err){console.error('Player position save failed:',err);}}
    return {status:200,data:{player:{x:session.player.x,y:session.player.y,z:session.player.z,grounded:session.player.grounded}}};

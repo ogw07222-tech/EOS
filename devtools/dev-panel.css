@@ -1,0 +1,37 @@
+.terra-dev-time-panel {
+  position: fixed;
+  z-index: 20;
+  top: max(152px, calc(env(safe-area-inset-top) + 145px));
+  right: max(12px, env(safe-area-inset-right));
+  width: min(268px, calc(100vw - 24px));
+  color: #eaf5f2;
+  background: linear-gradient(150deg, #102b38f2, #101d2aef);
+  border: 1px solid #74c3a2a6;
+  border-radius: 13px;
+  box-shadow: 0 8px 30px #06131dbb;
+  backdrop-filter: blur(9px);
+  font: 12px/1.35 system-ui, -apple-system, "Noto Sans KR", sans-serif;
+  pointer-events: auto;
+}
+.terra-dev-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px 7px 12px; }
+.terra-dev-head strong { color:#8ce0b9; letter-spacing:.07em; font-size:12px; }
+.terra-dev-head strong span { color:#dcece8; font-weight:650; letter-spacing:0; }
+.terra-dev-time-panel button { color:#eef9f5; border:1px solid #557c7d; background:#183744; border-radius:8px; font:inherit; touch-action:manipulation; cursor:pointer; }
+.terra-dev-time-panel button:focus-visible { outline:2px solid #e8d68b; outline-offset:2px; }
+.terra-dev-fold { width:29px; height:27px; padding:0; font-size:17px !important; line-height:1; }
+.terra-dev-body { padding:1px 11px 10px; }
+.terra-dev-rates { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; }
+.terra-dev-rates button { min-width:0; padding:7px 2px; font-size:11px; font-weight:750; }
+.terra-dev-rates button.is-active { color:#10251c; border-color:#b8f0c8; background:#91d6ac; box-shadow:0 0 0 1px #b8f0c866; }
+.terra-dev-rates button:disabled { opacity:.7; }
+.terra-dev-body p { margin:7px 1px 0; color:#c2d6dc; font-size:11px; }
+.terra-dev-body b { color:#f0d88b; font-variant-numeric:tabular-nums; }
+.terra-dev-status { min-height:14px; color:#dfc787 !important; font-size:10px !important; }
+.terra-dev-time-panel.is-collapsed { width:min(190px,calc(100vw - 24px)); }
+.terra-dev-time-panel.is-collapsed .terra-dev-body { display:none; }
+@media (max-width:620px) {
+  .terra-dev-time-panel { top:max(145px,calc(env(safe-area-inset-top) + 138px)); right:8px; width:min(252px,calc(100vw - 16px)); }
+  .terra-dev-body { padding-bottom:8px; }
+  .terra-dev-rates { gap:3px; }
+  .terra-dev-rates button { min-height:38px; }
+}
