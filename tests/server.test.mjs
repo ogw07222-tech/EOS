@@ -100,3 +100,28 @@ test('legacy saves keep their island size and existing world state',async()=>{
   assert.equal(response.body.crops.length,0);assert.equal(response.body.oreNodes.length,0);assert.deepEqual(response.body.machines,[{id:'oldbench',type:'workbench',x:0,y:0,z:0}]);
  }finally{await stop(proc);await rm(dir,{recursive:true,force:true});}
 });
+
+test('private shop hub transitions preserve island state, guard protected actions, and persist atomic farmer trades',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'terra-shop-hub-')),port=await randomPort();let proc;
+ try{
+  proc=await boot(port,dir);let personal=await request(port,'/api/world');const cookie=personal.cookie.split(';')[0],headers={Cookie:cookie,'Content-Type':'application/json'};
+  const npcAsset=await fetch(`http://127.0.0.1:${port}/src/farmer-npc.js`);assert.equal(npcAsset.status,200);assert.match(npcAsset.headers.get('content-type'),/javascript/);
+  assert.equal(personal.body.worldKind,'personal');assert.equal(personal.body.coins,100);assert.equal(personal.body.personalPortal.id,'to_shop_hub');
+  let response=await request(port,'/api/harvest',{method:'POST',headers,body:JSON.stringify({type:'start',resourceType:'wheat',resourceId:'wheat_1'})});assert.equal(response.status,200);
+  await new Promise(resolve=>setTimeout(resolve,1220));response=await request(port,'/api/harvest',{method:'POST',headers,body:JSON.stringify({type:'collect',resourceType:'wheat',resourceId:'wheat_1'})});assert.equal(response.status,200);
+  const islandRevision=response.body.world.revision,cropsLeft=response.body.world.crops.length;
+  response=await request(port,'/api/world/transition',{method:'POST',headers,body:JSON.stringify({destination:'shopHub'})});assert.equal(response.status,200,response.body?.error);
+  let hub=response.body.world;assert.equal(hub.worldKind,'shopHub');assert.match(hub.worldInstanceId,/^terra:shop-hub:private:/);assert.equal(hub.machines.length,0);assert.equal(hub.crops.length,0);assert.equal(hub.coins,100);
+  const denied=['/api/action','/api/mine','/api/harvest','/api/farm','/api/craft','/api/machine/place','/api/inventory/drop','/api/npc/attack'];
+  for(const path of denied){const blocked=await request(port,path,{method:'POST',headers,body:JSON.stringify({type:'place',revision:hub.revision,x:0,y:0,z:0,selectedSlot:2})});assert.equal(blocked.status,403,`${path} must be rejected server-side`);}
+  let shop=await request(port,'/api/shop/open',{method:'POST',headers,body:JSON.stringify({npcId:'farmer'})});assert.equal(shop.status,200);assert.equal(shop.body.catalog.wheat_seed.buyPrice,5);
+  let trade=await request(port,'/api/shop/trade',{method:'POST',headers,body:JSON.stringify({action:'buy',item:'wheat_seed',quantity:'1',revision:shop.body.revision,price:0})});assert.equal(trade.status,200,trade.body?.error);assert.equal(trade.body.world.coins,95);assert.equal(trade.body.world.inventory.wheat_seed,2);
+  const stale=await request(port,'/api/shop/trade',{method:'POST',headers,body:JSON.stringify({action:'buy',item:'wheat_seed',quantity:'1',revision:shop.body.revision})});assert.equal(stale.status,409);
+  trade=await request(port,'/api/shop/trade',{method:'POST',headers,body:JSON.stringify({action:'sell',item:'wheat',quantity:'1',revision:hub.revision+1})});assert.equal(trade.status,200,trade.body?.error);assert.equal(trade.body.world.coins,97);assert.equal(trade.body.world.inventory.wheat,0);
+  const other=await request(port,'/api/world');assert.equal(other.body.coins,100);assert.equal(other.body.worldKind,'personal');
+  await stop(proc);proc=await boot(port,dir);hub=await request(port,'/api/world',{headers:{Cookie:cookie}});assert.equal(hub.body.worldKind,'shopHub');assert.equal(hub.body.coins,97);assert.equal(hub.body.inventory.wheat_seed,2);
+  response=await request(port,'/api/world/transition',{method:'POST',headers,body:JSON.stringify({destination:'personal'})});assert.equal(response.status,200,response.body?.error);assert.equal(response.body.world.worldKind,'personal');assert.equal(response.body.world.revision,islandRevision+4);assert.equal(response.body.world.crops.length,cropsLeft);assert.equal(response.body.world.inventory.wheat_seed,2);assert.equal(response.body.world.coins,97);
+  const duplicate=await request(port,'/api/world/transition',{method:'POST',headers,body:JSON.stringify({destination:'personal'})});assert.equal(duplicate.status,409);
+  const portalBlock=await request(port,'/api/action',{method:'POST',headers,body:JSON.stringify({type:'place',x:-2,y:0,z:0,revision:response.body.world.revision})});assert.equal(portalBlock.status,400);assert.match(portalBlock.body.error,/portal area/i);
+ }finally{await stop(proc);await rm(dir,{recursive:true,force:true});}
+});

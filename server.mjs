@@ -3,6 +3,8 @@ import { readFile, mkdir, writeFile, rename, access } from 'node:fs/promises';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { join, resolve, extname } from 'node:path';
 import { treeWoodYieldForRoll } from './src/farming-rules.mjs';
+import { SHOP_HUB_LAYOUT, SHOP_HUB_WORLD_ID, PERSONAL_ISLAND_PORTAL, createShopHubInstance, isWorldActionAllowed } from './src/hub-world.mjs';
+import { SHOP_CATALOG, resolveShopQuantity, applyShopTrade } from './src/economy-rules.mjs';
 
 const ROOT=resolve(process.cwd());
 const SAVE_DIR=resolve(process.env.TERRA_SAVE_DIR || join(ROOT,'data','worlds'));
@@ -34,14 +36,15 @@ const RECIPES={
  conveyor:{cost:{wood:4,dirt:5},station:'workbench'},
  smelter:{cost:{wood:6,dirt:10},station:'drill'}
 };
-const allowedFiles=new Map([['/','index.html'],['/index.html','index.html'],['/src/game.js','src/game.js']]);
-const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8'};
+const allowedFiles=new Map([['/','index.html'],['/index.html','index.html'],['/src/game.js','src/game.js'],['/src/farmer-npc.js','src/farmer-npc.js']]);
+const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8'};
 const devFiles=new Map([['/devtools/time-control.js','devtools/time-control.js'],['/devtools/dev-panel.css','devtools/dev-panel.css']]);
 const localAddress=req=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
 const key=(x,y,z)=>[x,y,z].join(',');
 const inBounds=(x,y,z)=>Number.isInteger(x)&&Number.isInteger(y)&&Number.isInteger(z)&&x>=-64&&x<64&&z>=-64&&z<64&&y>=-8&&y<=16;
 const nativeBlock=(size,x,y,z)=>{const half=size/2;return x>=-half&&x<half&&z>=-half&&z<half&&y>=-3&&y<0?'dirt':null;};
 function block(world,x,y,z){const k=key(x,y,z);return Object.hasOwn(world.edits,k)?world.edits[k]:nativeBlock(world.islandSize||16,x,y,z);}
+function personalPortalCell(x,y,z){return Math.abs(x-PERSONAL_ISLAND_PORTAL.x)<=1&&z===PERSONAL_ISLAND_PORTAL.z&&y>=0&&y<=2;}
 function gatherTarget(world,type,id){
  if(type==='tree'){const item=world.trees.find(t=>t.id===id);return item&&item.stage>=3&&!item.harvested?{x:item.x,y:item.y+1.7,z:item.z}:null;}
  if(type==='wheat'){const item=world.crops.find(c=>c.id===id);return item&&item.stage>=4?{x:item.x+.5,y:item.y+.45,z:item.z+.5}:null;}
@@ -72,7 +75,7 @@ function mineOre(world,id){
 }
 const starterTools={wood_pickaxe:1,wood_axe:1,wood_shovel:1};
 const starterSlots=['wood_pickaxe','wood_axe','wood_shovel',null,null,null,null,null];
-function fresh(){const now=Date.now();return {schema:1,worldVersion:3,islandSize:10,revision:0,inventory:{dirt:48,wood:0,stone:0,wheat:0,wheat_seed:0,sapling:0,items:{workbench:0,farming_bench:0,drill:0,conveyor:0,smelter:0},tools:{...starterTools,hoe:0,watering_can:0,scythe:0},quickSlots:[...starterSlots],selectedSlot:1,wateringCanUses:10},edits:{},machines:[{id:'t1-bench-start',type:'t1_bench',x:2,y:0,z:1,rotation:0}],trees:[{id:'oak_start',x:-3,y:0,z:-3,scale:1,stage:3,progress:0,harvested:false}],harvestedTrees:[],tilled:[[-4,0,3],[-3,0,3],[-2,0,3],[-1,0,3],[0,0,3],[1,0,3],[2,0,3],[3,0,3],[4,0,3]],crops:[{id:'wheat_1',x:-4,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_2',x:-3,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_3',x:-2,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_4',x:-1,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_5',x:0,y:0,z:3,stage:4,progress:0,lastTick:now}],watered:{},waterSources:[{x:4,y:0,z:4}],harvestedCrops:[],oreNodes:[{id:'stone_vein_start',x:3,y:0,z:-3,remaining:ORE_CAPACITY,max:ORE_CAPACITY,regenAt:null}],player:{x:.5,y:0,z:.5,grounded:true},createdAt:now,updatedAt:now};}
+function fresh(){const now=Date.now();return {schema:1,worldVersion:3,islandSize:10,revision:0,coins:100,location:null,inventory:{dirt:48,wood:0,stone:0,wheat:0,wheat_seed:0,sapling:0,items:{workbench:0,farming_bench:0,drill:0,conveyor:0,smelter:0},tools:{...starterTools,hoe:0,watering_can:0,scythe:0},quickSlots:[...starterSlots],selectedSlot:1,wateringCanUses:10},edits:{},machines:[{id:'t1-bench-start',type:'t1_bench',x:2,y:0,z:1,rotation:0}],trees:[{id:'oak_start',x:-3,y:0,z:-3,scale:1,stage:3,progress:0,harvested:false}],harvestedTrees:[],tilled:[[-4,0,3],[-3,0,3],[-2,0,3],[-1,0,3],[0,0,3],[1,0,3],[2,0,3],[3,0,3],[4,0,3]],crops:[{id:'wheat_1',x:-4,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_2',x:-3,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_3',x:-2,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_4',x:-1,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_5',x:0,y:0,z:3,stage:4,progress:0,lastTick:now}],watered:{},waterSources:[{x:4,y:0,z:4}],harvestedCrops:[],oreNodes:[{id:'stone_vein_start',x:3,y:0,z:-3,remaining:ORE_CAPACITY,max:ORE_CAPACITY,regenAt:null}],player:{x:.5,y:0,z:.5,grounded:true},createdAt:now,updatedAt:now};}
 function validWorld(w){return w&&w.schema===1&&Number.isSafeInteger(w.revision)&&w.revision>=0&&w.inventory&&Number.isSafeInteger(w.inventory.dirt)&&w.inventory.dirt>=0&&w.inventory.dirt<=1000000&&w.edits&&typeof w.edits==='object'&&!Array.isArray(w.edits)&&Object.keys(w.edits).length<=20000;}
 function validPlayerPosition(p){return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&Number.isFinite(p.z)&&Math.abs(p.x)<=64&&Math.abs(p.z)<=64&&p.y>=-13&&p.y<=18;}
 function cookieValue(id){return id+'.'+createHmac('sha256',SECRET).update(id).digest('hex');}
@@ -107,6 +110,13 @@ async function load(id){if(sessions.has(id))return sessions.get(id);
  if(!Number.isSafeInteger(w.inventory.wheat_seed)||w.inventory.wheat_seed<0)w.inventory.wheat_seed=0;
  if(!Number.isSafeInteger(w.inventory.sapling)||w.inventory.sapling<0)w.inventory.sapling=0;
  if(!Number.isSafeInteger(w.inventory.wateringCanUses))w.inventory.wateringCanUses=10;
+ if(!Number.isSafeInteger(w.coins)||w.coins<0||w.coins>1000000000)w.coins=100;
+ for(const resource of ['wood','stone','wheat','wheat_seed','sapling'])if(!Number.isSafeInteger(w.inventory[resource])||w.inventory[resource]<0||w.inventory[resource]>INVENTORY_CAP)w.inventory[resource]=0;
+ if(!w.location||typeof w.location!=='object'||Array.isArray(w.location))w.location={worldId:'personal-island',personalInstanceId:`terra:personal-island:private:${id}`};
+ w.location.personalInstanceId=`terra:personal-island:private:${id}`;
+ if(w.location.worldId!=='shop-hub')w.location.worldId='personal-island';
+ if(w.location.worldId==='shop-hub'&&(!w.location.hubInstanceId||typeof w.location.hubInstanceId!=='string'))w.location.hubInstanceId=createShopHubInstance(id).instanceId;
+ if(w.location.worldId==='shop-hub'&&(!validPlayerPosition(w.location.hubPlayer)||Math.abs(w.location.hubPlayer.x)>SHOP_HUB_LAYOUT.size.x/2||Math.abs(w.location.hubPlayer.z)>SHOP_HUB_LAYOUT.size.z/2))w.location.hubPlayer={...SHOP_HUB_LAYOUT.spawn,grounded:true};
  for(const t of ['hoe','watering_can','scythe'])if(!Number.isSafeInteger(w.inventory.tools[t]))w.inventory.tools[t]=0;
  if(!Array.isArray(w.inventory.quickSlots))w.inventory.quickSlots=[...starterSlots];while(w.inventory.quickSlots.length<8)w.inventory.quickSlots.push(null);
  const loadedAt=Date.now();for(const c of w.crops){if(!Number.isInteger(c.stage))c.stage=4;if(!Number.isFinite(c.progress))c.progress=0;c.lastTick=loadedAt;}
@@ -115,7 +125,8 @@ async function load(id){if(sessions.has(id))return sessions.get(id);
  const sessionLoadedAt=Date.now();w.lastGameTick=sessionLoadedAt;for(const c of w.crops)c.lastTick=sessionLoadedAt;for(const t of w.trees)t.lastTick=sessionLoadedAt;
  const gameClock=devtoolsEnabled?devClockModule.createTimeControl({now:sessionLoadedAt}):null;
  if(gameClock&&developerMultiplier!==1)gameClock.setMultiplier(developerMultiplier,sessionLoadedAt);
- const session={world:w,queue:Promise.resolve(),mining:null,harvesting:null,gameClock,player:{...w.player,vy:0,grounded:w.player.grounded===true,lastAt:sessionLoadedAt},lastPlayerSaveAt:sessionLoadedAt};sessions.set(id,session);return session;
+ const activePlayer=w.location.worldId==='shop-hub'?w.location.hubPlayer:w.player;
+ const session={world:w,queue:Promise.resolve(),mining:null,harvesting:null,gameClock,player:{...activePlayer,vy:0,grounded:activePlayer.grounded===true,lastAt:sessionLoadedAt},lastPlayerSaveAt:sessionLoadedAt};sessions.set(id,session);return session;
 }
 function advanceSessionTime(session,now=Date.now(),multiplierOverride){
  const multiplier=multiplierOverride??(devtoolsEnabled?(session.gameClock?.snapshot().multiplier||developerMultiplier):1);
@@ -129,6 +140,7 @@ async function jsonBody(req){let body='';for await(const chunk of req){body+=chu
 function change(current,action){const {type,x,y,z,revision}=action||{};
  if(!inBounds(x,y,z))return {error:'Invalid coordinates'};
  if(!Number.isSafeInteger(revision)||revision!==current.revision)return {error:'Revision conflict',conflict:true};
+ if(type==='place'&&personalPortalCell(x,y,z))return {error:'The portal area is protected'};
  const existing=block(current,x,y,z);
  if(type==='place'){
   if(existing)return {error:'Space is occupied'};
@@ -157,19 +169,30 @@ function stepPlayer(session,input){
  const p=session.player,now=Date.now(),dt=Math.min(.1,Math.max(.001,(now-p.lastAt)/1000));p.lastAt=now;
  let dx=Number(input?.x),dz=Number(input?.z);if(!Number.isFinite(dx)||!Number.isFinite(dz))return false;
  const length=Math.hypot(dx,dz);if(length>1){dx/=length;dz/=length;}
+ const hub=session.world.location.worldId==='shop-hub',physicsWorld=hub?{islandSize:SHOP_HUB_LAYOUT.size.x,edits:{},machines:[]}:session.world;
+ const collides=(x,y,z)=>solidForBody(physicsWorld,x,y,z)||(hub&&SHOP_HUB_LAYOUT.npcs.some(n=>Math.abs(x-(n.x+.5))<.45+PLAYER_HALF_WIDTH&&Math.abs(z-(n.z+.5))<.34+.19&&y<n.y+2.05&&y+PLAYER_HEIGHT>n.y));
  const nextX=p.x+dx*MOVE_SPEED*dt,nextZ=p.z+dz*MOVE_SPEED*dt;
- if(!solidForBody(session.world,nextX,p.y,p.z))p.x=nextX;
- if(!solidForBody(session.world,p.x,p.y,nextZ))p.z=nextZ;
+ if(!collides(nextX,p.y,p.z))p.x=nextX;
+ if(!collides(p.x,p.y,nextZ))p.z=nextZ;
+ if(hub){const edge=SHOP_HUB_LAYOUT.size.x/2-.45;p.x=Math.max(-edge,Math.min(edge,p.x));p.z=Math.max(-edge,Math.min(edge,p.z));}
  if(input.jump===true&&p.grounded){p.vy=JUMP_SPEED;p.grounded=false;}
  const oldY=p.y;p.vy=Math.max(-19,p.vy-GRAVITY*dt);const nextY=oldY+p.vy*dt;
  if(p.vy<=0){const bx=Math.floor(p.x),bz=Math.floor(p.z),by=Math.floor(nextY-.03);
-  if(oldY>=by+.9&&block(session.world,bx,by,bz)&&nextY<=by+1){p.y=by+1;p.vy=0;p.grounded=true;}
+  if(oldY>=by+.9&&block(physicsWorld,bx,by,bz)&&nextY<=by+1){p.y=by+1;p.vy=0;p.grounded=true;}
   else{p.y=nextY;p.grounded=false;}
  }else{p.y=nextY;p.grounded=false;}
- if(p.y < -13){p.x=.5;p.y=0;p.z=.5;p.vy=0;p.grounded=true;}
- session.world.player={x:p.x,y:p.y,z:p.z,grounded:p.grounded};
+ if(p.y < -13){const spawn=hub?SHOP_HUB_LAYOUT.spawn:{x:.5,y:0,z:.5};p.x=spawn.x;p.y=spawn.y;p.z=spawn.z;p.vy=0;p.grounded=true;}
+ const savedPosition={x:p.x,y:p.y,z:p.z,grounded:p.grounded};
+ if(hub)session.world.location.hubPlayer=savedPosition;else session.world.player=savedPosition;
  return true;
 }
+function publicWorld(session,id,req){
+ const w=session.world,hub=w.location.worldId==='shop-hub';
+ const result=hub?{schema:w.schema,worldVersion:w.worldVersion,islandSize:SHOP_HUB_LAYOUT.size.x,revision:w.revision,coins:w.coins,inventory:w.inventory,edits:{},machines:[],trees:[],harvestedTrees:[],tilled:[],crops:[],watered:{},waterSources:[],harvestedCrops:[],oreNodes:[],player:{...session.player},worldId:SHOP_HUB_WORLD_ID,worldInstanceId:w.location.hubInstanceId,worldKind:'shopHub',hub:createShopHubInstance(id)}:{...w,worldId:'personal-island',worldInstanceId:w.location.personalInstanceId,worldKind:'personal',personalPortal:PERSONAL_ISLAND_PORTAL,player:{...session.player}};
+ if(devtoolsEnabled&&localAddress(req)){const snapshot=session.gameClock.snapshot();result.devtoolsEnabled=true;result.gameClock={...snapshot,gameMinutes:snapshot.gameTimeMinutes};}
+ return result;
+}
+function near(session,target,radius){const p=session.player;return Math.hypot(target.x+.5-p.x,target.y-(p.y+1),target.z+.5-p.z)<=radius;}
 async function handler(req,res){
  if(req.method==='GET'&&allowedFiles.has(new URL(req.url,'http://localhost').pathname)){
   const file=allowedFiles.get(new URL(req.url,'http://localhost').pathname);
@@ -185,7 +208,8 @@ async function handler(req,res){
  const path=requestPath;
  const devTimePath=path==='/api/dev/time';
  if(devTimePath&&(!devtoolsEnabled||!localAddress(req))){error(res,404,'Not found');return;}
- if(path!=='/api/world'&&path!=='/api/action'&&path!=='/api/mine'&&path!=='/api/move'&&path!=='/api/harvest'&&path!=='/api/farm'&&path!=='/api/slot'&&path!=='/api/craft'&&path!=='/api/machine/place'&&!devTimePath){error(res,404,'Not found');return;}
+ const hubPaths=['/api/world/transition','/api/shop/open','/api/shop/trade','/api/inventory/drop','/api/npc/attack'];
+ if(path!=='/api/world'&&path!=='/api/action'&&path!=='/api/mine'&&path!=='/api/move'&&path!=='/api/harvest'&&path!=='/api/farm'&&path!=='/api/slot'&&path!=='/api/craft'&&path!=='/api/machine/place'&&!hubPaths.includes(path)&&!devTimePath){error(res,404,'Not found');return;}
  // Cross-origin browser actions should not mutate a player's island.
  const origin=req.headers.origin;if(origin&&origin!== 'http://'+req.headers.host && origin!=='https://'+req.headers.host){error(res,403,'Origin denied');return;}
  const who=identity(req);
@@ -209,8 +233,35 @@ async function handler(req,res){
   });devtimeQueue=job.then(()=>undefined,()=>undefined);
   try{send(res,200,await job);}catch(err){console.error('Developer clock update failed:',err);error(res,500,'Unable to update developer clock');}return;
  }
- if(path==='/api/slot'&&req.method==='POST'){const body=await jsonBody(req);const slot=body?.selectedSlot??body?.slot;if(!Number.isInteger(slot)||slot<0||slot>7)return error(res,400,'Invalid quick slot');const item=session.world.inventory.quickSlots[slot];if(item&&!(session.world.inventory.tools?.[item]>0))return error(res,400,'Item is unavailable');const next={...session.world,inventory:{...session.world.inventory,selectedSlot:slot},revision:session.world.revision+1,updatedAt:Date.now()};await save(who.id,next);session.world=next;send(res,200,{world:next});return;}
- if(path==='/api/world'&&req.method==='GET'){const now=Date.now(),changed=refreshOreNodes(session.world)|advanceSessionTime(session,now);if(changed)await save(who.id,session.world);const payload={...session.world,player:{x:session.player.x,y:session.player.y,z:session.player.z,grounded:session.player.grounded}};if(devtoolsEnabled&&localAddress(req)){const snapshot=session.gameClock.snapshot();payload.devtoolsEnabled=true;payload.gameClock={...snapshot,gameMinutes:snapshot.gameTimeMinutes};}send(res,200,payload);return;}
+ if(path==='/api/world/transition'&&req.method==='POST'){
+  const body=await jsonBody(req),destination=body?.destination;
+  const job=session.queue.catch(()=>{}).then(async()=>{
+   const loc=session.world.location,wasHub=loc.worldId==='shop-hub';
+   if(destination==='shopHub'&&!wasHub){if(!near(session,PERSONAL_ISLAND_PORTAL,PERSONAL_ISLAND_PORTAL.interactionRadius))return {status:400,data:{error:'Move closer to the shop portal'}};loc.personalSpawn={...session.world.player};loc.worldId='shop-hub';loc.hubInstanceId=createShopHubInstance(who.id).instanceId;loc.hubPlayer={...SHOP_HUB_LAYOUT.spawn,grounded:true};session.player={...loc.hubPlayer,vy:0,lastAt:Date.now()};}
+   else if(destination==='personal'&&wasHub){const portal=SHOP_HUB_LAYOUT.portals.find(p=>p.direction==='toPersonal');if(!portal||!near(session,portal,3.5))return {status:400,data:{error:'Move closer to the return portal'}};loc.worldId='personal-island';session.player={...(loc.personalSpawn||session.world.player),vy:0,lastAt:Date.now()};}
+   else return {status:409,data:{error:'Already in destination world'}};
+   session.mining=null;session.harvesting=null;session.world.revision++;session.world.updatedAt=Date.now();await save(who.id,session.world);return {status:200,data:{world:publicWorld(session,who.id,req)}};
+  });session.queue=job;const result=await job;send(res,result.status,result.data);return;
+ }
+ if(path==='/api/shop/open'&&req.method==='POST'){
+  if(session.world.location.worldId!=='shop-hub'||!isWorldActionAllowed('shopHub','interact'))return error(res,403,'Shop interactions are only available in the shop hub');
+  const npc=SHOP_HUB_LAYOUT.npcs.find(n=>n.id==='farmer');if(!npc||!near(session,npc,npc.interactionRadius))return error(res,400,'Move closer to the farmer');
+  send(res,200,{coins:session.world.coins,catalog:SHOP_CATALOG,revision:session.world.revision,inventory:session.world.inventory});return;
+ }
+ if(path==='/api/shop/trade'&&req.method==='POST'){
+  if(session.world.location.worldId!=='shop-hub'||!isWorldActionAllowed('shopHub','trade'))return error(res,403,'Trading is only available in the shop hub');
+  const npc=SHOP_HUB_LAYOUT.npcs.find(n=>n.id==='farmer');if(!npc||!near(session,npc,npc.interactionRadius))return error(res,400,'Move closer to the farmer');const body=await jsonBody(req);
+  const job=session.queue.catch(()=>{}).then(async()=>{const w=session.world;if(body?.revision!==w.revision)return {status:409,data:{error:'Revision conflict',world:publicWorld(session,who.id,req)}};
+   const quantity=resolveShopQuantity({selection:body?.quantity,action:body?.action,item:body?.item,inventory:w.inventory,coins:w.coins});
+   const trade=applyShopTrade({player:{coins:w.coins,inventory:w.inventory},action:body?.action,item:body?.item,quantity});if(!trade.ok)return {status:400,data:{error:trade.error,world:publicWorld(session,who.id,req)}};
+   const next={...w,coins:trade.player.coins,inventory:trade.player.inventory,revision:w.revision+1,updatedAt:Date.now()};await save(who.id,next);session.world=next;return {status:200,data:{world:publicWorld(session,who.id,req),trade:{action:trade.action,item:trade.item,quantity:trade.quantity,total:trade.total,unitPrice:trade.unitPrice}}};
+  });session.queue=job;const result=await job;send(res,result.status,result.data);return;
+ }
+ if(['/api/inventory/drop','/api/npc/attack'].includes(path)&&req.method==='POST'&&session.world.location.worldId==='shop-hub')return error(res,403,'That action is forbidden in the protected shop hub');
+ const capabilityByPath={'/api/action':'place','/api/mine':'mine','/api/harvest':'harvest','/api/farm':'farm','/api/slot':'equip','/api/craft':'build','/api/machine/place':'build','/api/inventory/drop':'drop','/api/npc/attack':'combat'};
+ if(session.world.location.worldId==='shop-hub'&&capabilityByPath[path]&& !isWorldActionAllowed('shopHub',capabilityByPath[path]))return error(res,403,'That action is disabled in the protected shop hub');
+ if(path==='/api/slot'&&req.method==='POST'){const body=await jsonBody(req);const slot=body?.selectedSlot??body?.slot;if(!Number.isInteger(slot)||slot<0||slot>7)return error(res,400,'Invalid quick slot');const item=session.world.inventory.quickSlots[slot];if(item&&!(session.world.inventory.tools?.[item]>0))return error(res,400,'Item is unavailable');const next={...session.world,inventory:{...session.world.inventory,selectedSlot:slot},revision:session.world.revision+1,updatedAt:Date.now()};await save(who.id,next);session.world=next;send(res,200,{world:publicWorld(session,who.id,req)});return;}
+ if(path==='/api/world'&&req.method==='GET'){const now=Date.now(),changed=refreshOreNodes(session.world)|advanceSessionTime(session,now);if(changed)await save(who.id,session.world);send(res,200,publicWorld(session,who.id,req));return;}
  if(path==='/api/farm'&&req.method==='POST'){
   const body=await jsonBody(req),action=body?.action;const job=session.queue.catch(()=>{}).then(async()=>{
    const w=session.world;advanceSessionTime(session);const inv={...w.inventory,tools:{...w.inventory.tools},items:{...w.inventory.items}},p=session.player;
@@ -219,6 +270,7 @@ async function handler(req,res){
    const validCell=Number.isInteger(body.x)&&Number.isInteger(body.y)&&Number.isInteger(body.z)&&inBounds(body.x,body.y,body.z);
    if(!validCell)return {status:400,data:{error:'Invalid coordinates',world:w}};
    const {x,y,z}=body,cell=key(x,y,z),near=point([x,y,z]);
+   if(personalPortalCell(x,y,z))return {status:400,data:{error:'The portal area is protected',world:w}};
    if(Math.hypot(near.x-p.x,near.y-(p.y+1),near.z-p.z)>5.5)return {status:400,data:{error:'Target out of reach',world:w}};
    const next={...w,inventory:inv,tilled:[...w.tilled],crops:[...w.crops],watered:{...w.watered},trees:[...w.trees],revision:w.revision+1,updatedAt:Date.now()};
    if(action==='till'){
@@ -312,7 +364,7 @@ async function handler(req,res){
   if(!Object.hasOwn(RECIPES,type)||RECIPES[type].tool||!Number.isInteger(body?.x)||!Number.isInteger(body?.y)||!Number.isInteger(body?.z)||!Number.isInteger(body?.rotation)||body.rotation<0||body.rotation>3){error(res,400,'Invalid machine placement');return;}
   const job=session.queue.catch(()=>{}).then(async()=>{
    const {x,y,z}=body,p=session.player,center={x:x+.5,y:y+.5,z:z+.5};
-   if(!inBounds(x,y,z)||Math.hypot(center.x-p.x,center.y-(p.y+1),center.z-p.z)>5.5)return {status:400,data:{error:'Machine placement out of reach',world:session.world}};
+   if(!inBounds(x,y,z)||personalPortalCell(x,y,z)||Math.hypot(center.x-p.x,center.y-(p.y+1),center.z-p.z)>5.5)return {status:400,data:{error:'Machine placement out of reach or reserved',world:session.world}};
    if(block(session.world,x,y,z)||!block(session.world,x,y-1,z))return {status:400,data:{error:'Machine needs a clear, supported tile',world:session.world}};
    if(session.world.machines.some(m=>m.x===x&&m.y===y&&m.z===z))return {status:400,data:{error:'Tile already occupied',world:session.world}};
    if(!session.world.inventory.items[type])return {status:400,data:{error:'No crafted machine in inventory',world:session.world}};
