@@ -31,10 +31,10 @@ test('follow camera and projection use rendered coordinates and wider distances'
  assert.match(source,/PerspectiveCamera\(65,innerWidth\/innerHeight,\.12,260\)/);
 });
 test('simulation grid and player physics remain in original block coordinates',()=>{
- assert.match(source,/for\(let x=-8;x<8;x\+\+\)for\(let z=-8;z<8;z\+\+\)for\(let y=-3;y<0;y\+\+\)/);
+ assert.match(source,/const SIZE=10/);
+ assert.match(source,/for\(let x=-half;x<half;x\+\+\)for\(let z=-half;z<half;z\+\+\)for\(let y=-3;y<0;y\+\+\)/);
  assert.match(source,/const player=\{pos:new THREE\.Vector3\(\.5,0,\.5\)/);
- assert.match(source,/function solidForBody\(x,y,z\)/);
- assert.match(source,/const proposedX=player\.pos\.x\+dirX\*speed\*dt/);
+ assert.match(source,/api\('\/api\/move'/);
 });
 
 test('human height and arm span fit one-metre voxel dimensions',()=>{
@@ -43,5 +43,5 @@ test('human height and arm span fit one-metre voxel dimensions',()=>{
  const headTop=1.64+.28/2,armHalfSpan=.28+.12/2;
  assert.ok(Math.abs(headTop-1.78)<1e-12);
  assert.ok(Math.abs(armHalfSpan-.34)<1e-12);
- assert.match(source,/for\(const oy of \[\.1,\.9,PLAYER_HEIGHT_METERS-\.08\]\)/);
+ assert.match(readFileSync(new URL('../server.mjs',import.meta.url),'utf8'),/for\(const oy of \[\.1,\.9,PLAYER_HEIGHT-\.08\]\)/);
 });
