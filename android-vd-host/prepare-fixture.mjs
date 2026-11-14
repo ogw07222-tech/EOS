@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 const saveDir = process.env.TERRA_SAVE_DIR;
 const cookieFile = process.env.TERRA_QA_COOKIE_FILE;
 const secret = process.env.TERRA_SESSION_SECRET || '';
+const scytheScenario = process.env.TERRA_QA_SCYTHE_FIXTURE === '1';
 if (!saveDir || !cookieFile || secret.length < 32) throw new Error('Set TERRA_SAVE_DIR, TERRA_QA_COOKIE_FILE, and a 32+ character TERRA_SESSION_SECRET');
 
 const id = randomBytes(16).toString('hex');
@@ -15,14 +16,22 @@ const world = {
   inventory: {
     dirt: 48, wood: 12, stone: 6, wheat: 0, wheat_seed: 4, sapling: 0,
     items: { workbench: 0, farming_bench: 0, drill: 0, conveyor: 0, smelter: 0 },
-    tools: { wood_pickaxe: 1, wood_axe: 1, wood_shovel: 1, hoe: 1, watering_can: 1, scythe: 0 },
-    quickSlots: ['wood_pickaxe', 'wood_axe', 'wood_shovel', 'hoe', 'watering_can', null, null, null],
-    selectedSlot: 3, wateringCanUses: 10
+    tools: { wood_pickaxe: 1, wood_axe: 1, wood_shovel: 1, hoe: 1, watering_can: 1, scythe: scytheScenario ? 1 : 0 },
+    quickSlots: scytheScenario
+      ? ['wood_pickaxe', 'wood_axe', 'wood_shovel', 'hoe', 'watering_can', 'scythe', null, null]
+      : ['wood_pickaxe', 'wood_axe', 'wood_shovel', 'hoe', 'watering_can', null, null, null],
+    selectedSlot: scytheScenario ? 5 : 3, wateringCanUses: scytheScenario ? 1 : 10
   },
   edits: {}, machines: [{ id: 't1-bench-start', type: 't1_bench', x: 2, y: 0, z: 1, rotation: 0 }],
   trees: [{ id: 'oak_start', x: -3, y: 0, z: -3, scale: 1, stage: 3, progress: 0, harvested: false }],
   harvestedTrees: [], tilled: [[-4,0,3],[-3,0,3],[-2,0,3],[-1,0,3],[0,0,3],[1,0,3],[2,0,3],[3,0,3],[4,0,3]],
-  crops: [
+  crops: scytheScenario ? [
+    { id: 'edge_inside_1', x: -2, y: 0, z: 3, stage: 4, progress: 0, lastTick: now },
+    { id: 'edge_inside_2', x: -1, y: 0, z: 3, stage: 4, progress: 0, lastTick: now },
+    { id: 'edge_inside_3', x: 0, y: 0, z: 3, stage: 4, progress: 0, lastTick: now },
+    { id: 'edge_outside', x: 1, y: 0, z: 3, stage: 4, progress: 0, lastTick: now },
+    { id: 'edge_immature', x: 3, y: 0, z: 3, stage: 3, progress: 0, lastTick: now }
+  ] : [
     { id: 'wheat_1', x: -4, y: 0, z: 3, stage: 4, progress: 0, lastTick: now },
     { id: 'wheat_2', x: -3, y: 0, z: 3, stage: 4, progress: 0, lastTick: now },
     { id: 'wheat_3', x: -2, y: 0, z: 3, stage: 4, progress: 0, lastTick: now },

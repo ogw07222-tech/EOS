@@ -13,7 +13,8 @@ import {isFarmTileWatered,treeWoodYieldForRoll} from '../src/farming-rules.mjs';
 const root=resolve(import.meta.dirname,'..');
 const secret='testing_secret_for_terra_game_1234567890';
 async function randomPort(){const s=net.createServer();s.listen(0,'127.0.0.1');await once(s,'listening');const p=s.address().port;await new Promise(r=>s.close(r));return p;}
-async function boot(port,dir,nodeEnv,virtualTime=false){const clock=join(root,'tests','fixtures','virtual-clock.mjs');const child=spawn(process.execPath,['server.mjs'],{cwd:root,env:{...process.env,PORT:String(port),TERRA_SAVE_DIR:dir,TERRA_SESSION_SECRET:secret,...(nodeEnv?{NODE_ENV:nodeEnv}:{}),...(virtualTime?{NODE_OPTIONS:`--import=${pathToFileURL(clock).href}`,TERRA_VIRTUAL_TIME_STEP_MS:'100'}:{})},stdio:['ignore','pipe','pipe']});let stderr='';child.stderr.on('data',b=>stderr+=b.toString());await new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=>reject(Error('server startup timed out: '+stderr)),5000);child.stdout.on('data',b=>{out+=b;if(out.includes('TERRA prototype server:')){clearTimeout(timer);resolve();}});child.once('exit',code=>{clearTimeout(timer);reject(Error(`server exited ${code}: ${stderr}`));});});return child;}
+async function boot(port,dir,nodeEnv,virtualTime=false){const clock=join(root,'tests','fixtures','virtual-clock.mjs');const child=spawn(process.execPath,['server.mjs'],{cwd:root,env:{...process.env,PORT:String(port),TERRA_SAVE_DIR:dir,TERRA_SESSION_SECRET:secret,...(nodeEnv?{NODE_ENV:nodeEnv}:{}),...(virtualTime?{NODE_OPTIONS:`--import=${pathToFileURL(clock).href}`,TERRA_VIRTUAL_TIME_STEP_MS:'100'}:{})},stdio:['ignore','pipe','pipe']});let stderr='';child.qaStderr=()=>stderr;child.stderr.on('data',b=>stderr+=b.toString());await new Promise((resolve,reject)=>{let out='';const timer=setTimeout(()=>reject(Error('server startup timed out: '+stderr)),5000);child.stdout.on('data',b=>{out+=b;if(out.includes('TERRA prototype server:')){clearTimeout(timer);resolve();}});child.once('exit',code=>{clearTimeout(timer);reject(Error(`server exited ${code}: ${stderr}`));});});return child;}
+async function processRssKb(pid){try{const status=await readFile(`/proc/${pid}/status`,'utf8'),match=status.match(/^VmRSS:\s+(\d+)\s+kB/m);return match?Number(match[1]):null;}catch{return null;}}
 async function stop(child){if(child&&child.exitCode===null){child.kill('SIGTERM');await once(child,'exit');}}
 async function req(port,path,body,cookie){const r=await fetch(`http://127.0.0.1:${port}${path}`,{method:body?'POST':'GET',headers:{...(cookie?{Cookie:cookie}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});return {status:r.status,cookie:r.headers.get('set-cookie'),body:await r.json()};}
 async function freshWorld(){const dir=await mkdtemp(join(tmpdir(),'terra-farm-'));const port=await randomPort();const proc=await boot(port,dir);const r=await req(port,'/api/world');return {dir,port,proc,cookie:r.cookie.split(';')[0],world:r.body};}
@@ -72,6 +73,72 @@ test('scythe harvest is a block-coordinate 3x3x3 cube and cannot duplicate rewar
   assert.equal(result.body.world.crops.length,3); // out of cube stays untouched
   const duplicate=await farm(c.port,c.cookie,'scythe',0,0,3,'scythe',result.body.world.revision);
   assert.notEqual(duplicate.status,200);assert.equal(duplicate.body.world.inventory.wheat,27);
+ }finally{await stop(c.proc);await rm(c.dir,{recursive:true,force:true});}
+});
+
+test('scythe covers all 27 XYZ cells at signed/elevated boundaries and preserves immature and all 98 surrounding cells after reload',async()=>{
+ const cases=[
+  {center:{x:16,y:0,z:16},player:{x:16.5,y:0,z:16.5,grounded:true},immatureCenter:false},
+  {center:{x:-16,y:1,z:-16},player:{x:-15.5,y:1,z:-15.5,grounded:true},immatureCenter:true}
+ ];
+ for(const scenario of cases){
+  const {center}=scenario,crops=[];
+  for(let dx=-2;dx<=2;dx++)for(let dy=-2;dy<=2;dy++)for(let dz=-2;dz<=2;dz++){
+   const inside=Math.abs(dx)<=1&&Math.abs(dy)<=1&&Math.abs(dz)<=1;
+   const stage=inside&&scenario.immatureCenter&&dx===0&&dy===0&&dz===0?3:4;
+   crops.push({id:`cell_${dx}_${dy}_${dz}`,x:center.x+dx,y:center.y+dy,z:center.z+dz,stage,progress:0});
+  }
+  const c=await preparedWorld(crops,{player:scenario.player});try{
+   const before=JSON.parse(await readFile(join(c.dir,c.id+'.json'),'utf8'));
+   const initial=await req(c.port,'/api/world',null,c.cookie);assert.equal(initial.body.crops.length,125);
+   const result=await farm(c.port,c.cookie,'scythe',center.x,center.y,center.z,'scythe',initial.body.revision);
+   const expected=27-(scenario.immatureCenter?1:0);assert.equal(result.status,200,result.body.error);assert.equal(result.body.harvested,expected);
+   assert.equal(result.body.world.inventory.wheat,expected);assert.equal(result.body.world.inventory.wheat_seed,expected);
+   const expectedRemaining=98+(scenario.immatureCenter?1:0);assert.equal(result.body.world.crops.length,expectedRemaining);
+   const remainingIds=new Set(result.body.world.crops.map(crop=>crop.id));
+   for(const crop of crops){const inside=Math.abs(crop.x-center.x)<=1&&Math.abs(crop.y-center.y)<=1&&Math.abs(crop.z-center.z)<=1;const shouldRemain=!inside||crop.stage<4;assert.equal(remainingIds.has(crop.id),shouldRemain,`XYZ boundary mismatch: ${crop.id}`);}
+   const after=JSON.parse(await readFile(join(c.dir,c.id+'.json'),'utf8'));
+   assert.equal(after.crops.length,expectedRemaining);assert.equal(after.harvestedCrops.length,expected);
+   assert.equal(after.inventory.wheat-before.inventory.wheat,expected);assert.equal(after.inventory.wheat_seed-before.inventory.wheat_seed,expected);
+   await stop(c.proc);c.proc=await boot(c.port,c.dir);
+   let reloaded=(await req(c.port,'/api/world',null,c.cookie)).body;assert.equal(reloaded.crops.length,expectedRemaining);assert.equal(reloaded.harvestedCrops.length,expected);assert.equal(reloaded.inventory.wheat,expected);assert.equal(reloaded.inventory.wheat_seed,expected);
+   const replay=await farm(c.port,c.cookie,'scythe',center.x,center.y,center.z,'scythe',reloaded.revision);assert.equal(replay.status,400);assert.equal(replay.body.world.inventory.wheat,expected);assert.equal(replay.body.world.inventory.wheat_seed,expected);
+  }finally{await stop(c.proc);await rm(c.dir,{recursive:true,force:true});}
+ }
+});
+
+test('114 scythe retry and watering boundary requests preserve single rewards, charges, and saved timers',async()=>{
+ const center={x:0,y:0,z:3},crops=[];
+ for(let dx=-2;dx<=2;dx++)for(let dy=-2;dy<=2;dy++)for(let dz=-2;dz<=2;dz++)crops.push({id:`stress_${dx}_${dy}_${dz}`,x:center.x+dx,y:center.y+dy,z:center.z+dz,stage:4,progress:0});
+ const c=await preparedWorld(crops,{tilled:[[0,0,3]],waterSources:[{x:0,y:0,z:0}],inventory:{selectedSlot:5,wateringCanUses:10}});try{
+  let operations=0,w=(await req(c.port,'/api/world',null,c.cookie)).body;operations++;
+  const before=JSON.parse(await readFile(join(c.dir,c.id+'.json'),'utf8')),rssBefore=await processRssKb(c.proc.pid);
+  let r=await farm(c.port,c.cookie,'scythe',0,0,3,'scythe',w.revision);operations++;
+  assert.equal(r.status,200,r.body.error);assert.equal(r.body.harvested,27);w=r.body.world;
+  const duplicates=await Promise.all(Array.from({length:40},()=>farm(c.port,c.cookie,'scythe',0,0,3,'scythe',0)));operations+=duplicates.length;
+  assert.equal(duplicates.filter(v=>v.status===409).length,40);w=(await req(c.port,'/api/world',null,c.cookie)).body;operations++;
+  assert.equal(w.inventory.wheat,27);assert.equal(w.inventory.wheat_seed,27);assert.equal(w.harvestedCrops.length,27);assert.equal(w.crops.length,98);
+  r=await farm(c.port,c.cookie,'scythe',0,0,3,'scythe',w.revision);operations++;assert.equal(r.status,400);assert.equal(r.body.world.inventory.wheat,27);
+  r=await req(c.port,'/api/slot',{selectedSlot:4},c.cookie);operations++;assert.equal(r.status,200);w=r.body.world;
+  for(let i=0;i<20;i++){const x=i%2===0?-1:1,z=i%4<2?3:4;r=await farm(c.port,c.cookie,'water',x,0,z,'watering_can',w.revision);operations++;assert.equal(r.status,400);assert.equal(r.body.world.inventory.wateringCanUses,10);assert.equal(r.body.world.revision,w.revision);}
+  for(let i=0;i<5;i++){r=await farm(c.port,c.cookie,'water',64,0,3,'watering_can',w.revision);operations++;assert.equal(r.status,400);assert.equal(r.body.world.inventory.wateringCanUses,10);}
+  for(let i=0;i<20;i++){r=await farm(c.port,c.cookie,'water',0,0,3,'hoe',w.revision);operations++;assert.equal(r.status,400);assert.equal(r.body.world.inventory.wateringCanUses,10);assert.equal(r.body.world.revision,w.revision);}
+  for(let i=0;i<10;i++){r=await farm(c.port,c.cookie,'water',0,0,3,'watering_can',w.revision);operations++;assert.equal(r.status,200,r.body.error);w=r.body.world;assert.equal(w.inventory.wateringCanUses,9-i);assert.ok(w.watered['0,0,3']>0&&w.watered['0,0,3']<=300000);}
+  const fullRevision=w.revision;
+  for(let i=0;i<10;i++){r=await farm(c.port,c.cookie,'water',0,0,3,'watering_can',w.revision);operations++;assert.equal(r.status,400);assert.equal(r.body.world.inventory.wateringCanUses,0);assert.equal(r.body.world.revision,fullRevision);}
+  r=await farm(c.port,c.cookie,'refill',0,0,0,'watering_can',w.revision);operations++;assert.equal(r.status,200,r.body.error);w=r.body.world;assert.equal(w.inventory.wateringCanUses,10);
+  r=await farm(c.port,c.cookie,'refill',0,0,0,'watering_can',w.revision);operations++;assert.equal(r.status,200,r.body.error);w=r.body.world;assert.equal(w.inventory.wateringCanUses,10,'refill must cap at ten');
+  assert.ok(operations>=100,`edge operation count ${operations}`);
+  const after=JSON.parse(await readFile(join(c.dir,c.id+'.json'),'utf8'));
+  assert.equal(after.harvestedCrops.length-before.harvestedCrops.length,27);assert.equal(after.crops.length,98);
+  assert.equal(after.inventory.wheat-before.inventory.wheat,27);assert.equal(after.inventory.wheat_seed-before.inventory.wheat_seed,27);
+  assert.equal(after.inventory.wateringCanUses,10);assert.ok(after.watered['0,0,3']>0);
+  const rssAfter=await processRssKb(c.proc.pid);assert.equal(c.proc.qaStderr(),'');
+  await stop(c.proc);c.proc=await boot(c.port,c.dir);w=(await req(c.port,'/api/world',null,c.cookie)).body;operations++;
+  assert.equal(w.crops.length,98);assert.equal(w.harvestedCrops.length,27);assert.equal(w.inventory.wheat,27);assert.equal(w.inventory.wheat_seed,27);assert.equal(w.inventory.wateringCanUses,10);assert.ok(w.watered['0,0,3']>0);
+  r=await farm(c.port,c.cookie,'scythe',0,0,3,'scythe',w.revision);operations++;assert.equal(r.status,400);assert.equal(r.body.world.inventory.wheat,27);
+  const afterRestart=JSON.parse(await readFile(join(c.dir,c.id+'.json'),'utf8'));assert.equal(afterRestart.harvestedCrops.length,27);assert.equal(afterRestart.inventory.wheat,27);assert.equal(afterRestart.inventory.wheat_seed,27);
+  console.log(JSON.stringify({qa:'edge-boundaries',operations,scytheHarvested:27,outsideRetained:98,wheatDelta:after.inventory.wheat-before.inventory.wheat,seedDelta:after.inventory.wheat_seed-before.inventory.wheat_seed,rssBeforeKb:rssBefore,rssAfterKb:rssAfter,serverStderr:c.proc.qaStderr()}));
  }finally{await stop(c.proc);await rm(c.dir,{recursive:true,force:true});}
 });
 
@@ -160,6 +227,34 @@ test('thirty full farming loops run on an isolated virtual 50x clock with growth
   }
   const persisted=JSON.parse(await readFile(join(c.dir,c.id+'.json'),'utf8'));assert.ok(expectedRevision>=150);assert.equal(persisted.revision,expectedRevision);assert.equal(persisted.inventory.wheat,30);assert.equal(persisted.inventory.wheat_seed,1);assert.equal(persisted.harvestedCrops.length,30);
   await stop(c.proc);c.proc=await boot(c.port,c.dir,'development',true);r=await req(c.port,'/api/world',null,c.cookie);assert.equal(r.body.revision,expectedRevision);assert.equal(r.body.inventory.wheat,30);assert.equal(r.body.inventory.wheat_seed,1);assert.equal(r.body.harvestedCrops.length,30);assert.equal(r.body.crops.length,0,'restart must preserve the harvested farm state');
+ }finally{await stop(c.proc);await rm(c.dir,{recursive:true,force:true});}
+});
+
+test('50x watering and growth restore to 1x, retain only game-time water, and exclude restart gaps',async()=>{
+ const c=await preparedWorld([{id:'wet',x:0,y:0,z:3,stage:1,progress:0},{id:'dry',x:1,y:0,z:3,stage:1,progress:0}],{nodeEnv:'development',virtualTime:true,waterSources:[{x:0,y:0,z:0}],inventory:{selectedSlot:4,wateringCanUses:2}});try{
+  let w=(await req(c.port,'/api/world',null,c.cookie)).body;assert.equal(w.gameClock.multiplier,1);
+  let r=await req(c.port,'/api/dev/time',{multiplier:50},c.cookie);assert.equal(r.status,200);assert.equal(r.body.gameClock.multiplier,50);
+  r=await farm(c.port,c.cookie,'water',0,0,3,'watering_can',w.revision);assert.equal(r.status,200,r.body.error);w=r.body.world;assert.equal(w.inventory.wateringCanUses,1);
+  const high=(await req(c.port,'/api/world',null,c.cookie)).body;assert.equal(high.gameClock.multiplier,50);assert.equal(high.crops.find(v=>v.id==='wet').stage,4);assert.ok(high.watered['0,0,3']>0&&high.watered['0,0,3']<300000);
+  const wetAt50=high.watered['0,0,3'];const clockAt50=high.gameClock.gameTimeMs;
+  r=await req(c.port,'/api/dev/time',{multiplier:1},c.cookie);assert.equal(r.status,200);assert.equal(r.body.gameClock.multiplier,1);assert.equal(r.body.gameClock.gameMinutesPerRealMinute,12);assert.ok(r.body.gameClock.gameTimeMs>clockAt50);
+  const clockAt1=r.body.gameClock.gameTimeMs;const oneTick=await req(c.port,'/api/dev/time',null,c.cookie);assert.equal(oneTick.body.gameClock.multiplier,1);assert.equal(oneTick.body.gameClock.gameTimeMs-clockAt1,1200,'the test clock must advance exactly one 1× tick');
+  const afterOneTick=await req(c.port,'/api/world',null,c.cookie);assert.equal(afterOneTick.body.gameClock.multiplier,1);assert.equal(afterOneTick.body.crops.find(v=>v.id==='wet').stage,4);
+  const waterAt1=afterOneTick.body.watered['0,0,3'];assert.ok(waterAt1>0);assert.ok(wetAt50-waterAt1>100000&&wetAt50-waterAt1<130000,`50x settlement followed by 1x ticks should consume game-time water: ${wetAt50}→${waterAt1}`);
+  for(let i=0;i<5;i++)await req(c.port,'/api/move',{x:1,z:0},c.cookie);for(let i=0;i<5;i++)await req(c.port,'/api/move',{x:-1,z:0},c.cookie);
+  w=(await req(c.port,'/api/world',null,c.cookie)).body;assert.ok(Math.abs(w.player.x-.5)<.02,'move away and back returns the player');assert.equal(w.crops.find(v=>v.id==='wet').stage,4);assert.ok(w.watered['0,0,3']>0);
+  const persisted=JSON.parse(await readFile(join(c.dir,c.id+'.json'),'utf8'));assert.equal(persisted.crops.find(v=>v.id==='wet').stage,4);assert.ok(persisted.watered['0,0,3']>0);
+  await stop(c.proc);c.proc=await boot(c.port,c.dir,'development',true);r=await req(c.port,'/api/dev/time',null,c.cookie);assert.equal(r.body.gameClock.multiplier,1);w=(await req(c.port,'/api/world',null,c.cookie)).body;assert.equal(w.crops.find(v=>v.id==='wet').stage,4);assert.ok(w.watered['0,0,3']>0);assert.ok(Math.abs(w.player.x-.5)<.02);
+ }finally{await stop(c.proc);await rm(c.dir,{recursive:true,force:true});}
+});
+
+test('atomic save recovery ignores an orphaned partial temp file and keeps the last committed farm state',async()=>{
+ const c=await preparedWorld([{id:'saved-crop',x:0,y:0,z:3,stage:4}],{revision:9,inventory:{wheat:2,wheat_seed:3}});try{
+  const target=join(c.dir,c.id+'.json'),orphan=target+'.interrupted.tmp';await writeFile(orphan,'{"revision":10,"crops":[');
+  let w=(await req(c.port,'/api/world',null,c.cookie)).body;assert.equal(w.revision,9);assert.equal(w.crops[0].id,'saved-crop');
+  const result=await farm(c.port,c.cookie,'harvest',0,0,3,'hand',w.revision);assert.equal(result.status,200,result.body.error);assert.equal(result.body.world.inventory.wheat,3);assert.equal(result.body.world.inventory.wheat_seed,4);
+  const committed=JSON.parse(await readFile(target,'utf8'));assert.equal(committed.revision,10);assert.equal(committed.crops.length,0);assert.deepEqual(committed.harvestedCrops,['saved-crop']);
+  await stop(c.proc);c.proc=await boot(c.port,c.dir);w=(await req(c.port,'/api/world',null,c.cookie)).body;assert.equal(w.revision,10);assert.equal(w.inventory.wheat,3);assert.equal(w.inventory.wheat_seed,4);assert.equal(w.crops.length,0);
  }finally{await stop(c.proc);await rm(c.dir,{recursive:true,force:true});}
 });
 

@@ -37,7 +37,7 @@ This round completed a full on-device touch loop: till, plant, water, accelerate
 - Added concurrent planting/harvesting checks: one request succeeds and stale duplicate requests conflict without duplicate rewards.
 - Added an isolated 30-loop farming run using the existing test-only development 50× rate and a deterministic process-local virtual clock. Each loop verified planting, active-time growth to stage 4, watering, harvest reward, revisioned save; the 30-loop final state survived a server restart. No 100× rate or production setting was added or changed.
 - Existing test coverage also exercised the scythe’s 3×3×3 mature-only behavior, shop purchase/sale validation, stale revision handling, tree-yield boundaries, developer water/growth timing and guest-save isolation.
-- `npm test`: **47 passed, 0 failed**. The automated/API suite passed; that does not override the unverified physical touch harvest above.
+- `npm test`: **47 passed, 0 failed**. The automated/API suite and the separately observed Display 16 touch harvest both passed.
 
 ## Changes and limits
 

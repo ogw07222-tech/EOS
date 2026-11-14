@@ -1,0 +1,82 @@
+{
+  "revision": 3,
+  "coins": 100,
+  "inventory": {
+    "dirt": 48,
+    "wood": 12,
+    "stone": 6,
+    "wheat": 2,
+    "wheat_seed": 6,
+    "sapling": 0,
+    "items": {
+      "workbench": 0,
+      "farming_bench": 0,
+      "drill": 0,
+      "conveyor": 0,
+      "smelter": 0,
+      "hoe": 0,
+      "watering_can": 0,
+      "scythe": 0
+    },
+    "tools": {
+      "wood_pickaxe": 1,
+      "wood_axe": 1,
+      "wood_shovel": 1,
+      "hoe": 1,
+      "watering_can": 1,
+      "scythe": 1
+    },
+    "quickSlots": [
+      "wood_pickaxe",
+      "wood_axe",
+      "wood_shovel",
+      "hoe",
+      "watering_can",
+      "scythe",
+      null,
+      null
+    ],
+    "selectedSlot": 4,
+    "wateringCanUses": 0
+  },
+  "harvestedCrops": [
+    "edge_inside_1",
+    "edge_inside_2"
+  ],
+  "crops": [
+    {
+      "id": "edge_inside_3",
+      "x": 0,
+      "y": 0,
+      "z": 3,
+      "stage": 4,
+      "progress": 0
+    },
+    {
+      "id": "edge_outside",
+      "x": 1,
+      "y": 0,
+      "z": 3,
+      "stage": 4,
+      "progress": 0
+    },
+    {
+      "id": "edge_immature",
+      "x": 3,
+      "y": 0,
+      "z": 3,
+      "stage": 4,
+      "progress": 18264
+    }
+  ],
+  "watered": {
+    "-4,0,3": 11628
+  },
+  "player": {
+    "x": 0.5,
+    "y": 0,
+    "z": 0.5,
+    "grounded": true
+  },
+  "updatedAt": 1794660231356
+}
