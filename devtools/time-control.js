@@ -27,7 +27,7 @@ export function mountDevPanel(initialSnapshot) {
   panel.innerHTML = `
     <header class="terra-dev-head">
       <strong>DEV <span>— 시간 가속</span></strong>
-      <button type="button" class="terra-dev-fold" aria-expanded="true" aria-label="개발자 패널 접기">−</button>
+      <button type="button" class="terra-dev-fold" aria-expanded="false" aria-label="개발자 패널 펼치기">+</button>
     </header>
     <div class="terra-dev-body">
       <div class="terra-dev-rates" role="group" aria-label="게임 시간 배율"></div>
@@ -37,6 +37,7 @@ export function mountDevPanel(initialSnapshot) {
       <p class="terra-dev-status" role="status" aria-live="polite"></p>
     </div>`;
   document.body.append(panel);
+  panel.classList.add("is-collapsed");
 
   const rates = panel.querySelector('.terra-dev-rates');
   const current = panel.querySelector('[data-current]');

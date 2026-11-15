@@ -20,3 +20,10 @@ test('wheat sells for catalog value and inventory shortage is rejected atomicall
  assert.equal(applyShopTrade({player:p,action:'sell',item:'wheat',quantity:2}).ok,false);
  assert.equal(p.coins,2);assert.equal(p.inventory.wheat,1);
 });
+
+test('carrot and potato seeds remain separately purchasable at fixed catalog prices',()=>{
+ for(const [item,price]of [['carrot_seed',6],['potato_seed',7]]){
+  const player={coins:price,inventory:{[item]:0}};const trade=applyShopTrade({player,action:'buy',item,quantity:1});
+  assert.equal(trade.ok,true);assert.equal(trade.player.coins,0);assert.equal(trade.player.inventory[item],1);
+ }
+});

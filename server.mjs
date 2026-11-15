@@ -1,14 +1,21 @@
 import http from 'node:http';
 import { readFile, mkdir, writeFile, rename, access } from 'node:fs/promises';
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { join, resolve, extname } from 'node:path';
-import { treeWoodYieldForRoll } from './src/farming-rules.mjs';
+import { cropTypeOf, seedItemForCrop, productItemForCrop, harvestYield, advanceCrop } from './src/crop-rules.mjs';
 import { SHOP_HUB_LAYOUT, SHOP_HUB_WORLD_ID, PERSONAL_ISLAND_PORTAL, createShopHubInstance, isWorldActionAllowed } from './src/hub-world.mjs';
 import { SHOP_CATALOG, resolveShopQuantity, applyShopTrade } from './src/economy-rules.mjs';
+import { advanceItemLogistics, normalizeDrops } from './src/item-logistics.mjs';
+import { WORLD_GEN_VERSION, WORLD_MIN_Y, WORLD_MAX_Y, blockAt } from './src/chunk-world.mjs';
+import { mineralDrop, mineralTier, pickaxeTier, canMineMineral, mineralCore, isCoreDrop } from './src/mineral-world.mjs';
+import { normalizeResourceInventory, RESOURCE_KEYS, WOOD_LOG_KEYS, SAPLING_KEYS, TREE_LOGS, TREE_SAPLINGS, MINERAL_ITEMS } from './src/resource-catalog.mjs';
+import { generateTreesForChunk, treeDimensions } from './src/tree-world.mjs';
+import { heightAt } from './src/chunk-world.mjs';
 
 const ROOT=resolve(process.cwd());
 const SAVE_DIR=resolve(process.env.TERRA_SAVE_DIR || join(ROOT,'data','worlds'));
 const PORT=Number(process.env.PORT || 3000);
+const HOST=process.env.HOST || '127.0.0.1';
 const SECRET=process.env.TERRA_SESSION_SECRET || '';
 if(SECRET.length<32) { console.error('Set TERRA_SESSION_SECRET (at least 32 characters).'); process.exit(1); }
 let devClockModule=null;
@@ -30,28 +37,38 @@ const RECIPES={
  workbench:{cost:{wood:8,dirt:6},station:'t1_bench'},
  farming_bench:{cost:{wood:2,stone:3},station:'t1_bench',item:true},
  hoe:{cost:{wood:2,stone:1},station:'farming_bench',tool:true},
+ stone_pickaxe:{cost:{wood:3,stone:3},station:'t1_bench',tool:true},
  watering_can:{cost:{wood:2,stone:2},station:'farming_bench',tool:true},
  scythe:{cost:{wood:2,stone:3},station:'farming_bench',tool:true},
  drill:{cost:{wood:10,dirt:12},station:'workbench'},
  conveyor:{cost:{wood:4,dirt:5},station:'workbench'},
  smelter:{cost:{wood:6,dirt:10},station:'drill'}
 };
-const allowedFiles=new Map([['/','index.html'],['/index.html','index.html'],['/src/game.js','src/game.js'],['/src/farmer-npc.js','src/farmer-npc.js'],['/src/farming-rules.mjs','src/farming-rules.mjs']]);
+const allowedFiles=new Map([['/','index.html'],['/index.html','index.html'],['/src/game.js','src/game.js'],['/src/farmer-npc.js','src/farmer-npc.js'],['/src/farming-rules.mjs','src/farming-rules.mjs'],['/src/crop-rules.mjs','src/crop-rules.mjs'],['/src/item-logistics.mjs','src/item-logistics.mjs'],['/src/chunk-world.mjs','src/chunk-world.mjs'],['/src/mineral-world.mjs','src/mineral-world.mjs'],['/src/tree-world.mjs','src/tree-world.mjs'],['/src/resource-catalog.mjs','src/resource-catalog.mjs']]);
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8'};
 const devFiles=new Map([['/devtools/time-control.js','devtools/time-control.js'],['/devtools/dev-panel.css','devtools/dev-panel.css']]);
 const localAddress=req=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
 const key=(x,y,z)=>[x,y,z].join(',');
-const inBounds=(x,y,z)=>Number.isInteger(x)&&Number.isInteger(y)&&Number.isInteger(z)&&x>=-64&&x<64&&z>=-64&&z<64&&y>=-8&&y<=16;
+const inBounds=(x,y,z,world=null)=>Number.isInteger(x)&&Number.isInteger(y)&&Number.isInteger(z)&&
+ (world?.worldGenVersion?x>=-4096&&x<4096&&z>=-4096&&z<4096&&y>=WORLD_MIN_Y&&y<=WORLD_MAX_Y:x>=-64&&x<64&&z>=-64&&z<64&&y>=-8&&y<=16);
 const nativeBlock=(size,x,y,z)=>{const half=size/2;return x>=-half&&x<half&&z>=-half&&z<half&&y>=-3&&y<0?'dirt':null;};
-function block(world,x,y,z){const k=key(x,y,z);return Object.hasOwn(world.edits,k)?world.edits[k]:nativeBlock(world.islandSize||16,x,y,z);}
+function block(world,x,y,z){const k=key(x,y,z);if(Object.hasOwn(world.edits,k))return world.edits[k];return world.worldGenVersion?blockAt(world,x,y,z):nativeBlock(world.islandSize||16,x,y,z);}
 function personalPortalCell(x,y,z){return Math.abs(x-PERSONAL_ISLAND_PORTAL.x)<=1&&z===PERSONAL_ISLAND_PORTAL.z&&y>=0&&y<=2;}
+const naturalTreeCache=new Map();
+function surfaceAt(world,x,z){return world.worldGenVersion?heightAt(world.worldSeed,x,z,world.worldGenVersion):0;}
+function naturalTreesInChunk(world,cx,cz){const cacheKey=`${world.worldSeed}:${cx},${cz}`;let trees=naturalTreeCache.get(cacheKey);if(!trees){trees=generateTreesForChunk(world.worldSeed,cx,cz,(x,z)=>surfaceAt(world,x,z));naturalTreeCache.set(cacheKey,trees);if(naturalTreeCache.size>256)naturalTreeCache.delete(naturalTreeCache.keys().next().value);}return trees;}
+function naturalTreeById(world,id){if(!world.worldGenVersion||typeof id!=='string')return null;const prefix=`natural-tree:${world.worldSeed}:`;if(!id.startsWith(prefix))return null;const match=/^(-?\d+),(-?\d+)$/.exec(id.slice(prefix.length));if(!match)return null;const x=Number(match[1]),z=Number(match[2]),cx=Math.floor(x/16),cz=Math.floor(z/16);return naturalTreesInChunk(world,cx,cz).find(tree=>tree.id===id)||null;}
+function treeById(world,id){return world.trees.find(t=>t.id===id)||naturalTreeById(world,id);}
+function nearbyNaturalTrees(world,x,z){const cx=Math.floor(x/16),cz=Math.floor(z/16),trees=[];for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)trees.push(...naturalTreesInChunk(world,cx+dx,cz+dz));return trees;}
 function gatherTarget(world,type,id){
- if(type==='tree'){const item=world.trees.find(t=>t.id===id);return item&&item.stage>=3&&!item.harvested?{x:item.x,y:item.y+1.7,z:item.z}:null;}
- if(type==='wheat'){const item=world.crops.find(c=>c.id===id);return item&&item.stage>=4?{x:item.x+.5,y:item.y+.45,z:item.z+.5}:null;}
+ if(type==='tree'){const item=treeById(world,id);return item&&item.stage>=3&&!item.harvested?{x:item.x+.5,y:item.y+Math.max(1.7,(item.height||5)*.55),z:item.z+.5}:null;}
+ if(type==='wheat'||type==='crop'){const item=world.crops.find(c=>c.id===id);return item&&item.stage>=4?{x:item.x+.5,y:item.y+.45,z:item.z+.5}:null;}
  return null;
 }
-function gathered(world,type,id){return type==='tree'?world.harvestedTrees.includes(id):type==='wheat'?world.harvestedCrops.includes(id):true;}
+function gathered(world,type,id){return type==='tree'?world.harvestedTrees.includes(id):type==='wheat'||type==='crop'?world.harvestedCrops.includes(id):true;}
 function equipped(inv,id){return !!id&&inv.quickSlots?.[inv.selectedSlot]===id&&(inv.tools?.[id]||0)>0;}
+function consumeWood(inventory,amount){if(!Number.isSafeInteger(amount)||amount<0||inventory.wood<amount)return false;let left=amount;for(const id of ['oak_log','birch_log','rubberwood']){const used=Math.min(left,inventory[id]||0);inventory[id]-=used;left-=used;}inventory.wood-=amount;return true;}
+function consumeSapling(inventory,species){if(!Number.isSafeInteger(inventory.sapling)||inventory.sapling<1)return false;const specific=TREE_SAPLINGS[species]||TREE_SAPLINGS.oak,typed=Object.values(TREE_SAPLINGS).reduce((sum,id)=>sum+(inventory[id]||0),0),legacy=Math.max(0,inventory.sapling-typed);if((inventory[specific]||0)>0)inventory[specific]--;else if(legacy>0&&species==='oak'){}else return false;inventory.sapling--;return true;}
 function advanceGrowth(world,now=Date.now(),devMultiplier=1,gameDeltaOverride){
  // One real millisecond advances 12 game milliseconds at 1×, multiplied once
  // by the developer clock. Keep the 6-second activity window in real time so
@@ -62,7 +79,7 @@ function advanceGrowth(world,now=Date.now(),devMultiplier=1,gameDeltaOverride){
  // Water duration uses game milliseconds too, so it accelerates with crops
  // while preserving the exact 2× wet growth bonus.
  const wetTime={};for(const [tile,remainingValue] of Object.entries(world.watered)){const remaining=Math.max(0,Number(remainingValue)||0),wet=Math.min(gameDt,remaining);wetTime[tile]=wet;if(remaining<=gameDt)delete world.watered[tile];else world.watered[tile]=remaining-gameDt;}
- for(const c of world.crops)if(c.stage<4&&gameDt){c.progress+=gameDt+(wetTime[key(c.x,c.y,c.z)]||0);while(c.progress>=WHEAT_STAGE_MS&&c.stage<4){c.progress-=WHEAT_STAGE_MS;c.stage++;}changed=true;}
+ for(let i=0;i<world.crops.length;i++){const crop=world.crops[i];if(crop.stage<4&&gameDt){world.crops[i]=advanceCrop(crop,gameDt,wetTime[key(crop.x,crop.y,crop.z)]||0);changed=true;}}
  for(const t of world.trees)if(t.stage<3&&gameDt){t.progress+=gameDt;while(t.progress>=WHEAT_STAGE_MS*3&&t.stage<3){t.progress-=WHEAT_STAGE_MS*3;t.stage++;}changed=true;}
  return changed;
 }
@@ -73,33 +90,35 @@ function mineOre(world,id){
  const vein=next.oreNodes.find(n=>n.id===id);vein.remaining--;vein.regenAt=vein.remaining===0?Date.now()+ORE_REGEN_MS:null;next.inventory.stone++;
  return {next};
 }
-const starterTools={wood_pickaxe:1,wood_axe:1,wood_shovel:1};
+const starterTools={wood_pickaxe:1,wood_axe:1,wood_shovel:1,stone_pickaxe:0};
 const starterSlots=['wood_pickaxe','wood_axe','wood_shovel',null,null,null,null,null];
-function fresh(){const now=Date.now();return {schema:1,worldVersion:3,islandSize:10,revision:0,coins:100,location:null,inventory:{dirt:48,wood:0,stone:0,wheat:0,wheat_seed:0,sapling:0,items:{workbench:0,farming_bench:0,drill:0,conveyor:0,smelter:0},tools:{...starterTools,hoe:0,watering_can:0,scythe:0},quickSlots:[...starterSlots],selectedSlot:1,wateringCanUses:10},edits:{},machines:[{id:'t1-bench-start',type:'t1_bench',x:2,y:0,z:1,rotation:0}],trees:[{id:'oak_start',x:-3,y:0,z:-3,scale:1,stage:3,progress:0,harvested:false}],harvestedTrees:[],tilled:[[-4,0,3],[-3,0,3],[-2,0,3],[-1,0,3],[0,0,3],[1,0,3],[2,0,3],[3,0,3],[4,0,3]],crops:[{id:'wheat_1',x:-4,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_2',x:-3,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_3',x:-2,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_4',x:-1,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_5',x:0,y:0,z:3,stage:4,progress:0,lastTick:now}],watered:{},waterSources:[{x:4,y:0,z:4}],harvestedCrops:[],oreNodes:[{id:'stone_vein_start',x:3,y:0,z:-3,remaining:ORE_CAPACITY,max:ORE_CAPACITY,regenAt:null}],player:{x:.5,y:0,z:.5,grounded:true},createdAt:now,updatedAt:now};}
-function validWorld(w){return w&&w.schema===1&&Number.isSafeInteger(w.revision)&&w.revision>=0&&w.inventory&&Number.isSafeInteger(w.inventory.dirt)&&w.inventory.dirt>=0&&w.inventory.dirt<=1000000&&w.edits&&typeof w.edits==='object'&&!Array.isArray(w.edits)&&Object.keys(w.edits).length<=20000;}
-function validPlayerPosition(p){return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&Number.isFinite(p.z)&&Math.abs(p.x)<=64&&Math.abs(p.z)<=64&&p.y>=-13&&p.y<=18;}
+function fresh(){const now=Date.now(),world={schema:1,worldVersion:3,worldSeed:randomBytes(4).readUInt32BE(0),worldGenVersion:WORLD_GEN_VERSION,worldAnchor:{x:0,y:0,z:0,kind:'landing-origin'},islandSize:10,revision:0,coins:100,location:null,inventory:{dirt:48,wood:0,stone:0,wheat:0,wheat_seed:0,sapling:0,items:{workbench:0,farming_bench:0,drill:0,conveyor:0,smelter:0},tools:{...starterTools,hoe:0,watering_can:0,scythe:0},quickSlots:[...starterSlots],selectedSlot:1,wateringCanUses:10},edits:{},machines:[{id:'t1-bench-start',type:'t1_bench',x:2,y:0,z:1,rotation:0}],trees:[{id:'oak_start',x:-3,y:0,z:-3,scale:1,species:'oak',source:'planted',stage:3,progress:0,harvested:false}],harvestedTrees:[],tilled:[[-4,0,3],[-3,0,3],[-2,0,3],[-1,0,3],[0,0,3],[1,0,3],[2,0,3],[3,0,3],[4,0,3]],crops:[{id:'wheat_1',cropType:'wheat',x:-4,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_2',cropType:'wheat',x:-3,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_3',cropType:'wheat',x:-2,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_4',cropType:'wheat',x:-1,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_5',cropType:'wheat',x:0,y:0,z:3,stage:4,progress:0,lastTick:now}],watered:{},waterSources:[{x:4,y:0,z:4}],harvestedCrops:[],oreNodes:[{id:'stone_vein_start',x:3,y:0,z:-3,remaining:ORE_CAPACITY,max:ORE_CAPACITY,regenAt:null}],drops:[],player:{x:.5,y:0,z:.5,grounded:true},createdAt:now,updatedAt:now};world.inventory=normalizeResourceInventory(world.inventory);return world;}
+function validWorld(w){return w&&w.schema===1&&Number.isSafeInteger(w.revision)&&w.revision>=0&&w.inventory&&Number.isSafeInteger(w.inventory.dirt)&&w.inventory.dirt>=0&&w.inventory.dirt<=1000000&&w.edits&&typeof w.edits==='object'&&!Array.isArray(w.edits)&&Object.keys(w.edits).length<=20000&&
+ (w.worldGenVersion===undefined||w.worldGenVersion===WORLD_GEN_VERSION&&Number.isSafeInteger(w.worldSeed)&&w.worldSeed>=0&&w.worldSeed<=0xffffffff);}
+function validPlayerPosition(p,world=null){return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&Number.isFinite(p.z)&&Math.abs(p.x)<=(world?.worldGenVersion?4096:64)&&Math.abs(p.z)<=(world?.worldGenVersion?4096:64)&&p.y>=(world?.worldGenVersion?WORLD_MIN_Y-8:-13)&&p.y<=(world?.worldGenVersion?WORLD_MAX_Y+8:18);}
 function cookieValue(id){return id+'.'+createHmac('sha256',SECRET).update(id).digest('hex');}
 function identity(req){const value=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('terra_session='))?.slice(14);
  if(value){const [id,sig]=value.split('.');if(/^[a-f0-9]{32}$/.test(id)&&/^[a-f0-9]{64}$/.test(sig||'')){const expected=cookieValue(id).split('.')[1];if(timingSafeEqual(Buffer.from(sig),Buffer.from(expected)))return {id,isNew:false};}}
  return {id:randomBytes(16).toString('hex'),isNew:true};
 }
 async function load(id){if(sessions.has(id))return sessions.get(id);
- let w;try{w=JSON.parse(await readFile(join(SAVE_DIR,id+'.json'),'utf8'));if(!validWorld(w))throw Error('Invalid save');}
- catch(e){if(e.code!=='ENOENT')throw e;w=fresh();}
+ let w,created=false;try{w=JSON.parse(await readFile(join(SAVE_DIR,id+'.json'),'utf8'));if(!validWorld(w))throw Error('Invalid save');}
+ catch(e){if(e.code!=='ENOENT')throw e;w=fresh();created=true;}
  if(!Number.isSafeInteger(w.islandSize))w.islandSize=16;
  if(!Number.isSafeInteger(w.worldVersion))w.worldVersion=w.islandSize===10?2:1;
- if(!validPlayerPosition(w.player))w.player={x:.5,y:0,z:.5,grounded:true};
+ if(!validPlayerPosition(w.player,w))w.player={x:.5,y:0,z:.5,grounded:true};
  w.inventory.wood=Number.isSafeInteger(w.inventory.wood)&&w.inventory.wood>=0?w.inventory.wood:0;
  w.inventory.stone=Number.isSafeInteger(w.inventory.stone)&&w.inventory.stone>=0?w.inventory.stone:0;
  w.inventory.wheat=Number.isSafeInteger(w.inventory.wheat)&&w.inventory.wheat>=0?w.inventory.wheat:0;
  if(!w.inventory.items||typeof w.inventory.items!=='object'||Array.isArray(w.inventory.items))w.inventory.items={};
  for(const item of Object.keys(RECIPES))if(!Number.isSafeInteger(w.inventory.items[item])||w.inventory.items[item]<0)w.inventory.items[item]=0;
  if(!w.inventory.tools||typeof w.inventory.tools!=='object'||Array.isArray(w.inventory.tools))w.inventory.tools={...starterTools};
+ if(!Number.isSafeInteger(w.inventory.tools.stone_pickaxe)||w.inventory.tools.stone_pickaxe<0)w.inventory.tools.stone_pickaxe=0;
  if(!Array.isArray(w.inventory.quickSlots))w.inventory.quickSlots=[...starterSlots];
  while(w.inventory.quickSlots.length<8)w.inventory.quickSlots.push(null);
  w.inventory.quickSlots=w.inventory.quickSlots.slice(0,8);
  if(!Number.isInteger(w.inventory.selectedSlot)||w.inventory.selectedSlot<0||w.inventory.selectedSlot>7)w.inventory.selectedSlot=1;
- if(!Array.isArray(w.machines))w.machines=[];
+ if(!Array.isArray(w.machines))w.machines=[];normalizeDrops(w);
  if(!Array.isArray(w.trees))w.trees=w.islandSize===16?LEGACY_TREES.map(t=>({...t})):[];
  if(!Array.isArray(w.harvestedTrees))w.harvestedTrees=[];
  if(!Array.isArray(w.crops))w.crops=[];
@@ -112,6 +131,7 @@ async function load(id){if(sessions.has(id))return sessions.get(id);
  if(!Number.isSafeInteger(w.inventory.wateringCanUses))w.inventory.wateringCanUses=10;
  if(!Number.isSafeInteger(w.coins)||w.coins<0||w.coins>1000000000)w.coins=100;
  for(const resource of ['wood','stone','wheat','wheat_seed','sapling'])if(!Number.isSafeInteger(w.inventory[resource])||w.inventory[resource]<0||w.inventory[resource]>INVENTORY_CAP)w.inventory[resource]=0;
+ w.inventory=normalizeResourceInventory(w.inventory,INVENTORY_CAP);
  if(!w.location||typeof w.location!=='object'||Array.isArray(w.location))w.location={worldId:'personal-island',personalInstanceId:`terra:personal-island:private:${id}`};
  w.location.personalInstanceId=`terra:personal-island:private:${id}`;
  if(w.location.worldId!=='shop-hub')w.location.worldId='personal-island';
@@ -119,14 +139,14 @@ async function load(id){if(sessions.has(id))return sessions.get(id);
  if(w.location.worldId==='shop-hub'&&(!validPlayerPosition(w.location.hubPlayer)||Math.abs(w.location.hubPlayer.x)>SHOP_HUB_LAYOUT.size.x/2||Math.abs(w.location.hubPlayer.z)>SHOP_HUB_LAYOUT.size.z/2))w.location.hubPlayer={...SHOP_HUB_LAYOUT.spawn,grounded:true};
  for(const t of ['hoe','watering_can','scythe'])if(!Number.isSafeInteger(w.inventory.tools[t]))w.inventory.tools[t]=0;
  if(!Array.isArray(w.inventory.quickSlots))w.inventory.quickSlots=[...starterSlots];while(w.inventory.quickSlots.length<8)w.inventory.quickSlots.push(null);
- const loadedAt=Date.now();for(const c of w.crops){if(!Number.isInteger(c.stage))c.stage=4;if(!Number.isFinite(c.progress))c.progress=0;c.lastTick=loadedAt;}
- for(const t of w.trees){if(!Number.isInteger(t.stage))t.stage=3;if(!Number.isFinite(t.progress))t.progress=0;t.lastTick=loadedAt;t.harvested=w.harvestedTrees.includes(t.id);}
+ const loadedAt=Date.now();for(const c of w.crops){c.cropType=cropTypeOf(c);if(!Number.isInteger(c.stage))c.stage=4;if(!Number.isFinite(c.progress))c.progress=0;c.lastTick=loadedAt;}
+ for(const t of w.trees){if(!t.species)t.species='oak';if(!t.source)t.source='planted';if(!Number.isInteger(t.stage))t.stage=3;if(!Number.isFinite(t.progress))t.progress=0;t.lastTick=loadedAt;t.harvested=w.harvestedTrees.includes(t.id);}
  if(!Array.isArray(w.oreNodes))w.oreNodes=[];
  const sessionLoadedAt=Date.now();w.lastGameTick=sessionLoadedAt;for(const c of w.crops)c.lastTick=sessionLoadedAt;for(const t of w.trees)t.lastTick=sessionLoadedAt;
  const gameClock=devtoolsEnabled?devClockModule.createTimeControl({now:sessionLoadedAt}):null;
  if(gameClock&&developerMultiplier!==1)gameClock.setMultiplier(developerMultiplier,sessionLoadedAt);
  const activePlayer=w.location.worldId==='shop-hub'?w.location.hubPlayer:w.player;
- const session={world:w,queue:Promise.resolve(),mining:null,harvesting:null,gameClock,player:{...activePlayer,vy:0,grounded:activePlayer.grounded===true,lastAt:sessionLoadedAt},lastPlayerSaveAt:sessionLoadedAt};sessions.set(id,session);return session;
+ const session={world:w,queue:Promise.resolve(),mining:null,harvesting:null,gameClock,player:{...activePlayer,vy:0,grounded:activePlayer.grounded===true,lastAt:sessionLoadedAt},lastPlayerSaveAt:sessionLoadedAt,lastLogisticsAt:sessionLoadedAt};if(created)await save(id,w);sessions.set(id,session);return session;
 }
 function advanceSessionTime(session,now=Date.now(),multiplierOverride){
  const multiplier=multiplierOverride??(devtoolsEnabled?(session.gameClock?.snapshot().multiplier||developerMultiplier):1);
@@ -138,7 +158,7 @@ function send(res,status,data){res.writeHead(status,{'Content-Type':'application
 function error(res,status,message){send(res,status,{error:message});}
 async function jsonBody(req){let body='';for await(const chunk of req){body+=chunk.toString();if(body.length>4096)throw Object.assign(Error('Request too large'),{status:413});}try{return JSON.parse(body);}catch{throw Object.assign(Error('Invalid JSON'),{status:400});}}
 function change(current,action){const {type,x,y,z,revision}=action||{};
- if(!inBounds(x,y,z))return {error:'Invalid coordinates'};
+ if(!inBounds(x,y,z,current))return {error:'Invalid coordinates'};
  if(!Number.isSafeInteger(revision)||revision!==current.revision)return {error:'Revision conflict',conflict:true};
  if(type==='place'&&personalPortalCell(x,y,z))return {error:'The portal area is protected'};
  const existing=block(current,x,y,z);
@@ -147,21 +167,38 @@ function change(current,action){const {type,x,y,z,revision}=action||{};
   if(current.inventory.dirt<1)return {error:'Not enough dirt'};
   if(![[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]].some(([dx,dy,dz])=>block(current,x+dx,y+dy,z+dz)))return {error:'Must attach to existing terrain'};
  }else if(type==='mine'){
-  if(action.tool!=='wood_shovel'||!equipped(current.inventory,'wood_shovel'))return {error:'A wooden shovel is required'};
   if(!existing)return {error:'No block'};
-  if(current.inventory.dirt>=1000000)return {error:'Inventory full'};
+  if(['dirt','grass'].includes(existing)){
+   if(action.tool!=='wood_shovel'||!equipped(current.inventory,'wood_shovel'))return {error:'A wooden shovel is required'};
+   if(current.inventory.dirt>=INVENTORY_CAP)return {error:'Inventory full'};
+  }else if(mineralTier(existing)!==null){
+   if(!['wood_pickaxe','stone_pickaxe'].includes(action.tool)||!equipped(current.inventory,action.tool))return {error:'Equip a pickaxe to mine this block'};
+   if(!canMineMineral(existing,action.tool))return {error:'T1 stone pickaxe required for this ore'};
+   const item=existing==='stone'?'stone':mineralDrop(existing);if(!item)return {error:'Unsupported mineral block'};
+   if((current.inventory[item]||0)>=INVENTORY_CAP)return {error:'Inventory full'};
+  }else return {error:'This block cannot be mined with these tools'};
  }else return {error:'Unknown action'};
  if(Object.keys(current.edits).length>=20000&&!Object.hasOwn(current.edits,key(x,y,z)))return {error:'World edit limit'};
  // Never mutate the persisted object before the save succeeds.
  const next={...current,edits:{...current.edits},inventory:{...current.inventory},tilled:[...current.tilled],crops:[...current.crops],watered:{...current.watered},revision:current.revision+1,updatedAt:Date.now()};
- const original=nativeBlock(current.islandSize||16,x,y,z),after=type==='place'?'dirt':null;
+ const original=block(current,x,y,z),after=type==='place'?'dirt':null;
  if(after===original)delete next.edits[key(x,y,z)];else next.edits[key(x,y,z)]=after;
- next.inventory.dirt+=type==='place'?-1:1;
+ if(type==='place')next.inventory.dirt--;
+ else if(['dirt','grass'].includes(original))next.inventory.dirt++;
+ else{
+  const item=original==='stone'?'stone':mineralDrop(original);next.inventory[item]=(next.inventory[item]||0)+1;
+  const core=mineralCore(original);if(core&&isCoreDrop(original,randomInt(200)/200)&&(next.inventory[core]||0)<INVENTORY_CAP)next.inventory[core]=(next.inventory[core]||0)+1;
+ }
  if(type==='mine'&&y===-1){const surface=key(x,0,z);next.tilled=next.tilled.filter(c=>key(...c)!==surface);next.crops=next.crops.filter(c=>!(c.x===x&&c.y===0&&c.z===z));delete next.watered[surface];}
  return {next};
 }
 function solidForBody(world,x,y,z){
  for(const oy of [.1,.9,PLAYER_HEIGHT-.08])for(const ox of [-PLAYER_HALF_WIDTH,PLAYER_HALF_WIDTH])for(const oz of [-.19,.19])if(block(world,Math.floor(x+ox),Math.floor(y+oy),Math.floor(z+oz)))return true;
+ const trees=world.worldGenVersion?[...(world.trees||[]),...nearbyNaturalTrees(world,x,z)]:world.trees||[];
+ for(const tree of trees)if(tree&&tree.stage>=3&&!tree.harvested&&!(world.harvestedTrees||[]).includes(tree.id)){
+  const centerX=tree.x+.5,centerZ=tree.z+.5,trunkRadius=(tree.trunkWidth||.62)/2;
+  if(Math.abs(x-centerX)<trunkRadius+PLAYER_HALF_WIDTH&&Math.abs(z-centerZ)<trunkRadius+.19&&y<(tree.y||0)+(tree.height||2.4)&&y+PLAYER_HEIGHT>(tree.y||0))return true;
+ }
  const height={t1_bench:1.25,workbench:1.25,drill:.95,conveyor:.55,smelter:1.6};
  return world.machines.some(m=>Math.abs(x-(m.x+.5))<.45+PLAYER_HALF_WIDTH&&Math.abs(z-(m.z+.5))<.45+.19&&y<m.y+(height[m.type]||1)&&y+PLAYER_HEIGHT>m.y);
 }
@@ -208,7 +245,7 @@ async function handler(req,res){
  const path=requestPath;
  const devTimePath=path==='/api/dev/time';
  if(devTimePath&&(!devtoolsEnabled||!localAddress(req))){error(res,404,'Not found');return;}
- const hubPaths=['/api/world/transition','/api/shop/open','/api/shop/trade','/api/inventory/drop','/api/npc/attack'];
+ const hubPaths=['/api/world/transition','/api/shop/open','/api/shop/trade','/api/inventory/drop','/api/npc/attack','/api/items/pickup'];
  if(path!=='/api/world'&&path!=='/api/action'&&path!=='/api/mine'&&path!=='/api/move'&&path!=='/api/harvest'&&path!=='/api/farm'&&path!=='/api/slot'&&path!=='/api/craft'&&path!=='/api/machine/place'&&!hubPaths.includes(path)&&!devTimePath){error(res,404,'Not found');return;}
  // Cross-origin browser actions should not mutate a player's island.
  const origin=req.headers.origin;if(origin&&origin!== 'http://'+req.headers.host && origin!=='https://'+req.headers.host){error(res,403,'Origin denied');return;}
@@ -257,17 +294,43 @@ async function handler(req,res){
    const next={...w,coins:trade.player.coins,inventory:trade.player.inventory,revision:w.revision+1,updatedAt:Date.now()};await save(who.id,next);session.world=next;return {status:200,data:{world:publicWorld(session,who.id,req),trade:{action:trade.action,item:trade.item,quantity:trade.quantity,total:trade.total,unitPrice:trade.unitPrice}}};
   });session.queue=job;const result=await job;send(res,result.status,result.data);return;
  }
- if(['/api/inventory/drop','/api/npc/attack'].includes(path)&&req.method==='POST'&&session.world.location.worldId==='shop-hub')return error(res,403,'That action is forbidden in the protected shop hub');
- const capabilityByPath={'/api/action':'place','/api/mine':'mine','/api/harvest':'harvest','/api/farm':'farm','/api/slot':'equip','/api/craft':'build','/api/machine/place':'build','/api/inventory/drop':'drop','/api/npc/attack':'combat'};
+ if(['/api/inventory/drop','/api/npc/attack','/api/items/pickup'].includes(path)&&req.method==='POST'&&session.world.location.worldId==='shop-hub')return error(res,403,'That action is forbidden in the protected shop hub');
+ const capabilityByPath={'/api/action':'place','/api/mine':'mine','/api/harvest':'harvest','/api/farm':'farm','/api/slot':'equip','/api/craft':'build','/api/machine/place':'build','/api/inventory/drop':'drop','/api/items/pickup':'drop','/api/npc/attack':'combat'};
  if(session.world.location.worldId==='shop-hub'&&capabilityByPath[path]&& !isWorldActionAllowed('shopHub',capabilityByPath[path]))return error(res,403,'That action is disabled in the protected shop hub');
  if(path==='/api/slot'&&req.method==='POST'){const body=await jsonBody(req);const slot=body?.selectedSlot??body?.slot;if(!Number.isInteger(slot)||slot<0||slot>7)return error(res,400,'Invalid quick slot');const item=session.world.inventory.quickSlots[slot];if(item&&!(session.world.inventory.tools?.[item]>0))return error(res,400,'Item is unavailable');const next={...session.world,inventory:{...session.world.inventory,selectedSlot:slot},revision:session.world.revision+1,updatedAt:Date.now()};await save(who.id,next);session.world=next;send(res,200,{world:publicWorld(session,who.id,req)});return;}
- if(path==='/api/world'&&req.method==='GET'){const now=Date.now(),changed=refreshOreNodes(session.world)|advanceSessionTime(session,now);if(changed)await save(who.id,session.world);send(res,200,publicWorld(session,who.id,req));return;}
+ if(path==='/api/world'&&req.method==='GET'){
+  const job=session.queue.catch(()=>{}).then(async()=>{
+   const now=Date.now(),elapsed=Math.max(0,now-session.lastLogisticsAt);session.lastLogisticsAt=now;
+   const changed=refreshOreNodes(session.world)|advanceSessionTime(session,now)|advanceItemLogistics(session.world,elapsed);
+   if(changed)await save(who.id,session.world);
+   return publicWorld(session,who.id,req);
+  });session.queue=job.then(()=>undefined,()=>undefined);try{send(res,200,await job);}catch(err){console.error('World update failed:',err);error(res,500,'Unable to update world');}return;
+ }
+ if(path==='/api/items/pickup'&&req.method==='POST'){
+  const body=await jsonBody(req),job=session.queue.catch(()=>{}).then(async()=>{
+   const w=session.world,id=body?.dropId,index=w.drops.findIndex(d=>d.id===id);
+   if(!Number.isSafeInteger(body?.revision)||body.revision!==w.revision)return {status:409,data:{error:'Revision conflict',world:publicWorld(session,who.id,req)}};
+   if(index<0)return {status:404,data:{error:'Item is no longer available',world:publicWorld(session,who.id,req)}};
+   const drop=w.drops[index],p=session.player;
+   if(Math.hypot(drop.x-p.x,drop.y-(p.y+1),drop.z-p.z)>2.35)return {status:400,data:{error:'Move closer to the item',world:publicWorld(session,who.id,req)}};
+   const keyName=drop.item;
+   if(!RESOURCE_KEYS.includes(keyName))return {status:400,data:{error:'This item cannot be collected',world:publicWorld(session,who.id,req)}};
+   if((w.inventory[keyName]||0)+drop.quantity>INVENTORY_CAP)return {status:400,data:{error:'Inventory full',world:publicWorld(session,who.id,req)}};
+   if(WOOD_LOG_KEYS.includes(keyName)&&(w.inventory.wood||0)+drop.quantity>INVENTORY_CAP||SAPLING_KEYS.includes(keyName)&&(w.inventory.sapling||0)+drop.quantity>INVENTORY_CAP)return {status:400,data:{error:'Inventory full',world:publicWorld(session,who.id,req)}};
+   const inventory={...w.inventory,[keyName]:(w.inventory[keyName]||0)+drop.quantity};
+   if(WOOD_LOG_KEYS.includes(keyName))inventory.wood=(inventory.wood||0)+drop.quantity;
+   if(SAPLING_KEYS.includes(keyName))inventory.sapling=(inventory.sapling||0)+drop.quantity;
+   const next={...w,inventory,drops:w.drops.filter((_,i)=>i!==index),revision:w.revision+1,updatedAt:Date.now()};
+   await save(who.id,next);session.world=next;return {status:200,data:{world:publicWorld(session,who.id,req),item:drop.item,quantity:drop.quantity}};
+  });session.queue=job.then(()=>undefined,()=>undefined);try{const r=await job;send(res,r.status,r.data);}catch(err){console.error('Item pickup failed:',err);error(res,500,'Unable to collect item');}return;
+ }
+
  if(path==='/api/farm'&&req.method==='POST'){
   const body=await jsonBody(req),action=body?.action;const job=session.queue.catch(()=>{}).then(async()=>{
    const w=session.world;advanceSessionTime(session);const inv={...w.inventory,tools:{...w.inventory.tools},items:{...w.inventory.items}},p=session.player;
    if(!Number.isSafeInteger(body.revision)||body.revision!==w.revision)return {status:409,data:{error:'Revision conflict',world:w}};
    const point=([x,y,z])=>({x:x+.5,y:y+.5,z:z+.5});
-   const validCell=Number.isInteger(body.x)&&Number.isInteger(body.y)&&Number.isInteger(body.z)&&inBounds(body.x,body.y,body.z);
+   const validCell=Number.isInteger(body.x)&&Number.isInteger(body.y)&&Number.isInteger(body.z)&&inBounds(body.x,body.y,body.z,w);
    if(!validCell)return {status:400,data:{error:'Invalid coordinates',world:w}};
    const {x,y,z}=body,cell=key(x,y,z),near=point([x,y,z]);
    if(personalPortalCell(x,y,z))return {status:400,data:{error:'The portal area is protected',world:w}};
@@ -275,13 +338,14 @@ async function handler(req,res){
    const next={...w,inventory:inv,tilled:[...w.tilled],crops:[...w.crops],watered:{...w.watered},trees:[...w.trees],revision:w.revision+1,updatedAt:Date.now()};
    if(action==='till'){
     if(body.tool!=='hoe'||!equipped(w.inventory,'hoe'))return {status:400,data:{error:'Equip a wooden hoe',world:w}};
-    if(block(w,x,y-1,z)!=='dirt'||block(w,x,y,z)||w.tilled.some(c=>key(...c)===cell))return {status:400,data:{error:'Tile cannot be tilled',world:w}};
+    if(!['dirt','grass'].includes(block(w,x,y-1,z))||block(w,x,y,z)||w.tilled.some(c=>key(...c)===cell))return {status:400,data:{error:'Tile cannot be tilled',world:w}};
     next.tilled.push([x,y,z]);
    }else if(action==='plant'){
     if(!w.tilled.some(c=>key(...c)===cell))return {status:400,data:{error:'Wheat grows only on tilled soil',world:w}};
     if(w.crops.some(c=>c.x===x&&c.y===y&&c.z===z))return {status:400,data:{error:'Tile already has a crop',world:w}};
-    if(inv.wheat_seed<1)return {status:400,data:{error:'No wheat seeds',world:w}};
-    inv.wheat_seed--;next.crops.push({id:randomBytes(8).toString('hex'),x,y,z,stage:1,progress:0,lastTick:Date.now()});
+    let cropType;try{cropType=cropTypeOf({cropType:body.cropType??'wheat'});}catch{return {status:400,data:{error:'Unknown crop type',world:w}};}
+    const seedItem=seedItemForCrop(cropType);if((inv[seedItem]||0)<1)return {status:400,data:{error:`No ${cropType} seeds`,world:w}};
+    inv[seedItem]--;next.crops.push({id:randomBytes(8).toString('hex'),cropType,x,y,z,stage:1,progress:0,lastTick:Date.now()});
    }else if(action==='water'){
     if(body.tool!=='watering_can'||!equipped(w.inventory,'watering_can'))return {status:400,data:{error:'Equip a watering can',world:w}};
     if(!w.tilled.some(c=>key(...c)===cell))return {status:400,data:{error:'Select tilled soil',world:w}};
@@ -295,14 +359,17 @@ async function handler(req,res){
     const scythe=action==='scythe'||body.tool==='scythe';if(scythe){if(!equipped(w.inventory,'scythe'))return {status:400,data:{error:'Equip a scythe',world:w}};}else if(body.tool&&body.tool!=='hand')return {status:400,data:{error:'Harvest by hand or use a scythe',world:w}};
     const candidates=w.crops.filter(c=>c.stage>=4&&!w.harvestedCrops.includes(c.id)&& (scythe?Math.abs(c.x-x)<=1&&Math.abs(c.y-y)<=1&&Math.abs(c.z-z)<=1:c.x===x&&c.y===y&&c.z===z));
     if(!candidates.length)return {status:400,data:{error:'No mature crop in range',world:w}};
-    if(inv.wheat+candidates.length>INVENTORY_CAP||inv.wheat_seed+candidates.length>INVENTORY_CAP)return {status:400,data:{error:'Inventory full',world:w}};
-    next.harvestedCrops=[...w.harvestedCrops,...candidates.map(c=>c.id)];inv.wheat+=candidates.length;inv.wheat_seed+=candidates.length;next.crops=w.crops.filter(c=>!candidates.some(h=>h.id===c.id));
+    const rewards={};for(const crop of candidates){const yieldItems=harvestYield(cropTypeOf(crop));rewards[yieldItems.productItem]=(rewards[yieldItems.productItem]||0)+yieldItems.productQuantity;rewards[yieldItems.seedItem]=(rewards[yieldItems.seedItem]||0)+yieldItems.seedQuantity;}
+    if(Object.entries(rewards).some(([item,count])=>(inv[item]||0)+count>INVENTORY_CAP))return {status:400,data:{error:'Inventory full',world:w}};
+    next.harvestedCrops=[...w.harvestedCrops,...candidates.map(c=>c.id)];for(const [item,count]of Object.entries(rewards))inv[item]=(inv[item]||0)+count;next.crops=w.crops.filter(c=>!candidates.some(h=>h.id===c.id));
    }else if(action==='plant_tree'){
-    if((inv.sapling||0)<1)return {status:400,data:{error:'No saplings',world:w}};
+    const species=['oak','birch','rubber'].includes(body.species)?body.species:'oak';if((inv.sapling||0)<1)return {status:400,data:{error:'No saplings',world:w}};
     if(!['dirt','grass'].includes(block(w,x,y-1,z))||block(w,x,y,z))return {status:400,data:{error:'Plant on clear dirt or grass',world:w}};
-    const occupied=w.trees.some(t=>!t.harvested&&Math.hypot(t.x-x,t.z-z)<1.2)||w.oreNodes.some(o=>Math.hypot(o.x-x,o.z-z)<.8)||w.machines.some(m=>Math.hypot(m.x-x,m.z-z)<.9)||w.waterSources.some(s=>Math.hypot(s.x-x,s.z-z)<.9)||w.crops.some(c=>Math.hypot(c.x-x,c.z-z)<.85)||Math.abs(p.x-(x+.5))<.7&&Math.abs(p.z-(z+.5))<.7;
+    const newTreeRadius=treeDimensions(species,.5).crownWidth/2;
+    const occupied=[...w.trees,...(w.worldGenVersion?nearbyNaturalTrees(w,x+.5,z+.5):[])].some(t=>!t.harvested&&!(w.harvestedTrees||[]).includes(t.id)&&Math.hypot(t.x-x,t.z-z)<newTreeRadius+(t.crownWidth||1.5)/2)||w.oreNodes.some(o=>Math.hypot(o.x-x,o.z-z)<.8)||w.machines.some(m=>Math.hypot(m.x-x,m.z-z)<.9)||w.waterSources.some(s=>Math.hypot(s.x-x,s.z-z)<.9)||w.crops.some(c=>Math.hypot(c.x-x,c.z-z)<.85)||Math.abs(p.x-(x+.5))<.7&&Math.abs(p.z-(z+.5))<.7;
     if(occupied)return {status:400,data:{error:'Space is occupied',world:w}};
-    inv.sapling--;next.trees.push({id:randomBytes(8).toString('hex'),x,y,z,stage:0,progress:0,lastTick:Date.now(),harvested:false});
+    if(!consumeSapling(inv,species))return {status:400,data:{error:`No ${species} saplings`,world:w}};
+    next.trees.push({id:randomBytes(8).toString('hex'),source:'planted',species,x,y,z,stage:0,progress:0,lastTick:Date.now(),harvested:false});
    }else return {status:400,data:{error:'Unknown farming action',world:w}};
    await save(who.id,next);session.world=next;return {status:200,data:{world:next,harvested:(action==='harvest'||action==='scythe')?next.harvestedCrops.length-w.harvestedCrops.length:undefined}};
   });session.queue=job;const result=await job;send(res,result.status,result.data);return;
@@ -333,11 +400,21 @@ async function handler(req,res){
    if(type==='tree'&&(body.tool!=='wood_axe'||!equipped(session.world.inventory,'wood_axe')))return {status:400,data:{error:'A wooden axe is required'}};
    if(Math.hypot(point.x-p.x,point.y-(p.y+1),point.z-p.z)>5.5)return {status:400,data:{error:'Resource out of reach'}};
    const next={...session.world,inventory:{...session.world.inventory},revision:session.world.revision+1,updatedAt:Date.now()};
-   let amount=1;
-   if(type==='tree'){amount=treeWoodYieldForRoll(Math.random());if(session.world.inventory.wood+amount>INVENTORY_CAP||(session.world.inventory.sapling||0)>=INVENTORY_CAP)return {status:400,data:{error:'Inventory full'}};next.harvestedTrees=[...session.world.harvestedTrees,id];next.trees=next.trees.map(t=>t.id===id?{...t,harvested:true}:t);next.inventory.wood+=amount;next.inventory.sapling=(next.inventory.sapling||0)+1;}
-   else{const crop=session.world.crops.find(c=>c.id===id);if(!crop||crop.stage<4)return {status:400,data:{error:'Wheat is not mature'}};next.harvestedCrops=[...session.world.harvestedCrops,id];next.crops=next.crops.filter(c=>c.id!==id);next.inventory.wheat+=1;next.inventory.wheat_seed=(next.inventory.wheat_seed||0)+1;}
+   let amount=1,rewards={};
+   if(type==='tree'){
+    const tree=treeById(session.world,id);if(!tree)return {status:400,data:{error:'Tree is unavailable'}};
+    const species=['oak','birch','rubber'].includes(tree.species)?tree.species:'oak',logItem=TREE_LOGS[species],saplingItem=TREE_SAPLINGS[species];amount=2+randomInt(2);const saplingAmount=1+randomInt(2);
+    rewards={wood:amount,[logItem]:amount,sapling:saplingAmount,[saplingItem]:saplingAmount,...(species==='rubber'?{rubber_sap:1}:{})};
+    if(Object.entries(rewards).some(([item,count])=>(next.inventory[item]||0)+count>INVENTORY_CAP))return {status:400,data:{error:'Inventory full'}};
+    next.harvestedTrees=[...session.world.harvestedTrees,id];next.trees=next.trees.map(t=>t.id===id?{...t,harvested:true}:t);for(const [item,count]of Object.entries(rewards))next.inventory[item]=(next.inventory[item]||0)+count;
+   }else{
+    const crop=session.world.crops.find(c=>c.id===id);if(!crop||crop.stage<4)return {status:400,data:{error:'Crop is not mature'}};
+    const yieldItems=harvestYield(cropTypeOf(crop));rewards={[yieldItems.productItem]:yieldItems.productQuantity,[yieldItems.seedItem]:yieldItems.seedQuantity};
+    if(Object.entries(rewards).some(([item,count])=>(next.inventory[item]||0)+count>INVENTORY_CAP))return {status:400,data:{error:'Inventory full'}};
+    next.harvestedCrops=[...session.world.harvestedCrops,id];next.crops=next.crops.filter(c=>c.id!==id);for(const [item,count]of Object.entries(rewards))next.inventory[item]=(next.inventory[item]||0)+count;
+   }
    session.harvesting=null;await save(who.id,next);session.world=next;
-   return {status:200,data:{world:session.world,yield:amount,resourceType:type}};
+   return {status:200,data:{world:session.world,yield:amount,resourceType:type,rewards}};
   });session.queue=job;const result=await job;send(res,result.status,result.data);return;
  }
  if(path==='/api/craft'&&req.method==='POST'){
@@ -353,7 +430,7 @@ async function handler(req,res){
    }
    if(Object.entries(recipe.cost).some(([resource,count])=>(session.world.inventory[resource]||0)<count))return {status:400,data:{error:'Missing crafting materials',world:session.world}};
    const inventory={...session.world.inventory,items:{...session.world.inventory.items}},next={...session.world,inventory,revision:session.world.revision+1,updatedAt:Date.now()};
-   for(const [resource,count] of Object.entries(recipe.cost))next.inventory[resource]-=count;
+   for(const [resource,count] of Object.entries(recipe.cost)){if(resource==='wood')consumeWood(next.inventory,count);else next.inventory[resource]-=count;}
    if(recipe.tool){next.inventory.tools[body.recipe]=(next.inventory.tools[body.recipe]||0)+1;const free=next.inventory.quickSlots.findIndex((item,i)=>i>=3&&!item);if(free>=0)next.inventory.quickSlots[free]=body.recipe;}
    else next.inventory.items[body.recipe]++;
    await save(who.id,next);session.world=next;return {status:200,data:{world:session.world}};
@@ -364,7 +441,7 @@ async function handler(req,res){
   if(!Object.hasOwn(RECIPES,type)||RECIPES[type].tool||!Number.isInteger(body?.x)||!Number.isInteger(body?.y)||!Number.isInteger(body?.z)||!Number.isInteger(body?.rotation)||body.rotation<0||body.rotation>3){error(res,400,'Invalid machine placement');return;}
   const job=session.queue.catch(()=>{}).then(async()=>{
    const {x,y,z}=body,p=session.player,center={x:x+.5,y:y+.5,z:z+.5};
-   if(!inBounds(x,y,z)||personalPortalCell(x,y,z)||Math.hypot(center.x-p.x,center.y-(p.y+1),center.z-p.z)>5.5)return {status:400,data:{error:'Machine placement out of reach or reserved',world:session.world}};
+   if(!inBounds(x,y,z,session.world)||personalPortalCell(x,y,z)||Math.hypot(center.x-p.x,center.y-(p.y+1),center.z-p.z)>5.5)return {status:400,data:{error:'Machine placement out of reach or reserved',world:session.world}};
    if(block(session.world,x,y,z)||!block(session.world,x,y-1,z))return {status:400,data:{error:'Machine needs a clear, supported tile',world:session.world}};
    if(session.world.machines.some(m=>m.x===x&&m.y===y&&m.z===z))return {status:400,data:{error:'Tile already occupied',world:session.world}};
    if(!session.world.inventory.items[type])return {status:400,data:{error:'No crafted machine in inventory',world:session.world}};
@@ -387,10 +464,13 @@ async function handler(req,res){
    if(!node||node.remaining<1){error(res,400,'Stone vein is regenerating');return;}
    target={x:node.x+.5,y:node.y+.5,z:node.z+.5};
   }else{
-   if(targetType!=='block'||!inBounds(body.x,body.y,body.z)){error(res,400,'Invalid mining target');return;}
+   if(targetType!=='block'||!inBounds(body.x,body.y,body.z,session.world)){error(res,400,'Invalid mining target');return;}
    if(body.revision!==session.world.revision){send(res,409,{error:'Revision conflict',world:session.world});return;}
-   if(block(session.world,body.x,body.y,body.z)!=='dirt'){error(res,400,'No block');return;}
-   if(body.tool!=='wood_shovel'||!equipped(session.world.inventory,'wood_shovel')){error(res,400,'A wooden shovel is required');return;}
+   const blockType=block(session.world,body.x,body.y,body.z);
+   if(!blockType){error(res,400,'No block');return;}
+   if(['dirt','grass'].includes(blockType)){if(body.tool!=='wood_shovel'||!equipped(session.world.inventory,'wood_shovel')){error(res,400,'A wooden shovel is required');return;}}
+   else if(mineralTier(blockType)!==null){if(!['wood_pickaxe','stone_pickaxe'].includes(body.tool)||!equipped(session.world.inventory,body.tool)){error(res,400,'Equip a pickaxe to mine this block');return;}if(!canMineMineral(blockType,body.tool)){error(res,400,'T1 stone pickaxe required for this ore');return;}}
+   else{error(res,400,'This block cannot be mined');return;}
    target={x:body.x+.5,y:body.y+.5,z:body.z+.5};
   }
   const p=session.player;
@@ -404,7 +484,7 @@ async function handler(req,res){
   const job=session.queue.catch(()=>{}).then(async()=>{
    const oreMine=body?.type==='mine'&&body.targetType==='ore';let center;
    if(oreMine){const node=session.world.oreNodes.find(n=>n.id===body.resourceId);if(!node)return {status:400,data:{error:'Unknown stone vein',world:session.world}};center={x:node.x+.5,y:node.y+.5,z:node.z+.5};}
-   else{if(!inBounds(body?.x,body?.y,body?.z))return {status:400,data:{error:'Invalid coordinates',world:session.world}};center={x:body.x+.5,y:body.y+.5,z:body.z+.5};}
+   else{if(!inBounds(body?.x,body?.y,body?.z,session.world))return {status:400,data:{error:'Invalid coordinates',world:session.world}};center={x:body.x+.5,y:body.y+.5,z:body.z+.5};}
    const p=session.player;
    if(Math.hypot(center.x-p.x,center.y-(p.y+1),center.z-p.z)>5.5)return {status:400,data:{error:'Target out of reach',world:session.world}};
    if(body.type==='place'&&Math.abs(center.x-p.x)<.65&&Math.abs(center.z-p.z)<.65&&center.y>=p.y&&center.y<=p.y+1.8)return {status:400,data:{error:'Cannot place inside player',world:session.world}};
@@ -414,7 +494,6 @@ async function handler(req,res){
     if(!matches){return {status:400,data:{error:'Mining was not started',world:session.world}};}
     if(Date.now()-mining.startedAt<MINING_DURATION_MS){return {status:400,data:{error:'Mining is not complete',world:session.world}};}
     if(oreMine){if(body.revision!==session.world.revision)return {status:409,data:{error:'Revision conflict',world:session.world}};if(body.tool!=='wood_pickaxe'||!equipped(session.world.inventory,'wood_pickaxe'))return {status:400,data:{error:'A wooden pickaxe is required',world:session.world}};refreshOreNodes(session.world);const outcome=mineOre(session.world,body.resourceId);if(outcome.error)return {status:400,data:{error:outcome.error,world:session.world}};session.mining=null;await save(who.id,outcome.next);session.world=outcome.next;return {status:200,data:{world:session.world}};}
-    if(body.tool!=='wood_shovel'||!equipped(session.world.inventory,'wood_shovel'))return {status:400,data:{error:'A wooden shovel is required',world:session.world}};
     session.mining=null;
    }
    const outcome=change(session.world,body);
@@ -429,4 +508,4 @@ async function handler(req,res){
  error(res,405,'Method not allowed');
 }
 const server=http.createServer((req,res)=>{handler(req,res).catch(err=>{console.error(err);if(!res.headersSent)error(res,err.status||500,err.status?err.message:'Server error');else res.destroy();});});
-server.listen(PORT,()=>console.log('TERRA prototype server: http://localhost:'+PORT));
+server.listen(PORT,HOST,()=>console.log('TERRA prototype server: http://'+HOST+':'+PORT));

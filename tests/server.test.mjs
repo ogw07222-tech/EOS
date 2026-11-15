@@ -50,8 +50,8 @@ test('independent guest island edits are validated and persist across restart',a
  assert.equal(mining.status,200);
  await new Promise(resolve=>setTimeout(resolve,1250));
  const take=await request(port,'/api/action',{method:'POST',headers:{Cookie:cookie,'Content-Type':'application/json'},body:JSON.stringify({type:'mine',targetType:'block',tool:'wood_shovel',x:1,y:0,z:0,revision:equipShovel.body.world.revision})});
- assert.equal(take.status,200);assert.equal(take.body.world.inventory.dirt,48);
- assert.equal(Object.hasOwn(take.body.world.edits,'1,0,0'),false);
+ assert.equal(take.status,200);assert.equal(take.body.world.inventory.dirt,48);assert.equal(take.body.world.drops.length,0,'direct mining pays inventory immediately without a world drop');
+ assert.equal(Object.hasOwn(take.body.world.edits,'1,0,0'),true);assert.equal(take.body.world.edits['1,0,0'],null,'a null patch masks the generated terrain after mining');
  }finally{await stop(proc);await rm(dir,{recursive:true,force:true});}
 });
 
@@ -84,7 +84,7 @@ test('new guest gets the designed island, tools, crops and resource harvesting',
   const startOre=await request(port,'/api/mine',{method:'POST',headers,body:JSON.stringify({type:'start',targetType:'ore',resourceId:'stone_vein_start',tool:'wood_pickaxe',revision:equipPick.body.world.revision})});assert.equal(startOre.status,200);
   await new Promise(resolve=>setTimeout(resolve,1220));
   const ore=await request(port,'/api/action',{method:'POST',headers,body:JSON.stringify({type:'mine',targetType:'ore',resourceId:'stone_vein_start',tool:'wood_pickaxe',revision:equipPick.body.world.revision})});
-  assert.equal(ore.status,200);assert.equal(ore.body.world.inventory.stone,1);assert.equal(ore.body.world.oreNodes[0].remaining,2);
+  assert.equal(ore.status,200);assert.equal(ore.body.world.inventory.stone,1);assert.equal(ore.body.world.oreNodes[0].remaining,2);assert.equal(ore.body.world.drops.length,0,'direct ore mining pays inventory immediately without a world drop');
  }finally{await stop(proc);await rm(dir,{recursive:true,force:true});}
 });
 
@@ -113,7 +113,7 @@ test('private shop hub transitions preserve island state, guard protected action
   const islandRevision=response.body.world.revision,cropsLeft=response.body.world.crops.length;
   response=await request(port,'/api/world/transition',{method:'POST',headers,body:JSON.stringify({destination:'shopHub'})});assert.equal(response.status,200,response.body?.error);
   let hub=response.body.world;assert.equal(hub.worldKind,'shopHub');assert.match(hub.worldInstanceId,/^terra:shop-hub:private:/);assert.equal(hub.machines.length,0);assert.equal(hub.crops.length,0);assert.equal(hub.coins,100);
-  const denied=['/api/action','/api/mine','/api/harvest','/api/farm','/api/craft','/api/machine/place','/api/inventory/drop','/api/npc/attack'];
+  const denied=['/api/action','/api/mine','/api/harvest','/api/farm','/api/craft','/api/machine/place','/api/inventory/drop','/api/items/pickup','/api/npc/attack'];
   for(const path of denied){const blocked=await request(port,path,{method:'POST',headers,body:JSON.stringify({type:'place',revision:hub.revision,x:0,y:0,z:0,selectedSlot:2})});assert.equal(blocked.status,403,`${path} must be rejected server-side`);}
   let shop=await request(port,'/api/shop/open',{method:'POST',headers,body:JSON.stringify({npcId:'farmer'})});assert.equal(shop.status,200);assert.equal(shop.body.catalog.wheat_seed.buyPrice,5);
   let trade=await request(port,'/api/shop/trade',{method:'POST',headers,body:JSON.stringify({action:'buy',item:'wheat_seed',quantity:'1',revision:shop.body.revision,price:0})});assert.equal(trade.status,200,trade.body?.error);assert.equal(trade.body.world.coins,95);assert.equal(trade.body.world.inventory.wheat_seed,2);

@@ -12,7 +12,7 @@ test('one logical voxel is one metre and the avatar uses the same world scale',(
  assert.match(source,/const PLAYER_HEIGHT_METERS=1\.78;/);
  assert.match(source,/const PLAYER_HALF_WIDTH_METERS=0\.34;/);
  assert.doesNotMatch(source,/humanoid\.scale\.setScalar/);
- assert.match(source,/g\.scale\.setScalar\(scale\);worldRoot\.add\(g\)/);
+ assert.match(source,/g\.position\.set\(x\+\.5,tree\.y\|\|0,z\+\.5\);g\.userData\.resourceId=id;g\.userData\.resourceTree=tree;treeGroups\.push\(g\);worldRoot\.add\(g\);resourceRoots\.push\(g\)/);
 });
 test('selection resolves scaled world intersections back into unscaled grid coordinates',()=>{
  assert.match(source,/worldRoot\.worldToLocal\(hit\.point\.clone\(\)\)\.addScaledVector/);
