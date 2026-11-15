@@ -104,7 +104,7 @@ test('development server without devtools folder boots the base game and has no 
   await writeFile(join(fixture,'index.html'),await readFile(join(root,'index.html')));
   await writeFile(join(fixture,'src','game.js'),await readFile(join(root,'src','game.js')));
   await writeFile(join(fixture,'src','farming-rules.mjs'),await readFile(join(root,'src','farming-rules.mjs')));
-  for(const module of ['hub-world.mjs','economy-rules.mjs','item-logistics.mjs','chunk-world.mjs','crop-rules.mjs','mineral-world.mjs','resource-catalog.mjs','tree-world.mjs'])await writeFile(join(fixture,'src',module),await readFile(join(root,'src',module)));
+  for(const module of ['hub-world.mjs','economy-rules.mjs','item-logistics.mjs','chunk-world.mjs','crop-rules.mjs','mineral-world.mjs','resource-catalog.mjs','recipe-settings.mjs','tree-world.mjs'])await writeFile(join(fixture,'src',module),await readFile(join(root,'src',module)));
   const id='10203040506070801020304050607080',port=await randomPort();
   await writeFile(join(saveDir,id+'.json'),JSON.stringify({schema:1,worldVersion:3,islandSize:10,revision:0,inventory:{dirt:0,wood:0,stone:0,wheat:0,wheat_seed:0,sapling:0,wateringCanUses:10,items:{},tools:{},quickSlots:[],selectedSlot:0},edits:{},machines:[],trees:[{id:'offline-sapling',x:3,y:0,z:1,stage:0,progress:179000}],harvestedTrees:[],tilled:[[0,0,3]],crops:[{id:'base-wheat',x:0,y:0,z:3,stage:1,progress:59000}],watered:{},waterSources:[],harvestedCrops:[],oreNodes:[],player:{x:.5,y:0,z:.5,grounded:true}}));
   proc=await boot(fixture,port,saveDir,'development');const signature=createHmac('sha256',secret).update(id).digest('hex'),cookie=`terra_session=${id}.${signature}`;

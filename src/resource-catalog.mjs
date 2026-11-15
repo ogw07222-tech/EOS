@@ -2,7 +2,7 @@
 // and the browser HUD. Existing resource aliases remain part of save schema 1.
 export const RESOURCE_LABELS=Object.freeze({
  wood:'목재',stone:'돌',dirt:'흙',sand:'모래',wheat:'밀',wheat_seed:'밀 씨앗',sapling:'묘목',
- iron_ore:'철 원석',coal:'석탄',copper_ore:'구리 원석',
+ iron_ore:'철 원석',coal:'석탄',coal_block:'석탄 블록',copper_ore:'구리 원석',
  iron_vein_core:'철 광맥 코어',coal_vein_core:'석탄 광맥 코어',copper_vein_core:'구리 광맥 코어',
  oak_log:'참나무 원목',birch_log:'자작나무 원목',rubberwood:'고무나무 원목',
  oak_sapling:'참나무 묘목',birch_sapling:'자작나무 묘목',rubber_sapling:'고무나무 묘목',rubber_sap:'고무 수액',

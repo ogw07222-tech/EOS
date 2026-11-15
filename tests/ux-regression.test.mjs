@@ -43,3 +43,10 @@ test('block placement preview is cached, matches server placement rules, and nev
  assert.match(game,/async function interact\(sx,sy\)[\s\S]*?updateBlockPreview\(sx,sy\);if\(!blockPlacementValid\)/);
  assert.match(game,/renderer\.domElement\.addEventListener\('pointermove',e=>\{[\s\S]*?updateBlockPreview\(e\.clientX,e\.clientY\)/);
 });
+
+test('T0 workshop models use translated V2 parts and uniform tile scale',()=>{
+ for(const id of ['tool_bench','agriculture_bench','block_bench','basic_assembler'])assert.match(game,new RegExp(`type==='${id}'`));
+ assert.match(game,/root\.scale\.setScalar\(\.54\)/);
+ const assembler=game.slice(game.indexOf('function makeBasicAssembler(root)'),game.indexOf('function makeDrill(root)'));
+ assert.match(assembler,/hand-crank|machineBox/);assert.doesNotMatch(assembler,/screen|machineMaterials\.cyan/);
+});

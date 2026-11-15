@@ -22,10 +22,10 @@ test('legacy remote tool, resource, and node fields migrate without changing IDs
 });
 test('sand placement and shovel mining are server validated and use the selected item',()=>{
  assert.match(server,/\['dirt','grass','sand'\]\.includes\(blockType\)/);
- assert.match(server,/const item=\['dirt','sand'\]\.includes\(action\.item\)\?action\.item:'dirt'/);
+ assert.match(server,/const item=\['dirt','sand','coal_block'\]\.includes\(action\.item\)\?action\.item:'dirt'/);
  assert.match(server,/RESOURCE_KEYS\.includes\(body\.item\)/);
- assert.match(client,/item:action==='place'&&\['dirt','sand'\]\.includes\(selectedTool\)\?selectedTool:undefined/);
- assert.match(client,/if\(\['dirt','sand'\]\.includes\(id\)\)setMode\('place'\)/);
+ assert.match(client,/item:action==='place'&&\['dirt','sand','coal_block'\]\.includes\(selectedTool\)\?selectedTool:undefined/);
+ assert.match(client,/if\(\['dirt','sand','coal_block'\]\.includes\(id\)\)setMode\('place'\)/);
 });
 test('inventory panel assigns owned resources to quick slots and preserves explicit world interactions',()=>{
  assert.match(html,/id="inventoryPanel"[^>]*hidden/);

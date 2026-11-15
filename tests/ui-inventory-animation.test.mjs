@@ -18,8 +18,8 @@ test('inventory opens, closes, and assigns owned items',()=>{
  assert.match(game,/e\.code==='KeyE'/);assert.match(game,/e\.code==='Escape'/);
 });
 test('place mode only consumes an available dirt or sand stack',()=>{
- assert.match(game,/const placeItem=\['dirt','sand'\]\.includes\(selectedTool\)\?selectedTool:'dirt'/);
- assert.match(game,/item:action==='place'&&\['dirt','sand'\]\.includes\(selectedTool\)\?selectedTool:undefined/);
+ assert.match(game,/const placeItem=\['dirt','sand','coal_block'\]\.includes\(selectedTool\)\?selectedTool:'dirt'/);
+ assert.match(game,/item:action==='place'&&\['dirt','sand','coal_block'\]\.includes\(selectedTool\)\?selectedTool:undefined/);
  assert.match(game,/if\(mode==='place'\)void interact\(e\.clientX,e\.clientY\)/);
 });
 test('held tools and resource models use the shared 3D model generator',()=>{
