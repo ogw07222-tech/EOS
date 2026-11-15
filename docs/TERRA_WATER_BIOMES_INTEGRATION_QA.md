@@ -58,3 +58,9 @@ ADB still sees SM-X820 Android 16, but `dumpsys display` shows Display 0 only; D
 - `tests/world-v2-generation.test.mjs` (new)
 
 No pre-existing untracked evidence was removed or staged. No saved world was reset. No remote push or GitHub Actions run occurred.
+
+## Follow-up on an alternate local port
+
+After the initial report, a fresh development server was started on `127.0.0.1:48184` with a separate temporary save directory. `/api/world` returned `worldGenVersion: 2`, `worldSeed: 4044982795`, `islandSize: 10`, `worldKind: "personal"`, and a centered player at `{x:0.5,y:0,z:0.5,grounded:true,immersed:false,swimming:false}`. This confirms that `islandSize: 10` remains metadata on the new chunk world and does not force legacy rendering when `worldGenVersion: 2` is present. `/api/dev/biomes` returned plains, forest, beach, ocean, and river coordinates.
+
+The QA server process was stopped after the requests. Its isolated disposable save files remain under `/data/data/com.termux/files/usr/tmp/terra-port-qa.w9JW7U`; the existing `EOS/data/worlds` was not used or changed. The original absent 48183 session remains unverified.
