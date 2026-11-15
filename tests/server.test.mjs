@@ -73,7 +73,7 @@ test('new guest gets the designed island, tools, crops and resource harvesting',
   const startTree=await request(port,'/api/harvest',{method:'POST',headers,body:JSON.stringify({type:'start',resourceType:'tree',resourceId:'oak_start',tool:'wood_axe'})});assert.equal(startTree.status,200);
   await new Promise(resolve=>setTimeout(resolve,1220));
   const tree=await request(port,'/api/harvest',{method:'POST',headers,body:JSON.stringify({type:'collect',resourceType:'tree',resourceId:'oak_start',tool:'wood_axe'})});
-  assert.equal(tree.status,200);assert.ok([2,3].includes(tree.body.world.inventory.wood));assert.equal(tree.body.world.inventory.sapling,1);
+  assert.equal(tree.status,200);assert.ok([2,3].includes(tree.body.world.inventory.wood));assert.ok([1,2].includes(tree.body.world.inventory.sapling));assert.equal(tree.body.world.inventory.oak_sapling,tree.body.world.inventory.sapling);
   const startWheat=await request(port,'/api/harvest',{method:'POST',headers,body:JSON.stringify({type:'start',resourceType:'wheat',resourceId:'wheat_1'})});assert.equal(startWheat.status,200);
   await new Promise(resolve=>setTimeout(resolve,1220));
   const wheat=await request(port,'/api/harvest',{method:'POST',headers,body:JSON.stringify({type:'collect',resourceType:'wheat',resourceId:'wheat_1'})});

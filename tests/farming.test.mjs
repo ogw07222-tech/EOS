@@ -152,7 +152,8 @@ test('watering, tree harvest, and planting requests are validated server-side',a
   r=await req(c.port,'/api/harvest',{type:'collect',resourceType:'tree',resourceId:w.trees[0].id,tool:'wood_axe'},c.cookie);assert.equal(r.status,200,r.body.error);
   assert.ok([2,3].includes(r.body.world.inventory.wood));assert.ok([1,2].includes(r.body.world.inventory.sapling));assert.equal(r.body.world.inventory.oak_log,r.body.world.inventory.wood);assert.equal(r.body.world.inventory.oak_sapling,r.body.world.inventory.sapling);
   const duplicate=await req(c.port,'/api/harvest',{type:'start',resourceType:'tree',resourceId:w.trees[0].id,tool:'wood_axe'},c.cookie);assert.notEqual(duplicate.status,200);
-  const sapling=await farm(c.port,c.cookie,'plant_tree',4,0,0,null,r.body.world.revision);assert.equal(sapling.status,200,sapling.body.error);assert.equal(sapling.body.world.inventory.sapling,0);assert.equal(sapling.body.world.inventory.oak_sapling,0);assert.equal(sapling.body.world.trees.find(t=>t.x===4&&t.z===0).stage,0);
+  const saplingBefore=r.body.world.inventory.sapling,typedSaplingBefore=r.body.world.inventory.oak_sapling;
+  const sapling=await farm(c.port,c.cookie,'plant_tree',4,0,0,null,r.body.world.revision);assert.equal(sapling.status,200,sapling.body.error);assert.equal(sapling.body.world.inventory.sapling,saplingBefore-1);assert.equal(sapling.body.world.inventory.oak_sapling,typedSaplingBefore-1);assert.equal(sapling.body.world.trees.find(t=>t.x===4&&t.z===0).stage,0);
   const occupied=await farm(c.port,c.cookie,'plant_tree',4,0,0,null,sapling.body.world.revision);assert.notEqual(occupied.status,200);
   const bad=await farm(c.port,c.cookie,'plant',63,0,63,'hoe',r.body.world.revision);assert.notEqual(bad.status,200);
  }finally{await stop(c.proc);await rm(c.dir,{recursive:true,force:true});}

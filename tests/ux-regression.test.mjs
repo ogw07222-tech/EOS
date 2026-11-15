@@ -38,7 +38,7 @@ test('block placement preview is cached, matches server placement rules, and nev
  assert.match(game,/const blockPreviewGeometry=new THREE\.BoxGeometry\(\.96,\.96,\.96\)/);
  assert.match(game,/new THREE\.EdgesGeometry\(blockPreviewGeometry\)/);
  assert.match(game,/function blockPlacementError\(/);
- for(const rule of ['포털 보호 구역','이미 블록이 있음','흙 부족','월드 편집 한도','붙일 면이 없음','플레이어와 겹침'])assert.ok(game.includes(rule),`missing preview rule: ${rule}`);
+ for(const rule of ['포털 보호 구역','이미 블록이 있음','부족','월드 편집 한도','붙일 면이 없음','플레이어와 겹침'])assert.ok(game.includes(rule),`missing preview rule: ${rule}`);
  assert.match(game,/\[\[1,0,0\],\[-1,0,0\],\[0,1,0\],\[0,-1,0\],\[0,0,1\],\[0,0,-1\]\]/);
  assert.match(game,/async function interact\(sx,sy\)[\s\S]*?updateBlockPreview\(sx,sy\);if\(!blockPlacementValid\)/);
  assert.match(game,/renderer\.domElement\.addEventListener\('pointermove',e=>\{[\s\S]*?updateBlockPreview\(e\.clientX,e\.clientY\)/);

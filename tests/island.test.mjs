@@ -38,7 +38,7 @@ test('movement, interaction and server save are connected',()=>{
  assert.match(game,/world\.revision/);assert.match(game,/for\(const tree of world\.trees\|\|\[\]\)\{makeTree\(tree\);\}/);
  assert.match(server,/async function save\(/);
  assert.match(server,/timingSafeEqual/);
- assert.match(server,/if\(current\.inventory\.dirt<1\)/);
+ assert.match(server,/if\(\(current\.inventory\[item\]\|\|0\)<1\)/);
  assert.match(server,/function stepPlayer\(session,input\)/);
  assert.match(server,/path==='\/api\/move'/);
 });
