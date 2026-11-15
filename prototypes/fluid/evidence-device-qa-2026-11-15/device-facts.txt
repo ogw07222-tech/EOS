@@ -1,0 +1,11 @@
+Date: 2026-11-15 KST
+Device: Samsung SM-X820
+Android release: 16
+ADB: initially authorized at 127.0.0.1:44447; disconnected before full scenario suite
+Virtual display: ID 16, VIRTUAL, 1280x720, owner dev.eclipse.vdisplay, removeMode 1, FLAG_OWN_CONTENT_ONLY, mWindowManagerMirroring=false
+Display 0: internal 2800x1752, not used for input or capture
+TERRA host: dev.terra.vdtest/.BrowserActivity; CREATE display=16; Window Manager mDisplayId=16
+WebGL: true, canvas 1280x720
+ADB reverse: not established (Address already in use); same-device loopback worked directly
+Reconnect attempt: 127.0.0.1:44447 -> Connection refused; no new port guessed, no pairing UI opened
+No ECLIPSE package/source/configuration changes; no production game integration

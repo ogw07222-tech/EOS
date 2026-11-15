@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>TERRA Fluid Device QA</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#071521;color:#e7f3ff;font:14px system-ui,sans-serif}canvas{display:block;width:100%;height:100%;touch-action:none}#panel{position:fixed;left:12px;top:12px;z-index:2;width:min(380px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:12px;border:1px solid #436078;border-radius:12px;background:#0b1d2be8;backdrop-filter:blur(8px)}h1{font-size:17px;margin:0 0 8px}.row{display:flex;gap:6px;align-items:center;margin:7px 0}.row>*{min-width:0}select,button{background:#19354b;color:#eef8ff;border:1px solid #56758d;border-radius:7px;padding:7px;font:inherit}select{flex:1}button{cursor:pointer}button:disabled{opacity:.45}#metrics{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font:12px ui-monospace,monospace;margin:8px 0}.metric{padding:4px;background:#11283a;border-radius:4px}.metric b{color:#84d7ff;display:block;font-weight:500}.hint{font-size:11px;color:#bdd2e2;line-height:1.4}.status{color:#9ee8ba;min-height:18px;font-size:12px}#scenario{font-size:12px;line-height:1.4;color:#c9dfef}@media(max-height:520px){#panel{width:310px;padding:8px}.row{margin:4px 0}h1{font-size:15px}#metrics{font-size:10px}.hint{display:none}}
+</style>
+</head>
+<body>
+<div id="panel">
+ <h1>격리 유체 장치 QA</h1>
+ <div class="row"><select id="case"></select><select id="rate"><option value="2">2 ticks/s</option><option value="5" selected>5 ticks/s</option><option value="10">10 ticks/s</option></select></div>
+ <div class="row"><button id="reset">초기화</button><button id="run">시작</button><button id="step">1틱</button><button id="action">상황 조작</button></div>
+ <div id="scenario"></div><div class="status" id="status">격리 프로토타입 엔진 준비</div>
+ <div id="metrics"></div>
+ <div class="hint">파란 면은 엔진의 실제 water level(1–8) 상태입니다. 인접 전달 한 번은 옆 셀로 수량 1/8을 옮기는 규칙이며 이동 거리 1/8m가 아닙니다. 표시 FPS와 물리 틱 비용은 별도 계측합니다. 드래그 회전 · 핀치/휠 확대.</div>
+</div>
+<script type="module" src="/app.mjs"></script>
+</body></html>

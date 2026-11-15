@@ -49,3 +49,28 @@ This proves the per-tick cell cap is enforced but does not prove the queue drain
 ## Gate decision / remaining work
 
 The isolated scenario and stress suites pass, but the full gate is **NOT PASSED**: Z/diagonal boundary cases, queue-drain and memory-baseline comparisons, full coastal performance evidence, and integrated WebGL/server/save validation remain. Therefore no game integration or migration was performed. The newest request's no-push/no-GitHub-Actions constraint remains in force.
+
+## Android virtual-display QA (2026-11-15)
+
+A separate `prototypes/fluid/dev-preview/` page was opened through the existing `dev.terra.vdtest` WebView. The page imports and runs the same `FluidEngine` from this prototype and renders its actual levels with Three.js. No files in `src/game.js`, `server.mjs`, or ECLIPSE were changed. Chrome and Samsung Internet were not launched; Display 0 received no touch or screenshot, and no wireless pairing or app installation was used.
+
+- Device at connection: Samsung SM-X820, Android 16. ADB was already authorized as `127.0.0.1:44447`.
+- Resolved virtual display: 16, 1280×720, `VIRTUAL`, owner `dev.eclipse.vdisplay`, `removeMode 1`, `FLAG_OWN_CONTENT_ONLY`, `mWindowManagerMirroring=false`; Display 0 remained the separate internal panel.
+- TERRA host log: `CREATE display=16`, `PAGE_FINISHED display=16`; Window Manager showed `dev.terra.vdtest/.BrowserActivity` with `mDisplayId=16`. No TERRA host was listed in the Display 0 activity section.
+- WebGL probe: `webgl:true`, canvas 1280×720. Captures are from the ECLIPSE-owned snapshot Surface only. Touch log entries from this run used display 16.
+- Repro command for the preview server: `EOS_FLUID_QA_OUT="$PWD/prototypes/fluid/evidence-device-qa-2026-11-15" node prototypes/fluid/dev-preview/server.mjs`.
+
+Device measurements saved in `prototypes/fluid/evidence-device-qa-2026-11-15/fluid-runs.jsonl`:
+
+- A01 at 2 ticks/s: first arrival at `(1,0,0)` in 541ms; stable after 5 ticks / 2.54s; 2 water cells / 8 units; queue 0; mean fluid tick 0.56ms, max 0.80ms; animation-frame counter 118.9/s. Device display mode reports 60Hz, so the RAF counter is reported separately and is not treated as confirmed presented FPS.
+- A02 at 2 ticks/s: 4 cells / 8 units; water reached `(3,0,0)` and did not reach the 5m end. Its timing fields are **invalid** because the run timer began when the scenario was selected, before the operator pressed Start. The preview code was corrected so the timer starts with the first physical tick; this corrected build could not be re-run on the device after ADB disconnected.
+
+The first capture attempt read the ECLIPSE snapshot while its PNG was still being written; it was discarded. The saved `a01-current.png`, `a01-run.png`, `a02-running.png`, and interaction captures are complete 1280×720 PNGs. The evidence `touches.csv` contains only the eight touch down/up records from this run; all target display 16. Historic host touch records were excluded.
+
+At approximately 18:00 KST the existing wireless ADB transport disappeared. `adb devices -l` returned no devices; reconnecting the previously authorized `127.0.0.1:44447` returned `Connection refused`; the existing ECLIPSE status script reported `Exactly one ADB device required`. I did not guess a new port, enable wireless debugging, or touch pairing UI. Therefore A03–A14, repeat rates 2/5/10, the 81-chunk device run, and corrected A02 timing are **NOT RUN**. Display 0 received no test input or capture.
+
+Evidence: `prototypes/fluid/evidence-device-qa-2026-11-15/`. Android/WebGL visual capability is verified; the 14-scenario real-device QA requested in the newest prompt remains incomplete until the existing authorized ADB connection is restored.
+
+Local verification after the preview timing correction: `node --check prototypes/fluid/dev-preview/app.mjs` PASS; `node --check prototypes/fluid/dev-preview/server.mjs` PASS; `node --test tests/fluid-gate.test.mjs` PASS (25/25, including 10,000-event stress); `npm test` PASS (137/137, 31.60s); `git diff --check` PASS. The new automatic device suite can run 32 fixture/rate combinations and has a 20s per-run timeout, but it was not launched because the existing ADB transport was unavailable.
+
+The device report preserves the invalid A02 attempt as raw JSON for audit; use only A01 as valid wall-clock/arrival measurement. An ADB reconnection using the saved endpoint or user-provided current debug address/port is required before continuing A03–A14 and the 2/5/10 ticks/s matrix.
