@@ -34,6 +34,7 @@ export function createTeleportService({
   isSolidForPlayer,
   hasGroundSupport,
   isLiquidAt = () => false,
+  getWaterSurfaceLanding = () => null,
   biomeAt = () => null,
 }) {
   if (![worldMinY, worldMaxY].every(Number.isFinite)) throw new TypeError('Teleport world bounds are required');
@@ -67,6 +68,12 @@ export function createTeleportService({
 
   function findSafeLanding(world, x, z, { allowWater = false } = {}) {
     if (!validateXZ(world, x, z)) return { ok: false, code: 'out-of-bounds', reason: 'X/Z 좌표가 월드 범위를 벗어났습니다.' };
+    if (!allowWater) {
+      const waterLanding = getWaterSurfaceLanding(world, x, z);
+      if (waterLanding && withinY(world, waterLanding.y, { worldMinY, worldMaxY }) && !isSolidForPlayer(world, x, waterLanding.y, z)) {
+        return { ok: true, player: bodyPosition(x, waterLanding.y, z, false), liquid: false, buoyant: true };
+      }
+    }
     const terrainY = Math.floor(surfaceAt(world, Math.floor(x), Math.floor(z)));
     if (!Number.isFinite(terrainY)) return { ok: false, code: 'terrain-unavailable', reason: '지형 높이를 계산할 수 없습니다.' };
     const bounds = boundsFor(world, { worldMinY, worldMaxY });
@@ -86,9 +93,9 @@ export function createTeleportService({
   function metadata(world, player) {
     let biome = null;
     if (world?.worldGenVersion && Number.isFinite(player.x) && Number.isFinite(player.z)) {
-      try { biome = biomeAt(world.worldSeed, Math.floor(player.x), Math.floor(player.z)); } catch { biome = null; }
+      try { biome = biomeAt(world.worldSeed, Math.floor(player.x), Math.floor(player.z), world.worldGenVersion); } catch { biome = null; }
     }
-    return { biome, waterSafety: 'not-modeled' };
+    return { biome, waterSafety: world?.worldGenVersion === 2 ? 'modeled' : 'not-modeled' };
   }
 
   function resolve(world, player, body) {

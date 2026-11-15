@@ -1,7 +1,7 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 import { createFarmerNpc } from './farmer-npc.js';
 import { isFarmTileWatered } from './farming-rules.mjs';
-import {CHUNK_SIZE,DEFAULT_CHUNK_RADIUS,MIN_CHUNK_RADIUS,MAX_CHUNK_RADIUS,WORLD_MIN_Y,WORLD_MAX_Y,blockAt,generateChunkColumns,chunkCoord,localCoord,planChunkWindow,isChunkJobCurrent} from './chunk-world.mjs';
+import {CHUNK_SIZE,DEFAULT_CHUNK_RADIUS,MIN_CHUNK_RADIUS,MAX_CHUNK_RADIUS,WORLD_MIN_Y,WORLD_MAX_Y,blockAt,generateChunkColumns,chunkCoord,localCoord,planChunkWindow,isChunkJobCurrent,biomeAt,generatedWaterLevel,waterLevelAt} from './chunk-world.mjs';
 import {generateTreesForChunk,treeDimensions} from './tree-world.mjs';
 import {cropTypeOf,seedItemForCrop,productItemForCrop} from './crop-rules.mjs';
 import {RESOURCE_LABELS,RESOURCE_KEYS,TOOL_NAMES,TREE_LOGS,TREE_SAPLINGS,CROP_TYPES,CROP_SEEDS} from './resource-catalog.mjs';
@@ -54,7 +54,90 @@ let outlines;
 const streamedTerrain=new Map(),columnCache=new Map(),desiredTerrainChunks=new Set(),dirtyTerrainChunks=new Set(),terrainEditedChunks=new Set();
 let terrainWorkQueue=[],queuedTerrainChunks=new Set(),terrainGeneration=0,chunkWorldActive=false,activeChunkWorldKey='',terrainEditSnapshot=new Map(),terrainRequestSignature='';
 let terrainBuildCount=0,terrainBuildTotalMs=0,terrainBuildLastMs=0,terrainBuildMaxMs=0,terrainFrameAvgMs=0,lastTerrainStatsAt=0;
+// Water is drawn as one batched surface mesh per streamed chunk. Static ocean
+// columns come from the shared deterministic generator; only dynamic fluid
+// overrides travel over the wire and dirty the chunks they actually affect.
+const streamedWater=new Map(),desiredWaterChunks=new Set(),dirtyWaterChunks=new Set();
+let waterWorkQueue=[],waterGeneration=0,waterEditSnapshot=new Map(),waterWorldKey='',waterEditWindowKey='';
+let indexedFluidCells=null,fluidCellsByChunk=new Map();
+const waterMaterial=new THREE.MeshLambertMaterial({color:0x388eaa,transparent:true,opacity:.78,depthWrite:false,side:THREE.DoubleSide});
 function terrainChunkKey(cx,cz){return `${cx},${cz}`;}
+function disposeWaterChunk(entry){if(!entry?.mesh)return;worldRoot.remove(entry.mesh);entry.mesh.geometry.dispose();}
+function waterWorld(snapshot=world){return snapshot?{...snapshot,fluidEdits:snapshot.fluidCells||snapshot.fluidEdits||{}}:null;}
+function indexedWaterEdits(){
+ const cells=world?.fluidCells||world?.fluidEdits||{};if(cells===indexedFluidCells)return fluidCellsByChunk;
+ indexedFluidCells=cells;fluidCellsByChunk=new Map();
+ for(const [cell,level]of Object.entries(cells)){const [x,,z]=cell.split(',').map(Number);if(!Number.isInteger(x)||!Number.isInteger(z))continue;const chunk=terrainChunkKey(chunkCoord(x),chunkCoord(z));let entries=fluidCellsByChunk.get(chunk);if(!entries)fluidCellsByChunk.set(chunk,entries=[]);entries.push([cell,level]);}
+ return fluidCellsByChunk;
+}
+function markWaterChunk(cx,cz){const key=terrainChunkKey(cx,cz);if(desiredWaterChunks.has(key))dirtyWaterChunks.add(key);}
+function waterWindowKey(snapshot){const x=Number(snapshot?.player?.x),z=Number(snapshot?.player?.z);return Number.isFinite(x)&&Number.isFinite(z)?`${chunkCoord(x)},${chunkCoord(z)}`:'unknown';}
+function queueWaterBuilds(){waterGeneration++;waterWorkQueue=[];for(const key of desiredWaterChunks)if(!streamedWater.has(key)||dirtyWaterChunks.has(key)){const [cx,cz]=key.split(',').map(Number);waterWorkQueue.push({cx,cz,generation:waterGeneration});}}
+function updateWaterStreaming(nextChunks=desiredTerrainChunks,force=false){
+ const key=`${world?.worldId||''}|${world?.worldInstanceId||''}|${world?.worldSeed}|${world?.worldGenVersion}`;
+ if(force||key!==waterWorldKey){waterGeneration++;waterWorkQueue=[];for(const entry of streamedWater.values())disposeWaterChunk(entry);streamedWater.clear();dirtyWaterChunks.clear();waterWorldKey=key;waterEditSnapshot=new Map(Object.entries(world?.fluidCells||{}));waterEditWindowKey=waterWindowKey(world);}
+ const next=new Set(nextChunks);
+ for(const [chunk,entry]of streamedWater)if(!next.has(chunk)){disposeWaterChunk(entry);streamedWater.delete(chunk);dirtyWaterChunks.delete(chunk);}
+ for(const chunk of next)if(!streamedWater.has(chunk))dirtyWaterChunks.add(chunk);
+ desiredWaterChunks.clear();for(const chunk of next)desiredWaterChunks.add(chunk);queueWaterBuilds();
+}
+function syncWaterEdits(previous,next){
+ if(!next?.worldGenVersion)return;
+ const key=`${next.worldId||''}|${next.worldInstanceId||''}|${next.worldSeed}|${next.worldGenVersion}`;
+ if(key!==waterWorldKey){updateWaterStreaming(desiredTerrainChunks,true);return;}
+ const nextWindow=waterWindowKey(next);if(previous&&previous.fluidRevision===next.fluidRevision&&nextWindow===waterEditWindowKey)return;
+ const current=new Map(Object.entries(next.fluidCells||{})),changed=[];
+ for(const [cell,value]of waterEditSnapshot)if(!current.has(cell)||current.get(cell)!==value)changed.push(cell);
+ for(const [cell,value]of current)if(!waterEditSnapshot.has(cell)||waterEditSnapshot.get(cell)!==value)changed.push(cell);
+ waterEditSnapshot=current;waterEditWindowKey=nextWindow;
+ if(!changed.length&&previous?.fluidRevision===next.fluidRevision)return;
+ for(const cell of changed){const [x,,z]=cell.split(',').map(Number);if(!Number.isInteger(x)||!Number.isInteger(z))continue;const cx=chunkCoord(x),cz=chunkCoord(z),lx=localCoord(x),lz=localCoord(z);markWaterChunk(cx,cz);if(lx===0)markWaterChunk(cx-1,cz);if(lx===CHUNK_SIZE-1)markWaterChunk(cx+1,cz);if(lz===0)markWaterChunk(cx,cz-1);if(lz===CHUNK_SIZE-1)markWaterChunk(cx,cz+1);}
+ if(changed.length)queueWaterBuilds();
+}
+function waterQuad(arrays,a,b,c,d){const start=arrays.positions.length/3;for(const point of [a,b,c,d])arrays.positions.push(point[0],point[1],point[2]);arrays.indices.push(start,start+1,start+2,start,start+2,start+3);}
+function buildWaterGeometry(cx,cz){
+ const arrays={positions:[],indices:[]},source=waterWorld(),edits=source?.fluidEdits||{},chunkEdits=indexedWaterEdits().get(terrainChunkKey(cx,cz))||[],x0=cx*CHUNK_SIZE,z0=cz*CHUNK_SIZE,sea=Number.isInteger(world?.seaLevel)?world.seaLevel:0;
+ const levelAt=(x,y,z)=>waterLevelAt(source,x,y,z)||0;
+ // The static ocean/river body is compactly reconstructed from the shared seed.
+ // Only one surface sample per X/Z column is needed for the stable sea plane.
+ if(world?.worldGenVersion===2)for(let z=z0;z<z0+CHUNK_SIZE;z++)for(let x=x0;x<x0+CHUNK_SIZE;x++){
+  const base=generatedWaterLevel(world,x,sea,z),override=Object.hasOwn(edits,`${x},${sea},${z}`),level=override?edits[`${x},${sea},${z}`]:base;
+  if(level<=0)continue;const top=sea+level/8;
+  waterQuad(arrays,[x,top,z],[x+1,top,z],[x+1,top,z+1],[x,top,z+1]);
+  for(const [dx,dz]of [[1,0],[-1,0],[0,1],[0,-1]]){
+   const nx=x+dx,nz=z+dz,nkey=`${nx},${sea},${nz}`,nbase=generatedWaterLevel(world,nx,sea,nz),nlevel=Object.hasOwn(edits,nkey)?edits[nkey]:nbase;
+   if(nlevel>0)continue;
+   const bed=heightAt(world.worldSeed,x,z,world.worldGenVersion),land=heightAt(world.worldSeed,nx,nz,world.worldGenVersion),bottom=Math.max(bed,land);
+   if(bottom>=top)continue;
+   if(dx===1)waterQuad(arrays,[x+1,bottom,z+1],[x+1,bottom,z],[x+1,top,z],[x+1,top,z+1]);
+   else if(dx===-1)waterQuad(arrays,[x,bottom,z],[x,bottom,z+1],[x,top,z+1],[x,top,z]);
+   else if(dz===1)waterQuad(arrays,[x,bottom,z+1],[x+1,bottom,z+1],[x+1,top,z+1],[x,top,z+1]);
+   else waterQuad(arrays,[x+1,bottom,z],[x,bottom,z],[x,top,z],[x+1,top,z]);
+  }
+ }
+ // Sparse simulated cells add waterfalls, channels, and partial-height surfaces.
+ for(const [cell,rawLevel]of chunkEdits){
+  const [x,y,z]=cell.split(',').map(Number),level=Number(rawLevel);if(!Number.isInteger(x)||!Number.isInteger(y)||!Number.isInteger(z)||!Number.isFinite(level)||level<=0||level>8||chunkCoord(x)!==cx||chunkCoord(z)!==cz||y===sea)continue;
+  const top=y+level/8;
+  if(levelAt(x,y+1,z)===0)waterQuad(arrays,[x,top,z],[x+1,top,z],[x+1,top,z+1],[x,top,z+1]);
+  for(const [dx,dz]of [[1,0],[-1,0],[0,1],[0,-1]]){
+   const adjacent=levelAt(x+dx,y,z+dz),bottom=adjacent?Math.max(y,y+adjacent/8):y;if(bottom>=top)continue;
+   if(dx===1)waterQuad(arrays,[x+1,bottom,z+1],[x+1,bottom,z],[x+1,top,z],[x+1,top,z+1]);
+   else if(dx===-1)waterQuad(arrays,[x,bottom,z],[x,bottom,z+1],[x,top,z+1],[x,top,z]);
+   else if(dz===1)waterQuad(arrays,[x,bottom,z+1],[x+1,bottom,z+1],[x+1,top,z+1],[x,top,z+1]);
+   else waterQuad(arrays,[x+1,bottom,z],[x,bottom,z],[x,top,z],[x+1,top,z]);
+  }
+ }
+ const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(arrays.positions,3));geometry.setIndex(arrays.indices);geometry.computeVertexNormals();return geometry;
+}
+function installWaterChunk(cx,cz,generation){
+ const key=terrainChunkKey(cx,cz);if(generation!==waterGeneration||!desiredWaterChunks.has(key))return;
+ const geometry=buildWaterGeometry(cx,cz);if(generation!==waterGeneration||!desiredWaterChunks.has(key)){geometry.dispose();return;}
+ const previous=streamedWater.get(key);if(geometry.getAttribute('position').count===0){geometry.dispose();if(previous)disposeWaterChunk(previous);streamedWater.set(key,{cx,cz,key,mesh:null});dirtyWaterChunks.delete(key);return;}
+ const mesh=new THREE.Mesh(geometry,waterMaterial);mesh.renderOrder=2;mesh.castShadow=false;mesh.receiveShadow=false;
+ if(previous)disposeWaterChunk(previous);streamedWater.set(key,{cx,cz,key,mesh});worldRoot.add(mesh);dirtyWaterChunks.delete(key);
+}
+function pumpWaterWork(){const start=performance.now();while(waterWorkQueue.length&&performance.now()-start<1.8){const job=waterWorkQueue.shift(),key=terrainChunkKey(job.cx,job.cz);if(job.generation!==waterGeneration||!desiredWaterChunks.has(key))continue;try{installWaterChunk(job.cx,job.cz,job.generation);}catch(error){console.error('Water mesh build failed:',key,error);}}}
 function configuredChunkRadius(){let requested=DEFAULT_CHUNK_RADIUS;try{const value=Number(localStorage.getItem('terra.chunkRadius'));if(Number.isFinite(value)&&value>0)requested=value;}catch{}return Math.max(MIN_CHUNK_RADIUS,Math.min(MAX_CHUNK_RADIUS,Math.trunc(requested)));}
 function disposeTerrainChunk(entry){worldRoot.remove(entry.root);entry.root.traverse(object=>{if(object.geometry)object.geometry.dispose();});}
 function chunkGeometry(positions,normals,colorsOut,indices){const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));geometry.setAttribute('color',new THREE.Float32BufferAttribute(colorsOut,3));geometry.setIndex(indices);return geometry;}
@@ -65,15 +148,15 @@ function hasNearbyTerrainEdits(cx,cz){for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<
 function makeHeightfieldChunk(cx,cz,columnMap){const arrays={positions:[],normals:[],colors:[],indices:[]},startX=cx*CHUNK_SIZE,startZ=cz*CHUNK_SIZE;
  const height=(x,z)=>columnMap.get(`${x},${z}`)?.surfaceY??0;
  for(let z=startZ;z<startZ+CHUNK_SIZE;z++)for(let x=startX;x<startX+CHUNK_SIZE;x++){
-  const surfaceY=height(x,z),topBlock=surfaceY-1>=WORLD_MIN_Y?'grass':null;if(topBlock)emitChunkFace(arrays,faces[0],x,surfaceY-1,z,topBlock,0);
+  const surfaceY=height(x,z),topBlock=surfaceY-1>=WORLD_MIN_Y?blockAt(world,x,surfaceY-1,z):null;if(topBlock)emitChunkFace(arrays,faces[0],x,surfaceY-1,z,topBlock,0);
   for(const [faceIndex,dx,dz] of [[2,-1,0],[3,1,0],[4,0,-1],[5,0,1]]){const neighborY=height(x+dx,z+dz),from=Math.max(WORLD_MIN_Y,neighborY);for(let y=from;y<surfaceY&&y<=WORLD_MAX_Y;y++){
-   const depth=surfaceY-1-y,block=depth===0?'grass':depth<=3?'dirt':'stone';if(depth<0)continue;
+   const block=blockAt(world,x,y,z);if(!block)continue;
    emitChunkFace(arrays,faces[faceIndex],x,y,z,block,faceIndex);
   }}
  }
  return chunkGeometry(arrays.positions,arrays.normals,arrays.colors,arrays.indices);
 }
-function clearStreamedTerrain(){terrainGeneration++;terrainWorkQueue=[];queuedTerrainChunks.clear();for(const entry of streamedTerrain.values())disposeTerrainChunk(entry);streamedTerrain.clear();desiredTerrainChunks.clear();dirtyTerrainChunks.clear();terrainEditedChunks.clear();columnCache.clear();chunkWorldActive=false;activeChunkWorldKey='';terrainEditSnapshot=new Map();terrainRequestSignature='';terrainBuildCount=0;terrainBuildTotalMs=0;terrainBuildLastMs=0;terrainBuildMaxMs=0;terrainFrameAvgMs=0;lastTerrainStatsAt=0;}
+function clearStreamedTerrain(){terrainGeneration++;terrainWorkQueue=[];queuedTerrainChunks.clear();for(const entry of streamedTerrain.values())disposeTerrainChunk(entry);streamedTerrain.clear();desiredTerrainChunks.clear();dirtyTerrainChunks.clear();terrainEditedChunks.clear();columnCache.clear();updateWaterStreaming(new Set(),true);desiredWaterChunks.clear();chunkWorldActive=false;activeChunkWorldKey='';terrainEditSnapshot=new Map();terrainRequestSignature='';terrainBuildCount=0;terrainBuildTotalMs=0;terrainBuildLastMs=0;terrainBuildMaxMs=0;terrainFrameAvgMs=0;lastTerrainStatsAt=0;}
 function chunkColumns(cx,cz){const key=terrainChunkKey(cx,cz);let columns=columnCache.get(key);if(!columns){columns=generateChunkColumns(world.worldSeed,cx,cz,world.worldGenVersion);columnCache.set(key,columns);if(columnCache.size>256)columnCache.delete(columnCache.keys().next().value);}return columns;}
 function surfaceHeightAt(x,z){const columns=chunkColumns(chunkCoord(x),chunkCoord(z));const lx=localCoord(x),lz=localCoord(z);return columns[lz*CHUNK_SIZE+lx]?.surfaceY??0;}
 function makeChunkTerrain(cx,cz){
@@ -113,7 +196,7 @@ function updateTerrainStreaming(force=false){
  if(!force&&signature===terrainRequestSignature)return;terrainRequestSignature=signature;terrainGeneration++;
  const nextPlan=planChunkWindow(pcx,pcz,radius),next=new Set(nextPlan.map(chunk=>chunk.key));
  for(const [key,entry]of streamedTerrain)if(!next.has(key)){disposeTerrainChunk(entry);streamedTerrain.delete(key);dirtyTerrainChunks.delete(key);}
- desiredTerrainChunks.clear();for(const chunk of nextPlan)desiredTerrainChunks.add(chunk.key);queueDesiredTerrain();if($('stats'))$('stats').textContent=`청크 ${streamedTerrain.size}/${desiredTerrainChunks.size} · 반경 ${radius}`;if(world)rebuildResources();
+ desiredTerrainChunks.clear();for(const chunk of nextPlan)desiredTerrainChunks.add(chunk.key);queueDesiredTerrain();updateWaterStreaming(desiredTerrainChunks);if($('stats'))$('stats').textContent=`청크 ${streamedTerrain.size}/${desiredTerrainChunks.size} · 반경 ${radius}`;if(world)rebuildResources();
 }
 function invalidateEditedTerrain(){
  const current=new Map(Object.entries(world.edits||{})),changed=[];
@@ -126,11 +209,11 @@ function invalidateEditedTerrain(){
 function rebuildStreamedTerrain(){
  const key=`${world.worldId||''}|${world.worldInstanceId||''}|${world.worldSeed}|${world.worldGenVersion}`;
  if(!chunkWorldActive||key!==activeChunkWorldKey){clearStreamedTerrain();chunkWorldActive=true;activeChunkWorldKey=key;terrainEditSnapshot=new Map(Object.entries(world.edits||{}));rebuildTerrainEditIndex();terrainRequestSignature='';updateTerrainStreaming(true);return;}
- invalidateEditedTerrain();updateTerrainStreaming();
+ invalidateEditedTerrain();syncWaterEdits(null,world);updateTerrainStreaming();
 }
 function pumpTerrainWork(){const start=performance.now();while(terrainWorkQueue.length&&performance.now()-start<3){const job=terrainWorkQueue.shift(),key=terrainChunkKey(job.cx,job.cz);queuedTerrainChunks.delete(key);if(!isChunkJobCurrent(job,terrainGeneration,desiredTerrainChunks))continue;try{installChunkMesh(job.cx,job.cz,job.generation);}catch(error){console.error('Chunk mesh build failed:',key,error);}}}
 function rebuild(){
- if(world?.worldGenVersion){if(terrain){worldRoot.remove(terrain);terrain.geometry.dispose();terrain=null;}if(outlines){worldRoot.remove(outlines);outlines.geometry.dispose();outlines=null;}rebuildStreamedTerrain();rebuildHubObjects();return;}
+ if(world?.worldGenVersion){if(world.worldGenVersion===2)$('stats').textContent='신규 생성 월드 · 중심 청크 준비 중…';if(terrain){worldRoot.remove(terrain);terrain.geometry.dispose();terrain=null;}if(outlines){worldRoot.remove(outlines);outlines.geometry.dispose();outlines=null;}rebuildStreamedTerrain();rebuildHubObjects();return;}
  if(chunkWorldActive)clearStreamedTerrain();
  if(terrain){worldRoot.remove(terrain);terrain.geometry.dispose();}
  if(outlines){worldRoot.remove(outlines);outlines.geometry.dispose();}
@@ -212,7 +295,7 @@ function rebuildResources(){
  for(const root of resourceRoots){worldRoot.remove(root);root.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
  resourceRoots=[];treeGroups=[];cropGroups=[];oreGroups=[];
  for(const tree of world.trees||[]){makeTree(tree);}
- if(world?.worldGenVersion){const harvested=new Set(world.harvestedTrees||[]);for(const key of desiredTerrainChunks){const [cx,cz]=key.split(',').map(Number);for(const tree of generateTreesForChunk(world.worldSeed,cx,cz,surfaceHeightAt))if(!harvested.has(tree.id))makeTree(tree);}}
+ if(world?.worldGenVersion){const harvested=new Set(world.harvestedTrees||[]);for(const key of desiredTerrainChunks){const [cx,cz]=key.split(',').map(Number);for(const tree of generateTreesForChunk(world.worldSeed,cx,cz,surfaceHeightAt,world.worldGenVersion))if(!harvested.has(tree.id))makeTree(tree);}}
  for(const crop of world.crops||[]){makeCrop(crop);}
  for(const node of world.oreNodes||[]){makeOreNode(node);}
  for(const source of world.waterSources||(world.worldVersion>=3?[{x:4,y:0,z:4}]:[])){makeWaterSource(source);}
@@ -460,30 +543,35 @@ for(const side of [-1,1]){
 }
 let gaitPhase=0;function animateWalk(dt,moving){if(moving)gaitPhase+=dt*8;const targetLeg=moving?Math.sin(gaitPhase)*.55:0,targetArm=-targetLeg*.75;for(let i=0;i<2;i++){legs[i].rotation.x=THREE.MathUtils.damp(legs[i].rotation.x,i===0?targetLeg:-targetLeg,10,dt);arms[i].rotation.x=THREE.MathUtils.damp(arms[i].rotation.x,i===0?targetArm:-targetArm,10,dt);}}
 const player={pos:new THREE.Vector3(.5,0,.5),grounded:true};
-const keys=new Set(),touchMove=new THREE.Vector2(0,0);let jumpQueued=false,movementBusy=false,lastMovementAt=0,lastCraftStationState='';
+let playerImmersed=false,playerSwimming=false;
+function setAuthoritativeWaterState(state={}){playerImmersed=state.immersed===true;playerSwimming=state.swimming===true;humanoid.rotation.x=playerSwimming?-.12:0;scene.background.set(playerImmersed?'#527e98':'#94c5e7');if(scene.fog)scene.fog.color.set(playerImmersed?'#527e98':'#94c5e7');$('jump').setAttribute('aria-label',playerImmersed?'수영 상승':'점프');$('jump').title=playerImmersed?'수영 상승':'점프';}
+const keys=new Set(),touchMove=new THREE.Vector2(0,0);let jumpQueued=false,swimQueued=false,movementBusy=false,lastMovementAt=0,lastCraftStationState='';
 window.addEventListener('keydown',e=>{if(e.target instanceof HTMLElement&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='Space'&&!e.repeat)jump();if(e.code==='KeyE'&&!e.repeat){if(nearInteraction)void interactWorld();else toggleInventory();return;}if(e.code==='Escape'){closeInventory();if(mode==='machine'){placingMachine=null;setMode('place');notice('배치 취소');}if(!$('shopPanel').hidden){$('shopPanel').hidden=true;updateInteractionUi();}}if(e.code==='KeyR'&&mode==='machine'){machineRotation=(machineRotation+1)%4;setMode('machine');}const slot=e.code.match(/^Digit([1-8])$/);if(slot){selectQuickSlot(Number(slot[1])-1);return;}keys.add(e.code);});
 window.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>keys.clear());
 function setMode(s){cancelMine();mode=s;$('place').classList.toggle('selected',s==='place');$('mine').classList.toggle('selected',s==='mine');$('farm').classList.toggle('selected',s==='farm');$('craftToggle').classList.toggle('selected',s==='machine');$('farmSelectors').hidden=s!=='farm';const hint=$('placementHint');if(s!=='place')blockPreview.visible=false;if(s==='machine'){hint.hidden=false;if(!machinePreview)createMachinePreview(placingMachine);hint.textContent='설비 배치 중 · '+(recipeCards.find(r=>r.id===placingMachine)?.name||'기계')+' · 탭하여 놓기 · R 회전 · Esc 취소';}else{clearMachinePreview();hint.hidden=true;if(s==='place'&&lastBlockPreviewPoint)updateBlockPreview(lastBlockPreviewPoint.x,lastBlockPreviewPoint.y);}}
 $('place').onclick=()=>{placingMachine=null;setMode('place');};$('mine').onclick=()=>{placingMachine=null;setMode('mine');};
 $('farm').onclick=()=>{placingMachine=null;setMode(mode==='farm'?'place':'farm');notice('농사 도구를 선택하고 경작지나 작물을 탭해.');};
 $('jump').onclick=jump;
-function jump(){if(player.grounded)jumpQueued=true;}
+function jump(){if(playerImmersed)swimQueued=true;else if(player.grounded)jumpQueued=true;}
 function sendMovement(now){
  if(!world||movementBusy)return;
+ if(world.worldGenVersion===2&&!streamedTerrain.has(terrainChunkKey(chunkCoord(player.pos.x),chunkCoord(player.pos.z))))return;
  const dx=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+touchMove.x;
  const dz=(keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-touchMove.y;
- const moving=Math.hypot(dx,dz)>.05;if(!moving&&player.grounded&&!jumpQueued&&now-lastMovementAt<5000)return;if(now-lastMovementAt<50)return;
+ const moving=Math.hypot(dx,dz)>.05;if(!moving&&player.grounded&&!jumpQueued&&!swimQueued&&now-lastMovementAt<5000)return;if(now-lastMovementAt<50)return;
  lastMovementAt=now;
  const length=Math.hypot(dx,dz),sx=length>1?dx/length:dx,sz=length>1?dz/length:dz;
  const dirX=sx*Math.cos(camYaw)-sz*Math.sin(camYaw),dirZ=-sx*Math.sin(camYaw)-sz*Math.cos(camYaw);
  if(Math.hypot(dirX,dirZ)>.05)humanoid.rotation.y=Math.atan2(-dirX,-dirZ);
- const jump=jumpQueued;jumpQueued=false;movementBusy=true;const teleportVersion=devTeleportVersion;
- void api('/api/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({x:dirX,z:dirZ,jump})}).then(data=>{
+ const jump=jumpQueued,swim=swimQueued;jumpQueued=false;swimQueued=false;movementBusy=true;const teleportVersion=devTeleportVersion;
+ void api('/api/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({x:dirX,z:dirZ,jump,swim})}).then(data=>{
   if(teleportVersion!==devTeleportVersion)return;
+  const previousWorld=world;if(data.world)world=data.world;else if(data.fluidCells)world={...world,fluidCells:data.fluidCells,fluidRevision:data.fluidRevision,player:{...world.player,...data.player}};syncWaterEdits(previousWorld,world);
   player.pos.set(data.player.x,data.player.y,data.player.z);player.grounded=data.player.grounded;humanoid.position.copy(player.pos);
+  setAuthoritativeWaterState(data.player);
   const stationState=(world?.machines||[]).filter(m=>['t1_bench','tool_bench','agriculture_bench','farming_bench','block_bench','basic_assembler','workbench','drill'].includes(m.type)).map(m=>m.type+':'+(Math.hypot(m.x+.5-player.pos.x,m.y+.6-(player.pos.y+1),m.z+.5-player.pos.z)<=4.5)).join('|');
   if(!$('craftPanel').hidden&&stationState!==lastCraftStationState){lastCraftStationState=stationState;updateCrafting();}
- }).catch(err=>{if(teleportVersion!==devTeleportVersion)return;if(jump)jumpQueued=true;if(!movementBusy)return;notice('이동 동기화 실패: '+err.message);}).finally(()=>{if(teleportVersion===devTeleportVersion)movementBusy=false;});
+ }).catch(err=>{if(teleportVersion!==devTeleportVersion)return;if(jump)jumpQueued=true;if(swim)swimQueued=true;if(!movementBusy)return;notice('이동 동기화 실패: '+err.message);}).finally(()=>{if(teleportVersion===devTeleportVersion)movementBusy=false;});
 }
 const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
 const MINING_DURATION_MS=1200;
@@ -669,7 +757,7 @@ const postJson=body=>({method:'POST',headers:{'Content-Type':'application/json'}
 function tileDistance(o){return Math.hypot(o.x+.5-player.pos.x,o.y-(player.pos.y+1),o.z+.5-player.pos.z);}
 function nearbyInteraction(){if(!world)return null;const all=[];if(world.worldKind!=='shopHub')for(const d of world.drops||[]){const distance=Math.hypot(d.x-player.pos.x,d.y-(player.pos.y+1),d.z-player.pos.z);all.push({kind:'item',id:d.id,item:d.item,quantity:d.quantity,label:`줍기 · ${d.item} ×${d.quantity}`,distance,radius:2.35});}if(world.worldKind==='shopHub'){for(const p of world.hub?.layout?.portals||[])all.push({kind:'portal',label:'개인 섬으로 돌아가기',destination:'personal',distance:tileDistance(p),radius:3.5});for(const n of world.hub?.layout?.npcs||[])all.push({kind:'farmer',id:n.id,label:'농부 상점 열기',distance:tileDistance(n),radius:n.interactionRadius});}else {for(const m of world.machines||[]){if(!stationLabels[m.type])continue;all.push({kind:'station',id:m.id,station:m.type,label:`${stationLabels[m.type]} 열기`,distance:tileDistance(m),radius:3.5});}if(world.personalPortal)all.push({kind:'portal',label:'상점 허브 입장',destination:'shopHub',distance:tileDistance(world.personalPortal),radius:world.personalPortal.interactionRadius});}return all.filter(x=>x.distance<=x.radius).sort((a,b)=>a.distance-b.distance)[0]||null;}
 function updateInteractionUi(){nearInteraction=nearbyInteraction();const hub=world?.worldKind==='shopHub';$('worldInteract').hidden=!nearInteraction||!$('shopPanel').hidden;$('worldInteract').textContent=nearInteraction?.label||'상호작용';$('hotbar').hidden=hub;$('objective').hidden=hub;$('grid').hidden=hub;document.querySelector('#top h1 span').textContent=hub?'/ SHOP HUB':'/ MY ISLAND';if(hub)$('craftPanel').hidden=true;}
-function loadWorld(next){const old=world?.worldKind;world=next;if(world.player){player.pos.set(world.player.x,world.player.y,world.player.z);player.grounded=world.player.grounded===true;humanoid.position.copy(player.pos);}if(old!==world.worldKind){$('shopPanel').hidden=true;setMode('place');rebuild();rebuildMachines();rebuildResources();}inventory();updateCrafting();updateInteractionUi();}
+function loadWorld(next){const old=world?.worldKind,previous=world;world=next;syncWaterEdits(previous,next);if(world.player){player.pos.set(world.player.x,world.player.y,world.player.z);player.grounded=world.player.grounded===true;humanoid.position.copy(player.pos);setAuthoritativeWaterState(world.player);}if(old!==world.worldKind){$('shopPanel').hidden=true;setMode('place');rebuild();rebuildMachines();rebuildResources();}inventory();updateCrafting();updateInteractionUi();}
 function rewardToast(item,amount){if(!amount)return;const line=document.createElement('div');line.className='pickup';line.textContent=(RESOURCE_LABELS[item]||item)+' ×'+amount;$('pickups').append(line);setTimeout(()=>line.remove(),2200);}
 async function interactWorld(){if(!nearInteraction||interactionBusy)return;interactionBusy=true;const action=nearInteraction;try{if(action.kind==='item'){const data=await api('/api/items/pickup',postJson({dropId:action.id,revision:world.revision}));world=data.world;inventory();syncWorldDrops();rewardToast(action.item,action.quantity);notice(`${action.item} +${action.quantity} · 수동 획득`);}else if(action.kind==='portal'){const data=await api('/api/world/transition',postJson({destination:action.destination}));loadWorld(data.world);notice(action.destination==='shopHub'?'상점 허브에 도착했어.':'개인 섬으로 돌아왔어.');}else if(action.kind==='station'){activeCraftStation=action.station;updateCrafting();$('craftPanel').hidden=false;updateInteractionUi();}else{const data=await api('/api/shop/open',postJson({npcId:action.id}));shopRevision=data.revision;$('shopCoins').textContent='보유 코인 · '+data.coins.toLocaleString()+' 코인';$('shopPanel').hidden=false;refreshShopButtons();updateInteractionUi();}}catch(e){if(e.world)loadWorld(e.world);notice(e.message);}finally{interactionBusy=false;}}
 $('worldInteract').addEventListener('click',()=>void interactWorld());
@@ -784,7 +872,7 @@ let lastFrameAt=performance.now();
 function loop(now){requestAnimationFrame(loop);const rawFrameMs=Math.max(0,now-lastFrameAt),frameDt=Math.min(.05,rawFrameMs/1000);lastFrameAt=now;
  if(world?.worldGenVersion)terrainFrameAvgMs=terrainFrameAvgMs?terrainFrameAvgMs*.95+rawFrameMs*.05:rawFrameMs;
  const moving=keys.has('KeyW')||keys.has('KeyA')||keys.has('KeyS')||keys.has('KeyD')||keys.has('ArrowUp')||keys.has('ArrowDown')||keys.has('ArrowLeft')||keys.has('ArrowRight')||touchMove.length()>.05;animateWalk(frameDt,moving);
- if(world){sendMovement(now);updateTerrainStreaming();pumpTerrainWork();}
+ if(world){sendMovement(now);updateTerrainStreaming();pumpTerrainWork();pumpWaterWork();}
  farmerModel?.update(frameDt);updateInteractionUi();
  for(const machine of machineRoots)for(const rotor of machine.userData.rotors||[])rotor.rotation.x+=frameDt*2.6;
  for(const entry of dropRoots.values()){entry.root.position.lerp(entry.target,Math.min(1,frameDt*10));entry.root.rotation.y+=frameDt*(entry.conveyor?.45:.65);if(!entry.conveyor)entry.root.position.y=entry.target.y+.09+Math.sin(now*.0018+entry.phase)*.055;}
@@ -792,15 +880,16 @@ function loop(now){requestAnimationFrame(loop);const rawFrameMs=Math.max(0,now-l
  updateMine(now);
  const target=player.pos.clone().add(new THREE.Vector3(0,PLAYER_HEIGHT_METERS*.54,0)).multiplyScalar(WORLD_SCALE);
  camera.position.set(target.x+camDistance*Math.sin(camYaw)*Math.cos(camPitch),target.y+camDistance*Math.sin(camPitch)+2.0,target.z+camDistance*Math.cos(camYaw)*Math.cos(camPitch));camera.lookAt(target);
- renderer.render(scene,camera);if(world?.worldGenVersion&&now-lastTerrainStatsAt>1000){lastTerrainStatsAt=now;$('stats').textContent=`청크 ${streamedTerrain.size}/${desiredTerrainChunks.size} · 반경 ${configuredChunkRadius()} · 청크 ${terrainBuildLastMs.toFixed(1)}/${(terrainBuildTotalMs/Math.max(1,terrainBuildCount)).toFixed(1)}ms 평균 · RAF 간격 ${terrainFrameAvgMs.toFixed(1)}ms EMA · GPU 지오메트리 ${renderer.info.memory.geometries} · draw ${renderer.info.render.calls}`;}
+ renderer.render(scene,camera);if(world?.worldGenVersion&&now-lastTerrainStatsAt>1000){lastTerrainStatsAt=now;const biome=biomeAt(world.worldSeed,Math.floor(player.pos.x),Math.floor(player.pos.z),world.worldGenVersion),waterMeshes=[...streamedWater.values()].filter(entry=>entry.mesh).length;$('stats').textContent=`${biome} · 청크 ${streamedTerrain.size}/${desiredTerrainChunks.size} · 물 메시 ${waterMeshes} · 반경 ${configuredChunkRadius()} · 청크 ${terrainBuildLastMs.toFixed(1)}/${(terrainBuildTotalMs/Math.max(1,terrainBuildCount)).toFixed(1)}ms 평균 · RAF 간격 ${terrainFrameAvgMs.toFixed(1)}ms EMA · GPU 지오메트리 ${renderer.info.memory.geometries} · draw ${renderer.info.render.calls}`;}
 }
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 $('grid').onclick=()=>{gridVisible=!gridVisible;$('grid').classList.toggle('selected',gridVisible);$('grid').setAttribute('aria-pressed',String(gridVisible));if(outlines)outlines.visible=gridVisible;if(world?.worldGenVersion)setChunkOutlines(gridVisible);};
 function applyDeveloperTeleport(next){
  if(!next?.player||!world?.devtoolsEnabled)return;
- devTeleportVersion++;const previousWorld=world;world=next;
+ devTeleportVersion++;const previousWorld=world;world=next;syncWaterEdits(previousWorld,next);
  player.pos.set(next.player.x,next.player.y,next.player.z);player.grounded=next.player.grounded===true;humanoid.position.copy(player.pos);
- keys.clear();touchMove.set(0,0);$('knob').style.transform='translate(0,0)';jumpQueued=false;movementBusy=false;lastMovementAt=performance.now();
+ setAuthoritativeWaterState(next.player);
+ keys.clear();touchMove.set(0,0);$('knob').style.transform='translate(0,0)';jumpQueued=false;swimQueued=false;movementBusy=false;lastMovementAt=performance.now();
  $('loading').hidden=false;$('loading').textContent='새 좌표의 청크를 불러오는 중…';
  if(next.worldGenVersion){
   rebuild();
@@ -808,6 +897,6 @@ function applyDeveloperTeleport(next){
  }else{$('loading').hidden=true;if(previousWorld.worldId!==next.worldId||previousWorld.worldInstanceId!==next.worldInstanceId)rebuild();}
  rebuildResources();updateInteractionUi();devTimePanel?.update(next);
 }
-async function init(){try{world=await api('/api/world');if(world.devtoolsEnabled===true){try{const devtools=await import('/devtools/time-control.js');devTimePanel=devtools.mountDevPanel(world);window.addEventListener('terra-dev-teleport',event=>applyDeveloperTeleport(event.detail));}catch(error){console.warn('Optional developer panel unavailable:',error);}}if(world.player){player.pos.set(world.player.x,world.player.y,world.player.z);player.grounded=world.player.grounded;humanoid.position.copy(player.pos);}selectedSlot=Number.isInteger(world.inventory.selectedSlot)?world.inventory.selectedSlot:1;selectedTool=world.inventory.quickSlots[selectedSlot]||world.inventory.quickSlots.find(Boolean)||'wood_axe';equipHeldTool(selectedTool);rebuild();rebuildMachines();rebuildResources();inventory();updateCrafting();updateInteractionUi();if(!world.worldGenVersion||streamedTerrain.has(terrainChunkKey(chunkCoord(player.pos.x),chunkCoord(player.pos.z))))$('loading').hidden=true;notice(world.worldKind==='shopHub'?'농부에게 다가가 E 또는 상호작용 버튼을 눌러.':'밀·나무·돌을 도구로 수확하고 T1 제작대를 사용해봐.');}catch(e){$('loading').textContent='서버 연결 실패: '+e.message+' · node server.mjs로 실행해야 해.';}}
+async function init(){try{world=await api('/api/world');if(world.devtoolsEnabled===true){try{const devtools=await import('/devtools/time-control.js');devTimePanel=devtools.mountDevPanel(world);window.addEventListener('terra-dev-teleport',event=>applyDeveloperTeleport(event.detail));}catch(error){console.warn('Optional developer panel unavailable:',error);}}if(world.player){player.pos.set(world.player.x,world.player.y,world.player.z);player.grounded=world.player.grounded;humanoid.position.copy(player.pos);setAuthoritativeWaterState(world.player);}selectedSlot=Number.isInteger(world.inventory.selectedSlot)?world.inventory.selectedSlot:1;selectedTool=world.inventory.quickSlots[selectedSlot]||world.inventory.quickSlots.find(Boolean)||'wood_axe';equipHeldTool(selectedTool);rebuild();rebuildMachines();rebuildResources();inventory();updateCrafting();updateInteractionUi();if(!world.worldGenVersion||streamedTerrain.has(terrainChunkKey(chunkCoord(player.pos.x),chunkCoord(player.pos.z))))$('loading').hidden=true;notice(world.worldKind==='shopHub'?'농부에게 다가가 E 또는 상호작용 버튼을 눌러.':'밀·나무·돌을 도구로 수확하고 T1 제작대를 사용해봐.');}catch(e){$('loading').textContent='서버 연결 실패: '+e.message+' · node server.mjs로 실행해야 해.';}}
 requestAnimationFrame(loop);init();
-setInterval(()=>{if(!world||busy)return;const teleportVersion=devTeleportVersion;void api('/api/world').then(next=>{if(teleportVersion!==devTeleportVersion)return;const changed=(next.crops||[]).some((c,i)=>c.stage!==world.crops?.[i]?.stage)||(next.trees||[]).some((t,i)=>t.stage!==world.trees?.[i]?.stage)||JSON.stringify(next.watered)!==JSON.stringify(world.watered);world=next;devTimePanel?.update(next);syncWorldDrops();updateInteractionUi();if(changed){rebuildResources();inventory();}}).catch(()=>{});},500);
+setInterval(()=>{if(!world||busy)return;const teleportVersion=devTeleportVersion;void api('/api/world').then(next=>{if(teleportVersion!==devTeleportVersion)return;const previous=world,changed=(next.crops||[]).some((c,i)=>c.stage!==world.crops?.[i]?.stage)||(next.trees||[]).some((t,i)=>t.stage!==world.trees?.[i]?.stage)||JSON.stringify(next.watered)!==JSON.stringify(world.watered);world=next;syncWaterEdits(previous,next);setAuthoritativeWaterState(next.player);devTimePanel?.update(next);syncWorldDrops();updateInteractionUi();if(changed){rebuildResources();inventory();}}).catch(()=>{});},500);

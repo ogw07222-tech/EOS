@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {
- CHUNK_SIZE,DEFAULT_CHUNK_RADIUS,MIN_CHUNK_RADIUS,MAX_CHUNK_RADIUS,WORLD_GEN_VERSION,WORLD_MIN_Y,WORLD_MAX_Y,HEIGHT_CACHE_MAX_ENTRIES,
+ CHUNK_SIZE,DEFAULT_CHUNK_RADIUS,MIN_CHUNK_RADIUS,MAX_CHUNK_RADIUS,LEGACY_WORLD_GEN_VERSION,WORLD_GEN_VERSION,WORLD_MIN_Y,WORLD_MAX_Y,HEIGHT_CACHE_MAX_ENTRIES,
  chunkCoord,localCoord,chunkKey,heightAt,blockAt,generateChunkColumns,planChunkWindow,isChunkJobCurrent
 } from '../src/chunk-world.mjs';
 
@@ -18,9 +18,9 @@ test('chunk helpers use floor division and normalized negative local coordinates
 });
 
 test('new world terrain is versioned, layered, and leaves legacy worlds ungenerated',()=>{
- assert.equal(WORLD_GEN_VERSION,1);assert.equal(WORLD_MIN_Y,-32);assert.equal(WORLD_MAX_Y,32);
- const world={worldSeed:'starter-seed',worldGenVersion:1,edits:{}};
- assert.equal(heightAt(world.worldSeed,0,0),0);
+ assert.equal(LEGACY_WORLD_GEN_VERSION,1);assert.equal(WORLD_GEN_VERSION,2);assert.equal(WORLD_MIN_Y,-32);assert.equal(WORLD_MAX_Y,32);
+ const world={worldSeed:'starter-seed',worldGenVersion:LEGACY_WORLD_GEN_VERSION,edits:{}};
+ assert.equal(heightAt(world.worldSeed,0,0,LEGACY_WORLD_GEN_VERSION),0);
  assert.equal(blockAt(world,0,-1,0),'grass');
  assert.equal(blockAt(world,0,-2,0),'dirt');assert.equal(blockAt(world,0,-3,0),'dirt');assert.equal(blockAt(world,0,-4,0),'dirt');
  assert.equal(blockAt(world,0,-5,0),'stone');assert.equal(blockAt(world,0,-32,0),'stone');

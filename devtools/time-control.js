@@ -26,7 +26,7 @@ export function mountDevPanel(initialSnapshot) {
   panel.setAttribute('aria-label', '개발자 도구');
   panel.innerHTML = `
     <header class="terra-dev-head">
-      <strong>DEV <span>— 시간·좌표</span></strong>
+      <strong>DEV <span>— 시간·좌표·바이옴</span></strong>
       <button type="button" class="terra-dev-fold" aria-expanded="false" aria-label="개발자 패널 펼치기">+</button>
     </header>
     <div class="terra-dev-body">
@@ -34,6 +34,7 @@ export function mountDevPanel(initialSnapshot) {
       <p class="terra-dev-current">현재 가속: <b data-current>1×</b></p>
       <p class="terra-dev-rate">게임 시간: <b data-rate>12분/현실 1분</b></p>
       <p class="terra-dev-clock">누적 게임 시간: <b data-game-time>—</b></p>
+      <div class="terra-dev-fluid-rate"><label>물 흐름 <select data-fluid-rate aria-label="물 흐름 틱 빈도"><option value="2">2틱/초</option><option value="5" selected>5틱/초</option><option value="10">10틱/초</option></select></label><span data-fluid-rate-status></span></div>
       <section class="terra-dev-teleport" aria-labelledby="terra-dev-teleport-title">
         <h2 id="terra-dev-teleport-title">좌표 이동</h2>
         <div class="terra-dev-coordinates">
@@ -53,6 +54,11 @@ export function mountDevPanel(initialSnapshot) {
           <button type="button" data-tp-copy aria-label="현재 좌표 복사">복사</button>
         </div>
         <p class="terra-dev-biome">바이옴: <b data-tp-biome>—</b></p>
+        <div class="terra-dev-biome-jump">
+          <label>바이옴 이동<select data-tp-biome-select aria-label="이동할 바이옴"><option value="plains">평원</option><option value="forest">숲</option><option value="beach">해변</option><option value="ocean">바다</option><option value="river">강</option></select></label>
+          <button type="button" data-tp-biome-go>검색 후 이동</button>
+        </div>
+        <p class="terra-dev-biome-status" data-tp-biome-status role="status" aria-live="polite"></p>
         <p class="terra-dev-tp-status" role="status" aria-live="polite"></p>
       </section>
       <p class="terra-dev-status" role="status" aria-live="polite"></p>
@@ -65,6 +71,8 @@ export function mountDevPanel(initialSnapshot) {
   const rateText = panel.querySelector('[data-rate]');
   const gameTime = panel.querySelector('[data-game-time]');
   const status = panel.querySelector('.terra-dev-status');
+  const fluidRate = panel.querySelector('[data-fluid-rate]');
+  const fluidRateStatus = panel.querySelector('[data-fluid-rate-status]');
   const fold = panel.querySelector('.terra-dev-fold');
   const tpX = panel.querySelector('[data-tp-x]');
   const tpY = panel.querySelector('[data-tp-y]');
@@ -76,14 +84,18 @@ export function mountDevPanel(initialSnapshot) {
   const returnButton = panel.querySelector('[data-tp-return]');
   const currentPosition = panel.querySelector('[data-tp-current]');
   const biomeLabel = panel.querySelector('[data-tp-biome]');
+  const biomeSelect = panel.querySelector('[data-tp-biome-select]');
+  const biomeGo = panel.querySelector('[data-tp-biome-go]');
+  const biomeStatus = panel.querySelector('[data-tp-biome-status]');
   const teleportStatus = panel.querySelector('.terra-dev-tp-status');
   let clock = clockFrom(initialSnapshot), pending = false;
-  let teleportPending = false, previousPosition = null;
+  let teleportPending = false, biomePending = false, previousPosition = null;
   let previousAvailable = initialSnapshot?.devTeleport?.previousAvailable === true;
   let playerPosition = initialSnapshot?.player || null;
   let biome = initialSnapshot?.biome ?? null;
   let waterSafety = initialSnapshot?.waterSafety ?? initialSnapshot?.devTeleport?.waterSafety ?? 'not-modeled';
   let generatedWorld = Boolean(initialSnapshot?.worldGenVersion);
+  let fluidRateSupported = initialSnapshot?.worldGenVersion === 2 && Number.isFinite(Number(initialSnapshot?.fluidTickRate));
 
   function coordinates(value) {
     if (!value || !Number.isFinite(Number(value.x)) || !Number.isFinite(Number(value.y)) || !Number.isFinite(Number(value.z))) return null;
@@ -105,6 +117,7 @@ export function mountDevPanel(initialSnapshot) {
     if (snapshot.player) playerPosition = snapshot.player;
     if (Object.hasOwn(snapshot, 'biome')) biome = snapshot.biome;
     if (Object.hasOwn(snapshot, 'worldGenVersion')) generatedWorld = Boolean(snapshot.worldGenVersion);
+    if (Object.hasOwn(snapshot, 'fluidTickRate')) { fluidRateSupported = Number(snapshot.worldGenVersion ?? initialSnapshot?.worldGenVersion) === 2; if ([2, 5, 10].includes(Number(snapshot.fluidTickRate))) fluidRate.value = String(snapshot.fluidTickRate); }
     if (Object.hasOwn(snapshot, 'waterSafety')) waterSafety = snapshot.waterSafety;
     else if (snapshot.devTeleport && Object.hasOwn(snapshot.devTeleport, 'waterSafety')) waterSafety = snapshot.devTeleport.waterSafety;
     if (snapshot.devTeleport && Object.hasOwn(snapshot.devTeleport, 'previousAvailable')) previousAvailable = snapshot.devTeleport.previousAvailable === true;
@@ -112,6 +125,9 @@ export function mountDevPanel(initialSnapshot) {
     allowWater.disabled = !waterSupported;
     if (!waterSupported) allowWater.checked = false;
     waterStatus.textContent = waterSupported ? '물속 판정 사용 가능' : '물속 판정 미구현';
+    biomeGo.disabled = !generatedWorld || biomePending || teleportPending;
+    fluidRate.disabled = !fluidRateSupported;
+    fluidRateStatus.textContent = fluidRateSupported ? `${fluidRate.value}틱/초` : 'v2 월드에서 사용';
     currentPosition.textContent = displayCoordinates(playerPosition);
     biomeLabel.textContent = biomeText(biome);
     returnButton.disabled = teleportPending || !previousAvailable;
@@ -142,8 +158,10 @@ export function mountDevPanel(initialSnapshot) {
         window.dispatchEvent(new CustomEvent('terra-dev-teleport', { detail: payload.world }));
       } else updateLocation({ player: payload.player, biome: payload.biome, waterSafety });
       teleportStatus.textContent = path.endsWith('/return') ? '이전 위치로 돌아왔습니다.' : '이동했습니다.';
+      return true;
     } catch (error) {
       teleportStatus.textContent = error.message || '좌표 이동 요청에 실패했습니다.';
+      return false;
     } finally {
       teleportPending = false;
       teleportButton.disabled = false;
@@ -186,6 +204,17 @@ export function mountDevPanel(initialSnapshot) {
     });
     rates.append(button);
   }
+  fluidRate.addEventListener('change', async () => {
+    const tickRate = Number(fluidRate.value); fluidRate.disabled = true; fluidRateStatus.textContent = '물 흐름 속도 적용 중…';
+    try {
+      const response = await fetch('/api/dev/fluid-rate', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tickRate}) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || '물 흐름 속도를 변경하지 못했습니다.');
+      const actual = Number(payload.fluidTickRate ?? payload.tickRate ?? tickRate); if ([2,5,10].includes(actual)) fluidRate.value = String(actual);
+      fluidRateStatus.textContent = `${fluidRate.value}틱/초`;
+    } catch (error) { fluidRateStatus.textContent = error.message || '물 흐름 속도 변경 실패'; }
+    finally { fluidRate.disabled = !fluidRateSupported; }
+  });
   autoY.addEventListener('change', () => { tpY.disabled = autoY.checked; });
   tpY.disabled = autoY.checked;
   teleportButton.addEventListener('click', () => {
@@ -209,6 +238,25 @@ export function mountDevPanel(initialSnapshot) {
     });
   });
   returnButton.addEventListener('click', () => void postTeleport('/api/dev/teleport/return'));
+  biomeGo.addEventListener('click', async () => {
+    if (!generatedWorld || biomePending || teleportPending) return;
+    biomePending = true; biomeGo.disabled = true; biomeStatus.textContent = '시드에서 바이옴 좌표를 찾는 중…';
+    try {
+      const response = await fetch('/api/dev/biomes', { credentials: 'same-origin' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || '바이옴 좌표 검색에 실패했습니다.');
+      const target = payload.biomes?.[biomeSelect.value];
+      if (!target || !Number.isFinite(target.x) || !Number.isFinite(target.z)) throw new Error('해당 시드에 찾은 바이옴 좌표가 없습니다.');
+      tpX.value = String(target.x); tpZ.value = String(target.z); autoY.checked = true; tpY.disabled = true;
+      biomeStatus.textContent = `${payload.seed} 시드 · X ${target.x}, Z ${target.z} · 안전 착지 확인 중`;
+      const moved = await postTeleport('/api/dev/teleport', { x: target.x, z: target.z, autoY: true });
+      biomeStatus.textContent = moved ? `${biomeText(biome)} 도착 · X ${target.x}, Z ${target.z}` : '이동 실패 · 오류 내용을 확인해 주세요.';
+    } catch (error) {
+      biomeStatus.textContent = error.message || '바이옴 이동에 실패했습니다.';
+    } finally {
+      biomePending = false; biomeGo.disabled = !generatedWorld || teleportPending;
+    }
+  });
   panel.querySelector('[data-tp-copy]').addEventListener('click', async () => {
     const point = coordinates(playerPosition);
     if (!point) { teleportStatus.textContent = '복사할 현재 좌표가 없습니다.'; return; }

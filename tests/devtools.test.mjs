@@ -8,6 +8,7 @@ import {once} from 'node:events';
 import net from 'node:net';
 import {createHmac} from 'node:crypto';
 import {createTimeControl,DEV_TIME_MULTIPLIERS,BASE_GAME_MINUTES_PER_REAL_MINUTE} from '../devtools/time-control-server.mjs';
+import {createTeleportService} from '../devtools/teleport-server.mjs';
 
 const root=resolve(import.meta.dirname,'..');
 const secret='testing_secret_for_terra_game_1234567890';
@@ -48,6 +49,13 @@ test('developer clock rejects unsupported rates, excludes inactive gaps, and res
  assert.equal(clock.tick(7000).deltaGameMs,0,'long disconnected interval is discarded');
  assert.equal(clock.tick(8000).deltaGameMs,600_000);
  const restarted=createTimeControl({now:8000});assert.equal(restarted.snapshot().multiplier,1);assert.equal(restarted.snapshot().gameTimeMs,0);
+});
+
+test('teleport water safety is modeled only for generation v2; legacy worlds remain unmodeled',()=>{
+ const teleport=createTeleportService({worldMinY:-32,worldMaxY:32,surfaceAt:()=>0,isSolidForPlayer:()=>false,hasGroundSupport:()=>true});
+ const player={x:.5,y:0,z:.5,grounded:true},body={x:1.5,z:.5,autoY:true};
+ assert.equal(teleport.resolve({worldGenVersion:2,worldSeed:1},player,body).waterSafety,'modeled');
+ assert.equal(teleport.resolve({islandSize:10},player,body).waterSafety,'not-modeled');
 });
 
 test('development server exposes and validates local time controls, production does not',async()=>{
@@ -109,7 +117,7 @@ test('development server without devtools folder boots the base game and has no 
   await writeFile(join(saveDir,id+'.json'),JSON.stringify({schema:1,worldVersion:3,islandSize:10,revision:0,inventory:{dirt:0,wood:0,stone:0,wheat:0,wheat_seed:0,sapling:0,wateringCanUses:10,items:{},tools:{},quickSlots:[],selectedSlot:0},edits:{},machines:[],trees:[{id:'offline-sapling',x:3,y:0,z:1,stage:0,progress:179000}],harvestedTrees:[],tilled:[[0,0,3]],crops:[{id:'base-wheat',x:0,y:0,z:3,stage:1,progress:59000}],watered:{},waterSources:[],harvestedCrops:[],oreNodes:[],player:{x:.5,y:0,z:.5,grounded:true}}));
   proc=await boot(fixture,port,saveDir,'development');const signature=createHmac('sha256',secret).update(id).digest('hex'),cookie=`terra_session=${id}.${signature}`;
   let world=await request(port,'/api/world',{cookie});assert.equal(world.status,200);assert.notEqual(world.body.devtoolsEnabled,true);
-  assert.equal((await request(port,'/api/dev/time')).status,404);assert.equal((await request(port,'/api/dev/teleport',{body:{x:1,z:1,autoY:true}})).status,404);assert.equal((await request(port,'/api/dev/teleport/return',{body:{}})).status,404);assert.equal((await request(port,'/devtools/time-control.js')).status,404);assert.equal((await request(port,'/devtools/dev-panel.css')).status,404);assert.equal((await request(port,'/')).status,200);
+  assert.equal((await request(port,'/api/dev/time')).status,404);assert.equal((await request(port,'/api/dev/biomes',{cookie})).status,404);assert.equal((await request(port,'/api/dev/fluid-rate',{cookie,method:'POST',body:{tickRate:5}})).status,404);assert.equal((await request(port,'/api/dev/teleport',{body:{x:1,z:1,autoY:true}})).status,404);assert.equal((await request(port,'/api/dev/teleport/return',{body:{}})).status,404);assert.equal((await request(port,'/devtools/time-control.js')).status,404);assert.equal((await request(port,'/devtools/dev-panel.css')).status,404);assert.equal((await request(port,'/')).status,200);
   await new Promise(resolve=>setTimeout(resolve,1000));world=await request(port,'/api/world',{cookie});assert.equal(world.body.crops[0].stage,2,'the base 12× game clock still grows wheat without devtools');assert.equal(world.body.trees[0].stage,1,'the base 12× game clock still grows saplings without devtools');
  }finally{await stop(proc);await rm(fixture,{recursive:true,force:true});await rm(saveDir,{recursive:true,force:true});}
 });
@@ -135,7 +143,7 @@ test('developer teleport uses server coordinates across positive, negative, and 
   assert.equal(response.body.player.grounded,true);assert.ok(Number.isFinite(response.body.player.y));
   assert.equal(response.body.world.player.x,point.x,'the world snapshot must match server-authoritative player coordinates');
   assert.ok(['forest','plains',null].includes(response.body.biome));
-  assert.equal(response.body.waterSafety,'not-modeled');
+  assert.equal(response.body.waterSafety,'modeled');
  }
 });
 
@@ -157,14 +165,14 @@ test('developer teleport rejects invalid, out-of-world, and solid-interior targe
  assert.deepEqual({x:latest.body.player.x,y:latest.body.player.y,z:latest.body.player.z},{x:before.x,y:before.y,z:before.z});
 });
 
-test('developer teleport exposes unsupported water status, and previous location returns and persists',async t=>{
+test('developer teleport exposes modeled water status, and previous location returns and persists',async t=>{
  const saveDir=await mkdtemp(join(tmpdir(),'terra-dev-teleport-return-')),port=await randomPort();let proc;
  t.after(async()=>{await stop(proc);await rm(saveDir,{recursive:true,force:true});});
  proc=await boot(root,port,saveDir,'development');
  const initial=await request(port,'/api/world'),cookie=initial.cookie.split(';')[0];
  const first=await request(port,'/api/dev/teleport',{cookie,body:{x:2.5,z:.5,autoY:true}});
  assert.equal(first.status,200,first.body?.error);assert.deepEqual({x:first.body.previousPosition.x,y:first.body.previousPosition.y,z:first.body.previousPosition.z},{x:initial.body.player.x,y:initial.body.player.y,z:initial.body.player.z});
- assert.equal(first.body.waterSafety,'not-modeled');
+ assert.equal(first.body.waterSafety,'modeled');
  const second=await request(port,'/api/dev/teleport',{cookie,body:{x:3.5,z:.5,autoY:true}});
  assert.equal(second.status,200,second.body?.error);assert.deepEqual({x:second.body.previousPosition.x,y:second.body.previousPosition.y,z:second.body.previousPosition.z},{x:first.body.player.x,y:first.body.player.y,z:first.body.player.z});
  const returned=await request(port,'/api/dev/teleport/return',{cookie,body:{}});

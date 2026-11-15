@@ -6,10 +6,10 @@ import { cropTypeOf, seedItemForCrop, productItemForCrop, harvestYield, advanceC
 import { SHOP_HUB_LAYOUT, SHOP_HUB_WORLD_ID, PERSONAL_ISLAND_PORTAL, createShopHubInstance, isWorldActionAllowed } from './src/hub-world.mjs';
 import { SHOP_CATALOG, resolveShopQuantity, applyShopTrade } from './src/economy-rules.mjs';
 import { advanceItemLogistics, normalizeDrops } from './src/item-logistics.mjs';
-import { WORLD_GEN_VERSION, WORLD_MIN_Y, WORLD_MAX_Y, blockAt } from './src/chunk-world.mjs';
+import { WORLD_GEN_VERSION, LEGACY_WORLD_GEN_VERSION, WORLD_MIN_Y, WORLD_MAX_Y, blockAt, biomeAt as generatedBiomeAt, findBiomeSamples, waterLevelAt, stepFluid, chunkCoord, DEFAULT_CHUNK_RADIUS } from './src/chunk-world.mjs';
 import { mineralDrop, mineralTier, pickaxeTier, canMineMineral, mineralCore, isCoreDrop } from './src/mineral-world.mjs';
 import { normalizeResourceInventory, RESOURCE_KEYS, WOOD_LOG_KEYS, SAPLING_KEYS, TREE_LOGS, TREE_SAPLINGS, MINERAL_ITEMS } from './src/resource-catalog.mjs';
-import { biomeAt, generateTreesForChunk, treeDimensions } from './src/tree-world.mjs';
+import { biomeAt as legacyBiomeAt, generateTreesForChunk, treeDimensions } from './src/tree-world.mjs';
 import { heightAt } from './src/chunk-world.mjs';
 import { COAL_BLOCK_RECIPE } from './src/recipe-settings.mjs';
 
@@ -26,10 +26,12 @@ if(process.env.NODE_ENV==='development'){
   devClockModule=await import('./devtools/index.mjs');
   if(typeof devClockModule.createTimeControl!=='function'||typeof devClockModule.createTeleportService!=='function')devClockModule=null;
   if(devClockModule)devTeleportService=devClockModule.createTeleportService({
-   worldMinY:WORLD_MIN_Y,worldMaxY:WORLD_MAX_Y,surfaceAt,biomeAt,
+   worldMinY:WORLD_MIN_Y,worldMaxY:WORLD_MAX_Y,surfaceAt,
    isSolidForPlayer:solidForBody,
    hasGroundSupport:(world,x,y,z)=>!!block(world,Math.floor(x),Math.floor(y-.025),Math.floor(z)),
-   isLiquidAt:(world,x,y,z)=>{const cells=world?.fluidCells||world?.fluid?.cells||null;const value=cells?.[key(Math.floor(x),Math.floor(y),Math.floor(z))];return Number(value?.level??value)>0;}
+   isLiquidAt:(world,x,y,z)=>waterLevelAt(world,Math.floor(x),Math.floor(y),Math.floor(z))>0,
+   biomeAt:(seed,x,z,version)=>version===LEGACY_WORLD_GEN_VERSION?legacyBiomeAt(seed,x,z):generatedBiomeAt(seed,x,z,version||WORLD_GEN_VERSION),
+   getWaterSurfaceLanding:(world,x,z)=>world?.worldGenVersion===WORLD_GEN_VERSION&&waterLevelAt(world,Math.floor(x),world.seaLevel,Math.floor(z))>0?{y:world.seaLevel+1}:null
   });
  }catch{devClockModule=null;devTeleportService=null;}
 }
@@ -72,10 +74,12 @@ const inBounds=(x,y,z,world=null)=>Number.isInteger(x)&&Number.isInteger(y)&&Num
  (world?.worldGenVersion?x>=-4096&&x<4096&&z>=-4096&&z<4096&&y>=WORLD_MIN_Y&&y<=WORLD_MAX_Y:x>=-64&&x<64&&z>=-64&&z<64&&y>=-8&&y<=16);
 const nativeBlock=(size,x,y,z)=>{const half=size/2;return x>=-half&&x<half&&z>=-half&&z<half&&y>=-3&&y<0?'dirt':null;};
 function block(world,x,y,z){const k=key(x,y,z);if(Object.hasOwn(world.edits,k))return world.edits[k];return world.worldGenVersion?blockAt(world,x,y,z):nativeBlock(world.islandSize||16,x,y,z);}
+function biomeForWorld(world,x,z){return world?.worldGenVersion===WORLD_GEN_VERSION?generatedBiomeAt(world.worldSeed,x,z,world.worldGenVersion):world?.worldGenVersion===LEGACY_WORLD_GEN_VERSION?legacyBiomeAt(world.worldSeed,x,z):null;}
 function personalPortalCell(x,y,z){return Math.abs(x-PERSONAL_ISLAND_PORTAL.x)<=1&&z===PERSONAL_ISLAND_PORTAL.z&&y>=0&&y<=2;}
 const naturalTreeCache=new Map();
+const biomeSamplesCache=new Map();
 function surfaceAt(world,x,z){return world.worldGenVersion?heightAt(world.worldSeed,x,z,world.worldGenVersion):0;}
-function naturalTreesInChunk(world,cx,cz){const cacheKey=`${world.worldSeed}:${cx},${cz}`;let trees=naturalTreeCache.get(cacheKey);if(!trees){trees=generateTreesForChunk(world.worldSeed,cx,cz,(x,z)=>surfaceAt(world,x,z));naturalTreeCache.set(cacheKey,trees);if(naturalTreeCache.size>256)naturalTreeCache.delete(naturalTreeCache.keys().next().value);}return trees;}
+function naturalTreesInChunk(world,cx,cz){const cacheKey=`${world.worldGenVersion}:${world.worldSeed}:${cx},${cz}`;let trees=naturalTreeCache.get(cacheKey);if(!trees){trees=generateTreesForChunk(world.worldSeed,cx,cz,(x,z)=>surfaceAt(world,x,z),world.worldGenVersion);naturalTreeCache.set(cacheKey,trees);if(naturalTreeCache.size>256)naturalTreeCache.delete(naturalTreeCache.keys().next().value);}return trees;}
 function naturalTreeById(world,id){if(!world.worldGenVersion||typeof id!=='string')return null;const prefix=`natural-tree:${world.worldSeed}:`;if(!id.startsWith(prefix))return null;const match=/^(-?\d+),(-?\d+)$/.exec(id.slice(prefix.length));if(!match)return null;const x=Number(match[1]),z=Number(match[2]),cx=Math.floor(x/16),cz=Math.floor(z/16);return naturalTreesInChunk(world,cx,cz).find(tree=>tree.id===id)||null;}
 function treeById(world,id){return world.trees.find(t=>t.id===id)||naturalTreeById(world,id);}
 function nearbyNaturalTrees(world,x,z){const cx=Math.floor(x/16),cz=Math.floor(z/16),trees=[];for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)trees.push(...naturalTreesInChunk(world,cx+dx,cz+dz));return trees;}
@@ -111,10 +115,40 @@ function mineOre(world,id){
 }
 const starterTools={wood_pickaxe:1,wood_axe:1,wood_shovel:1,stone_pickaxe:0};
 const starterSlots=['wood_pickaxe','wood_axe','wood_shovel','dirt','sand',null,null,null];
-function fresh(){const now=Date.now(),world={schema:1,worldVersion:3,worldSeed:randomBytes(4).readUInt32BE(0),worldGenVersion:WORLD_GEN_VERSION,worldAnchor:{x:0,y:0,z:0,kind:'landing-origin'},islandSize:10,revision:0,coins:100,location:null,inventory:{dirt:48,sand:8,wood:0,stone:0,wheat:0,wheat_seed:0,sapling:0,items:{workbench:0,farming_bench:0,tool_bench:0,agriculture_bench:0,block_bench:0,basic_assembler:0,drill:0,conveyor:0,smelter:0},tools:{...starterTools,hoe:0,watering_can:0,scythe:0},quickSlots:[...starterSlots],selectedSlot:1,wateringCanUses:10},edits:{},machines:[{id:'t1-bench-start',type:'t1_bench',x:2,y:0,z:1,rotation:0}],trees:[{id:'oak_start',x:-3,y:0,z:-3,scale:1,species:'oak',source:'planted',stage:3,progress:0,harvested:false}],harvestedTrees:[],tilled:[[-4,0,3],[-3,0,3],[-2,0,3],[-1,0,3],[0,0,3],[1,0,3],[2,0,3],[3,0,3],[4,0,3]],crops:[{id:'wheat_1',cropType:'wheat',x:-4,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_2',cropType:'wheat',x:-3,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_3',cropType:'wheat',x:-2,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_4',cropType:'wheat',x:-1,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_5',cropType:'wheat',x:0,y:0,z:3,stage:4,progress:0,lastTick:now}],watered:{},waterSources:[{x:4,y:0,z:4}],harvestedCrops:[],oreNodes:[{id:'stone_vein_start',x:3,y:0,z:-3,remaining:ORE_CAPACITY,max:ORE_CAPACITY,regenAt:null}],drops:[],player:{x:.5,y:0,z:.5,grounded:true},createdAt:now,updatedAt:now};world.inventory=normalizeResourceInventory(world.inventory);return world;}
+function fresh(){const now=Date.now(),world={schema:1,worldVersion:3,worldSeed:randomBytes(4).readUInt32BE(0),worldGenVersion:WORLD_GEN_VERSION,seaLevel:0,fluidRevision:0,fluidEdits:{},fluidActive:[],fluidTickRate:5,worldAnchor:{x:0,y:0,z:0,kind:'landing-origin'},islandSize:10,revision:0,coins:100,location:null,inventory:{dirt:48,sand:8,wood:0,stone:0,wheat:0,wheat_seed:0,sapling:0,items:{workbench:0,farming_bench:0,tool_bench:0,agriculture_bench:0,block_bench:0,basic_assembler:0,drill:0,conveyor:0,smelter:0},tools:{...starterTools,hoe:0,watering_can:0,scythe:0},quickSlots:[...starterSlots],selectedSlot:1,wateringCanUses:10},edits:{},machines:[{id:'t1-bench-start',type:'t1_bench',x:2,y:0,z:1,rotation:0}],trees:[{id:'oak_start',x:-3,y:0,z:-3,scale:1,species:'oak',source:'planted',stage:3,progress:0,harvested:false}],harvestedTrees:[],tilled:[[-4,0,3],[-3,0,3],[-2,0,3],[-1,0,3],[0,0,3],[1,0,3],[2,0,3],[3,0,3],[4,0,3]],crops:[{id:'wheat_1',cropType:'wheat',x:-4,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_2',cropType:'wheat',x:-3,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_3',cropType:'wheat',x:-2,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_4',cropType:'wheat',x:-1,y:0,z:3,stage:4,progress:0,lastTick:now},{id:'wheat_5',cropType:'wheat',x:0,y:0,z:3,stage:4,progress:0,lastTick:now}],watered:{},waterSources:[{x:4,y:0,z:4}],harvestedCrops:[],oreNodes:[{id:'stone_vein_start',x:3,y:0,z:-3,remaining:ORE_CAPACITY,max:ORE_CAPACITY,regenAt:null}],drops:[],player:{x:.5,y:0,z:.5,grounded:true},createdAt:now,updatedAt:now};world.inventory=normalizeResourceInventory(world.inventory);return world;}
+function validFluidState(w){
+ if(w.worldGenVersion!==WORLD_GEN_VERSION)return true;
+ const validCell=cell=>{if(typeof cell!=='string'||! /^-?\d+,-?\d+,-?\d+$/.test(cell))return false;const [x,y,z]=cell.split(',').map(Number);return x>=-4096&&x<4096&&z>=-4096&&z<4096&&y>=WORLD_MIN_Y&&y<=WORLD_MAX_Y;};
+ return w.seaLevel===0&&Number.isSafeInteger(w.fluidRevision)&&w.fluidRevision>=0&&w.fluidEdits&&typeof w.fluidEdits==='object'&&!Array.isArray(w.fluidEdits)&&Object.keys(w.fluidEdits).length<=50000&&Object.entries(w.fluidEdits).every(([cell,level])=>validCell(cell)&&Number.isInteger(level)&&level>=0&&level<=8)&&
+  (w.fluidActive===undefined||Array.isArray(w.fluidActive)&&w.fluidActive.length<=50000&&w.fluidActive.every(validCell))&&(w.fluidTickRate===undefined||[2,5,10].includes(w.fluidTickRate));
+}
 function validWorld(w){return w&&w.schema===1&&Number.isSafeInteger(w.revision)&&w.revision>=0&&w.inventory&&Number.isSafeInteger(w.inventory.dirt)&&w.inventory.dirt>=0&&w.inventory.dirt<=1000000&&w.edits&&typeof w.edits==='object'&&!Array.isArray(w.edits)&&Object.keys(w.edits).length<=20000&&
- (w.worldGenVersion===undefined||w.worldGenVersion===WORLD_GEN_VERSION&&Number.isSafeInteger(w.worldSeed)&&w.worldSeed>=0&&w.worldSeed<=0xffffffff);}
+ (w.worldGenVersion===undefined||([LEGACY_WORLD_GEN_VERSION,WORLD_GEN_VERSION].includes(w.worldGenVersion)&&Number.isSafeInteger(w.worldSeed)&&w.worldSeed>=0&&w.worldSeed<=0xffffffff))&&
+ validFluidState(w);}
 function validPlayerPosition(p,world=null){return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&Number.isFinite(p.z)&&Math.abs(p.x)<=(world?.worldGenVersion?4096:64)&&Math.abs(p.z)<=(world?.worldGenVersion?4096:64)&&p.y>=(world?.worldGenVersion?WORLD_MIN_Y-8:-13)&&p.y<=(world?.worldGenVersion?WORLD_MAX_Y+8:18);}
+function enqueueFluidAround(world,x,y,z){
+ if(world?.worldGenVersion!==WORLD_GEN_VERSION)return;
+ const active=new Set(Array.isArray(world.fluidActive)?world.fluidActive:[]);
+ for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)if(waterLevelAt(world,x+dx,y+dy,z+dz)>0)active.add(key(x+dx,y+dy,z+dz));
+ world.fluidActive=[...active].sort();
+}
+function advanceWorldFluid(session,now=Date.now()){
+ const world=session.world;if(world.worldGenVersion!==WORLD_GEN_VERSION)return false;
+ const rate=[2,5,10].includes(world.fluidTickRate)?world.fluidTickRate:5;
+ const elapsed=Math.max(0,Math.min(5000,now-session.lastFluidTickAt));session.lastFluidTickAt=now;
+ session.fluidTickRemainder=(session.fluidTickRemainder||0)+elapsed*rate/1000;
+ const ticks=Math.min(20,Math.floor(session.fluidTickRemainder));if(!ticks||!world.fluidActive?.length)return false;
+ session.fluidTickRemainder-=ticks;let changed=false,queueChanged=false;
+ for(let i=0;i<ticks&&world.fluidActive?.length;i++){const result=stepFluid(world,world.fluidActive,{budget:2048});if(result.changed)changed=true;if(result.queueChanged)queueChanged=true;}
+ if(changed){world.revision++;world.updatedAt=now;}
+ return changed||queueChanged;
+}
+function fluidCellsNear(world,x,z){
+ if(world.worldGenVersion!==WORLD_GEN_VERSION)return {};
+ const cx=chunkCoord(Math.floor(x)),cz=chunkCoord(Math.floor(z)),cells={};
+ for(const [cell,level]of Object.entries(world.fluidEdits||{})){const [wx,,wz]=cell.split(',').map(Number);if(Math.abs(chunkCoord(wx)-cx)<=DEFAULT_CHUNK_RADIUS&&Math.abs(chunkCoord(wz)-cz)<=DEFAULT_CHUNK_RADIUS)cells[cell]=level;}
+ return cells;
+}
 function cookieValue(id){return id+'.'+createHmac('sha256',SECRET).update(id).digest('hex');}
 function identity(req){const value=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('terra_session='))?.slice(14);
  if(value){const [id,sig]=value.split('.');if(/^[a-f0-9]{32}$/.test(id)&&/^[a-f0-9]{64}$/.test(sig||'')){const expected=cookieValue(id).split('.')[1];if(timingSafeEqual(Buffer.from(sig),Buffer.from(expected)))return {id,isNew:false};}}
@@ -159,6 +193,7 @@ async function load(id){if(sessions.has(id))return sessions.get(id);
  if(!Array.isArray(w.crops))w.crops=[];
  if(!Array.isArray(w.harvestedCrops))w.harvestedCrops=[];
  if(!Array.isArray(w.tilled))w.tilled=[];if(!w.watered||typeof w.watered!=='object')w.watered={};
+ if(w.worldGenVersion===WORLD_GEN_VERSION){if(!Number.isInteger(w.seaLevel))w.seaLevel=0;if(!Number.isSafeInteger(w.fluidRevision))w.fluidRevision=0;if(!w.fluidEdits||typeof w.fluidEdits!=='object'||Array.isArray(w.fluidEdits))w.fluidEdits={};if(!Array.isArray(w.fluidActive))w.fluidActive=[];if(![2,5,10].includes(w.fluidTickRate))w.fluidTickRate=5;}
  w.lastGameTick=Date.now();for(const [tile,value] of Object.entries(w.watered))if(!Number.isFinite(value)||value<0)delete w.watered[tile];
  if(!Array.isArray(w.waterSources))w.waterSources=[];
  if(!Number.isSafeInteger(w.inventory.wheat_seed)||w.inventory.wheat_seed<0)w.inventory.wheat_seed=0;
@@ -181,7 +216,7 @@ async function load(id){if(sessions.has(id))return sessions.get(id);
  const gameClock=devtoolsEnabled?devClockModule.createTimeControl({now:sessionLoadedAt}):null;
  if(gameClock&&developerMultiplier!==1)gameClock.setMultiplier(developerMultiplier,sessionLoadedAt);
  const activePlayer=w.location.worldId==='shop-hub'?w.location.hubPlayer:w.player;
- const session={world:w,queue:Promise.resolve(),mining:null,harvesting:null,gameClock,player:{...activePlayer,vy:0,grounded:activePlayer.grounded===true,lastAt:sessionLoadedAt},lastPlayerSaveAt:sessionLoadedAt,lastLogisticsAt:sessionLoadedAt};if(created)await save(id,w);sessions.set(id,session);return session;
+ const session={world:w,queue:Promise.resolve(),mining:null,harvesting:null,gameClock,player:{...activePlayer,vy:0,grounded:activePlayer.grounded===true,lastAt:sessionLoadedAt},lastPlayerSaveAt:sessionLoadedAt,lastLogisticsAt:sessionLoadedAt,lastFluidTickAt:sessionLoadedAt,fluidTickRemainder:0};if(created)await save(id,w);sessions.set(id,session);return session;
 }
 function advanceSessionTime(session,now=Date.now(),multiplierOverride){
  const multiplier=multiplierOverride??(devtoolsEnabled?(session.gameClock?.snapshot().multiplier||developerMultiplier):1);
@@ -221,6 +256,7 @@ function change(current,action){const {type,x,y,z,revision}=action||{};
  // Never mutate the persisted object before the save succeeds.
  const next={...current,edits:{...current.edits},inventory:{...current.inventory},tilled:[...current.tilled],crops:[...current.crops],watered:{...current.watered},revision:current.revision+1,updatedAt:Date.now()};
  const original=block(current,x,y,z),placedItem=['dirt','sand','coal_block'].includes(action.item)?action.item:'dirt',after=type==='place'?placedItem:null;
+ if(type==='place'&&current.worldGenVersion===WORLD_GEN_VERSION&&waterLevelAt(current,x,y,z)>0)return {error:'Cannot place a solid block in water'};
  if(after===original)delete next.edits[key(x,y,z)];else next.edits[key(x,y,z)]=after;
  if(type==='place')next.inventory[placedItem]--;
  else if(['dirt','grass','sand'].includes(original)){const item=original==='sand'?'sand':'dirt';next.inventory[item]++;}
@@ -230,6 +266,7 @@ function change(current,action){const {type,x,y,z,revision}=action||{};
   const core=mineralCore(original);if(core&&isCoreDrop(original,randomInt(200)/200)&&(next.inventory[core]||0)<INVENTORY_CAP)next.inventory[core]=(next.inventory[core]||0)+1;
  }
  if(type==='mine'&&y===-1){const surface=key(x,0,z);next.tilled=next.tilled.filter(c=>key(...c)!==surface);next.crops=next.crops.filter(c=>!(c.x===x&&c.y===0&&c.z===z));delete next.watered[surface];}
+ if(type==='mine'&&next.worldGenVersion===WORLD_GEN_VERSION){next.fluidEdits={...(current.fluidEdits||{})};next.fluidActive=[...(current.fluidActive||[])];enqueueFluidAround(next,x,y,z);}
  return {next};
 }
 function solidForBody(world,x,y,z){
@@ -242,31 +279,44 @@ function solidForBody(world,x,y,z){
  const height={t1_bench:1.25,workbench:1.25,drill:.95,conveyor:.55,smelter:1.6};
  return world.machines.some(m=>Math.abs(x-(m.x+.5))<.45+PLAYER_HALF_WIDTH&&Math.abs(z-(m.z+.5))<.45+.19&&y<m.y+(height[m.type]||1)&&y+PLAYER_HEIGHT>m.y);
 }
+function playerImmersed(world,p){
+ if(world?.worldGenVersion!==WORLD_GEN_VERSION)return false;
+ const x=Math.floor(p.x),z=Math.floor(p.z);
+ return [p.y+.1,p.y+.9,p.y+1.7].some(y=>waterLevelAt(world,x,Math.floor(y),z)>0);
+}
 function stepPlayer(session,input){
  const p=session.player,now=Date.now(),dt=Math.min(.1,Math.max(.001,(now-p.lastAt)/1000));p.lastAt=now;
  let dx=Number(input?.x),dz=Number(input?.z);if(!Number.isFinite(dx)||!Number.isFinite(dz))return false;
  const length=Math.hypot(dx,dz);if(length>1){dx/=length;dz/=length;}
  const hub=session.world.location.worldId==='shop-hub',physicsWorld=hub?{islandSize:SHOP_HUB_LAYOUT.size.x,edits:{},machines:[]}:session.world;
  const collides=(x,y,z)=>solidForBody(physicsWorld,x,y,z)||(hub&&SHOP_HUB_LAYOUT.npcs.some(n=>Math.abs(x-(n.x+.5))<.45+PLAYER_HALF_WIDTH&&Math.abs(z-(n.z+.5))<.34+.19&&y<n.y+2.05&&y+PLAYER_HEIGHT>n.y));
- const nextX=p.x+dx*MOVE_SPEED*dt,nextZ=p.z+dz*MOVE_SPEED*dt;
+ let immersed=playerImmersed(physicsWorld,p);const moveSpeed=immersed?2.4:MOVE_SPEED;
+ const nextX=p.x+dx*moveSpeed*dt,nextZ=p.z+dz*moveSpeed*dt;
  if(!collides(nextX,p.y,p.z))p.x=nextX;
  if(!collides(p.x,p.y,nextZ))p.z=nextZ;
  if(hub){const edge=SHOP_HUB_LAYOUT.size.x/2-.45;p.x=Math.max(-edge,Math.min(edge,p.x));p.z=Math.max(-edge,Math.min(edge,p.z));}
  if(input.jump===true&&p.grounded){p.vy=JUMP_SPEED;p.grounded=false;}
- const oldY=p.y;p.vy=Math.max(-19,p.vy-GRAVITY*dt);const nextY=oldY+p.vy*dt;
+ immersed=playerImmersed(physicsWorld,p);
+ if(immersed&&input.swim===true)p.vy=Math.max(p.vy,3.4);
+ const oldY=p.y,gravity=immersed?3.6:GRAVITY;p.vy=Math.max(-19,p.vy-gravity*dt);const nextY=oldY+p.vy*dt;
  if(p.vy<=0){const bx=Math.floor(p.x),bz=Math.floor(p.z),by=Math.floor(nextY-.03);
   if(oldY>=by+.9&&block(physicsWorld,bx,by,bz)&&nextY<=by+1){p.y=by+1;p.vy=0;p.grounded=true;}
   else{p.y=nextY;p.grounded=false;}
  }else{p.y=nextY;p.grounded=false;}
- if(p.y < -13){const spawn=hub?SHOP_HUB_LAYOUT.spawn:{x:.5,y:0,z:.5};p.x=spawn.x;p.y=spawn.y;p.z=spawn.z;p.vy=0;p.grounded=true;}
+ if(p.y < (physicsWorld.worldGenVersion?WORLD_MIN_Y:-13)){const spawn=hub?SHOP_HUB_LAYOUT.spawn:{x:.5,y:0,z:.5};p.x=spawn.x;p.y=spawn.y;p.z=spawn.z;p.vy=0;p.grounded=true;}
+ p.immersed=playerImmersed(physicsWorld,p);p.swimming=p.immersed&&(input.swim===true||p.vy>0);
  const savedPosition={x:p.x,y:p.y,z:p.z,grounded:p.grounded};
  if(hub)session.world.location.hubPlayer=savedPosition;else session.world.player=savedPosition;
  return true;
 }
 function publicWorld(session,id,req){
  const w=session.world,hub=w.location.worldId==='shop-hub';
- const result=hub?{schema:w.schema,worldVersion:w.worldVersion,islandSize:SHOP_HUB_LAYOUT.size.x,revision:w.revision,coins:w.coins,inventory:w.inventory,edits:{},machines:[],trees:[],harvestedTrees:[],tilled:[],crops:[],watered:{},waterSources:[],harvestedCrops:[],oreNodes:[],player:{...session.player},worldId:SHOP_HUB_WORLD_ID,worldInstanceId:w.location.hubInstanceId,worldKind:'shopHub',hub:createShopHubInstance(id)}:{...w,worldId:'personal-island',worldInstanceId:w.location.personalInstanceId,worldKind:'personal',personalPortal:PERSONAL_ISLAND_PORTAL,player:{...session.player}};
- if(devtoolsEnabled&&localAddress(req)){const snapshot=session.gameClock.snapshot();result.devtoolsEnabled=true;result.gameClock={...snapshot,gameMinutes:snapshot.gameTimeMinutes};result.biome=w.worldGenVersion&&w.location.worldId!=='shop-hub'?biomeAt(w.worldSeed,Math.floor(session.player.x),Math.floor(session.player.z)):null;result.devTeleport={previousAvailable:devTeleportService?.hasPrevious(session)===true,waterSafety:'not-modeled'};}
+ const player={...session.player,immersed:playerImmersed(w,session.player),swimming:session.player.swimming===true};
+ let result;
+ if(hub)result={schema:w.schema,worldVersion:w.worldVersion,islandSize:SHOP_HUB_LAYOUT.size.x,revision:w.revision,coins:w.coins,inventory:w.inventory,edits:{},machines:[],trees:[],harvestedTrees:[],tilled:[],crops:[],watered:{},waterSources:[],harvestedCrops:[],oreNodes:[],player,worldId:SHOP_HUB_WORLD_ID,worldInstanceId:w.location.hubInstanceId,worldKind:'shopHub',hub:createShopHubInstance(id)};
+ else if(w.worldGenVersion===WORLD_GEN_VERSION){const {fluidEdits,fluidActive,...publicSave}=w;result={...publicSave,fluidCells:fluidCellsNear(w,session.player.x,session.player.z),player,worldId:'personal-island',worldInstanceId:w.location.personalInstanceId,worldKind:'personal',personalPortal:PERSONAL_ISLAND_PORTAL};}
+ else result={...w,player,worldId:'personal-island',worldInstanceId:w.location.personalInstanceId,worldKind:'personal',personalPortal:PERSONAL_ISLAND_PORTAL};
+ if(devtoolsEnabled&&localAddress(req)){const snapshot=session.gameClock.snapshot();result.devtoolsEnabled=true;result.gameClock={...snapshot,gameMinutes:snapshot.gameTimeMinutes};result.biome=w.worldGenVersion&&w.location.worldId!=='shop-hub'?biomeForWorld(w,Math.floor(session.player.x),Math.floor(session.player.z)):null;result.devTeleport={previousAvailable:devTeleportService?.hasPrevious(session)===true,waterSafety:w.worldGenVersion===WORLD_GEN_VERSION?'modeled':'not-modeled'};if(w.worldGenVersion===WORLD_GEN_VERSION)result.fluidTickRate=w.fluidTickRate;}
  return result;
 }
 function near(session,target,radius){const p=session.player;return Math.hypot(target.x+.5-p.x,target.y-(p.y+1),target.z+.5-p.z)<=radius;}
@@ -283,11 +333,11 @@ async function handler(req,res){
  }
  if(!['GET','POST'].includes(req.method)){error(res,405,'Method not allowed');return;}
  const path=requestPath;
- const devTimePath=path==='/api/dev/time';
+ const devTimePath=path==='/api/dev/time',devBiomesPath=path==='/api/dev/biomes',devFluidRatePath=path==='/api/dev/fluid-rate';
  const devTeleportPath=path==='/api/dev/teleport',devTeleportReturnPath=path==='/api/dev/teleport/return';
- if((devTimePath||devTeleportPath||devTeleportReturnPath)&&(!devtoolsEnabled||!devTeleportService||!localAddress(req))){error(res,404,'Not found');return;}
+ if((devTimePath||devBiomesPath||devFluidRatePath||devTeleportPath||devTeleportReturnPath)&&(!devtoolsEnabled||!localAddress(req)||((devTeleportPath||devTeleportReturnPath)&&!devTeleportService))){error(res,404,'Not found');return;}
  const hubPaths=['/api/world/transition','/api/shop/open','/api/shop/trade','/api/inventory/drop','/api/npc/attack','/api/items/pickup'];
- if(path!=='/api/world'&&path!=='/api/action'&&path!=='/api/mine'&&path!=='/api/move'&&path!=='/api/harvest'&&path!=='/api/farm'&&path!=='/api/slot'&&path!=='/api/craft'&&path!=='/api/machine/place'&&!hubPaths.includes(path)&&!devTimePath&&!devTeleportPath&&!devTeleportReturnPath){error(res,404,'Not found');return;}
+ if(path!=='/api/world'&&path!=='/api/action'&&path!=='/api/mine'&&path!=='/api/move'&&path!=='/api/harvest'&&path!=='/api/farm'&&path!=='/api/slot'&&path!=='/api/craft'&&path!=='/api/machine/place'&&!hubPaths.includes(path)&&!devTimePath&&!devBiomesPath&&!devFluidRatePath&&!devTeleportPath&&!devTeleportReturnPath){error(res,404,'Not found');return;}
  // Cross-origin browser actions should not mutate a player's island.
  const origin=req.headers.origin;if(origin&&origin!== 'http://'+req.headers.host && origin!=='https://'+req.headers.host){error(res,403,'Origin denied');return;}
  const who=identity(req);
@@ -311,6 +361,19 @@ async function handler(req,res){
   });devtimeQueue=job.then(()=>undefined,()=>undefined);
   try{send(res,200,await job);}catch(err){console.error('Developer clock update failed:',err);error(res,500,'Unable to update developer clock');}return;
  }
+ if(devBiomesPath){
+  if(req.method!=='GET'){error(res,405,'Method not allowed');return;}
+  if(session.world.worldGenVersion!==WORLD_GEN_VERSION)return send(res,409,{error:'Five-biome search requires a version 2 world'});
+  const seed=session.world.worldSeed;let biomes=biomeSamplesCache.get(seed);
+  if(!biomes){biomes=findBiomeSamples(seed,{min:-2048,max:2048,step:16});biomeSamplesCache.set(seed,biomes);if(biomeSamplesCache.size>32)biomeSamplesCache.delete(biomeSamplesCache.keys().next().value);}
+  send(res,200,{seed,genVersion:WORLD_GEN_VERSION,range:{minX:-2048,maxX:2048,minZ:-2048,maxZ:2048,step:16},biomes});return;
+ }
+ if(devFluidRatePath){
+  if(req.method!=='POST'){error(res,405,'Method not allowed');return;}
+  if(session.world.worldGenVersion!==WORLD_GEN_VERSION)return send(res,409,{error:'Fluid rate requires a version 2 world'});
+  const body=await jsonBody(req);if(![2,5,10].includes(body?.tickRate))return send(res,400,{error:'tickRate must be 2, 5, or 10'});
+  session.world.fluidTickRate=body.tickRate;session.world.revision++;session.world.updatedAt=Date.now();await save(who.id,session.world);send(res,200,{tickRate:session.world.fluidTickRate,world:publicWorld(session,who.id,req)});return;
+ }
  if(devTeleportPath||devTeleportReturnPath){
   if(req.method!=='POST'){error(res,405,'Method not allowed');return;}
   const body=devTeleportPath?await jsonBody(req):{};
@@ -319,8 +382,8 @@ async function handler(req,res){
    const outcome=devTeleportPath?devTeleportService.resolve(world,previousPlayer,body):devTeleportService.returnToPrevious(session,world,previousPlayer);
    if(!outcome.ok){
     const reason=outcome.reason||'순간이동을 완료하지 못했습니다.';
-    console.info(JSON.stringify({event:'dev-teleport',worldSeed:world.worldSeed??null,worldGenVersion:world.worldGenVersion??null,from:{x:previousPlayer.x,y:previousPlayer.y,z:previousPlayer.z},requested:{x:body.x,y:body.y,z:body.z,autoY:body.autoY===true},biome:world.worldGenVersion?biomeAt(world.worldSeed,Math.floor(previousPlayer.x),Math.floor(previousPlayer.z)):null,success:false,reason}));
-    return {status:outcome.status||400,data:{error:reason,code:outcome.code||'teleport-failed',world:publicWorld(session,who.id,req),waterSafety:'not-modeled'}};
+    console.info(JSON.stringify({event:'dev-teleport',worldSeed:world.worldSeed??null,worldGenVersion:world.worldGenVersion??null,from:{x:previousPlayer.x,y:previousPlayer.y,z:previousPlayer.z},requested:{x:body.x,y:body.y,z:body.z,autoY:body.autoY===true},biome:world.worldGenVersion?biomeForWorld(world,Math.floor(previousPlayer.x),Math.floor(previousPlayer.z)):null,success:false,reason}));
+    return {status:outcome.status||400,data:{error:reason,code:outcome.code||'teleport-failed',world:publicWorld(session,who.id,req),waterSafety:world.worldGenVersion===WORLD_GEN_VERSION?'modeled':'not-modeled'}};
    }
    const now=Date.now(),nextPlayer={...outcome.player,vy:0,lastAt:now};
    session.player=nextPlayer;
@@ -369,7 +432,7 @@ async function handler(req,res){
  if(path==='/api/world'&&req.method==='GET'){
   const job=session.queue.catch(()=>{}).then(async()=>{
    const now=Date.now(),elapsed=Math.max(0,now-session.lastLogisticsAt);session.lastLogisticsAt=now;
-   const changed=refreshOreNodes(session.world)|advanceSessionTime(session,now)|advanceItemLogistics(session.world,elapsed);
+   const changed=refreshOreNodes(session.world)|advanceSessionTime(session,now)|advanceItemLogistics(session.world,elapsed)|advanceWorldFluid(session,now);
    if(changed)await save(who.id,session.world);
    return publicWorld(session,who.id,req);
   });session.queue=job.then(()=>undefined,()=>undefined);try{send(res,200,await job);}catch(err){console.error('World update failed:',err);error(res,500,'Unable to update world');}return;
@@ -445,10 +508,9 @@ async function handler(req,res){
  if(path==='/api/move'&&req.method==='POST'){
   const body=await jsonBody(req);
   const job=session.queue.catch(()=>{}).then(async()=>{
-   if(!stepPlayer(session,body))return {status:400,data:{error:'Invalid movement input'}};advanceSessionTime(session);
-   const now=Date.now();
-   if(now-session.lastPlayerSaveAt>=5000){try{await save(who.id,session.world);session.lastPlayerSaveAt=now;}catch(err){console.error('Player position save failed:',err);}}
-   return {status:200,data:{player:{x:session.player.x,y:session.player.y,z:session.player.z,grounded:session.player.grounded}}};
+   if(!stepPlayer(session,body))return {status:400,data:{error:'Invalid movement input'}};const now=Date.now();advanceSessionTime(session,now);const fluidChanged=advanceWorldFluid(session,now);
+   if(fluidChanged||now-session.lastPlayerSaveAt>=5000){try{await save(who.id,session.world);session.lastPlayerSaveAt=now;}catch(err){console.error('Player position save failed:',err);}}
+   const world=publicWorld(session,who.id,req);return {status:200,data:{player:{x:session.player.x,y:session.player.y,z:session.player.z,grounded:session.player.grounded,immersed:playerImmersed(session.world,session.player),swimming:session.player.swimming===true},fluidCells:world.fluidCells||{},fluidRevision:world.fluidRevision||0}};
   });session.queue=job;const result=await job;send(res,result.status,result.data);return;
  }
  if(path==='/api/harvest'&&req.method==='POST'){
