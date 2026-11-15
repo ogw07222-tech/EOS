@@ -23,10 +23,10 @@ export function mountDevPanel(initialSnapshot) {
 
   const panel = document.createElement('aside');
   panel.id = 'terra-dev-time-panel'; panel.className = 'terra-dev-time-panel';
-  panel.setAttribute('aria-label', '개발 시간 제어');
+  panel.setAttribute('aria-label', '개발자 도구');
   panel.innerHTML = `
     <header class="terra-dev-head">
-      <strong>DEV <span>— 시간 가속</span></strong>
+      <strong>DEV <span>— 시간·좌표</span></strong>
       <button type="button" class="terra-dev-fold" aria-expanded="false" aria-label="개발자 패널 펼치기">+</button>
     </header>
     <div class="terra-dev-body">
@@ -34,6 +34,27 @@ export function mountDevPanel(initialSnapshot) {
       <p class="terra-dev-current">현재 가속: <b data-current>1×</b></p>
       <p class="terra-dev-rate">게임 시간: <b data-rate>12분/현실 1분</b></p>
       <p class="terra-dev-clock">누적 게임 시간: <b data-game-time>—</b></p>
+      <section class="terra-dev-teleport" aria-labelledby="terra-dev-teleport-title">
+        <h2 id="terra-dev-teleport-title">좌표 이동</h2>
+        <div class="terra-dev-coordinates">
+          <label>X<input data-tp-x type="number" inputmode="decimal" step="0.1" autocomplete="off" aria-label="이동할 X 좌표"></label>
+          <label>Y<input data-tp-y type="number" inputmode="decimal" step="0.1" autocomplete="off" aria-label="이동할 Y 좌표"></label>
+          <label>Z<input data-tp-z type="number" inputmode="decimal" step="0.1" autocomplete="off" aria-label="이동할 Z 좌표"></label>
+        </div>
+        <label class="terra-dev-check"><input data-tp-auto-y type="checkbox" checked> Y 자동 (안전한 지면)</label>
+        <label class="terra-dev-check terra-dev-risk"><input data-tp-water type="checkbox" disabled> 위험 위치 허용 (물속 QA)</label>
+        <p class="terra-dev-water-status" data-tp-water-status>물속 판정 미구현</p>
+        <div class="terra-dev-actions">
+          <button type="button" data-tp-go>이동</button>
+          <button type="button" data-tp-return disabled>이전 위치</button>
+        </div>
+        <div class="terra-dev-location">
+          <span>현재 위치 <b data-tp-current>—</b></span>
+          <button type="button" data-tp-copy aria-label="현재 좌표 복사">복사</button>
+        </div>
+        <p class="terra-dev-biome">바이옴: <b data-tp-biome>—</b></p>
+        <p class="terra-dev-tp-status" role="status" aria-live="polite"></p>
+      </section>
       <p class="terra-dev-status" role="status" aria-live="polite"></p>
     </div>`;
   document.body.append(panel);
@@ -45,7 +66,90 @@ export function mountDevPanel(initialSnapshot) {
   const gameTime = panel.querySelector('[data-game-time]');
   const status = panel.querySelector('.terra-dev-status');
   const fold = panel.querySelector('.terra-dev-fold');
+  const tpX = panel.querySelector('[data-tp-x]');
+  const tpY = panel.querySelector('[data-tp-y]');
+  const tpZ = panel.querySelector('[data-tp-z]');
+  const autoY = panel.querySelector('[data-tp-auto-y]');
+  const allowWater = panel.querySelector('[data-tp-water]');
+  const waterStatus = panel.querySelector('[data-tp-water-status]');
+  const teleportButton = panel.querySelector('[data-tp-go]');
+  const returnButton = panel.querySelector('[data-tp-return]');
+  const currentPosition = panel.querySelector('[data-tp-current]');
+  const biomeLabel = panel.querySelector('[data-tp-biome]');
+  const teleportStatus = panel.querySelector('.terra-dev-tp-status');
   let clock = clockFrom(initialSnapshot), pending = false;
+  let teleportPending = false, previousPosition = null;
+  let previousAvailable = initialSnapshot?.devTeleport?.previousAvailable === true;
+  let playerPosition = initialSnapshot?.player || null;
+  let biome = initialSnapshot?.biome ?? null;
+  let waterSafety = initialSnapshot?.waterSafety ?? initialSnapshot?.devTeleport?.waterSafety ?? 'not-modeled';
+  let generatedWorld = Boolean(initialSnapshot?.worldGenVersion);
+
+  function coordinates(value) {
+    if (!value || !Number.isFinite(Number(value.x)) || !Number.isFinite(Number(value.y)) || !Number.isFinite(Number(value.z))) return null;
+    return { x: Number(value.x), y: Number(value.y), z: Number(value.z) };
+  }
+
+  function displayCoordinates(value) {
+    const point = coordinates(value);
+    return point ? `X ${point.x.toFixed(2)} · Y ${point.y.toFixed(2)} · Z ${point.z.toFixed(2)}` : '—';
+  }
+
+  function biomeText(value) {
+    if (typeof value === 'string' && value.trim()) return value;
+    if (value && typeof value.id === 'string') return value.name ? `${value.name} (${value.id})` : value.id;
+    return '—';
+  }
+
+  function updateLocation(snapshot = {}) {
+    if (snapshot.player) playerPosition = snapshot.player;
+    if (Object.hasOwn(snapshot, 'biome')) biome = snapshot.biome;
+    if (Object.hasOwn(snapshot, 'worldGenVersion')) generatedWorld = Boolean(snapshot.worldGenVersion);
+    if (Object.hasOwn(snapshot, 'waterSafety')) waterSafety = snapshot.waterSafety;
+    else if (snapshot.devTeleport && Object.hasOwn(snapshot.devTeleport, 'waterSafety')) waterSafety = snapshot.devTeleport.waterSafety;
+    if (snapshot.devTeleport && Object.hasOwn(snapshot.devTeleport, 'previousAvailable')) previousAvailable = snapshot.devTeleport.previousAvailable === true;
+    const waterSupported = waterSafety === 'modeled' || waterSafety === true;
+    allowWater.disabled = !waterSupported;
+    if (!waterSupported) allowWater.checked = false;
+    waterStatus.textContent = waterSupported ? '물속 판정 사용 가능' : '물속 판정 미구현';
+    currentPosition.textContent = displayCoordinates(playerPosition);
+    biomeLabel.textContent = biomeText(biome);
+    returnButton.disabled = teleportPending || !previousAvailable;
+  }
+
+  async function postTeleport(path, body = {}) {
+    if (teleportPending) return;
+    teleportPending = true;
+    teleportButton.disabled = true;
+    returnButton.disabled = true;
+    teleportStatus.textContent = path.endsWith('/return') ? '이전 위치로 이동 중…' : '안전한 위치를 확인하고 이동 중…';
+    try {
+      const response = await fetch(path, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || '좌표 이동에 실패했습니다.');
+      if (payload.player) playerPosition = payload.player;
+      if (path.endsWith('/return')) previousPosition = null;
+      else if (Object.hasOwn(payload, 'previousPosition')) previousPosition = payload.previousPosition;
+      previousAvailable = path.endsWith('/return') ? false : Boolean(payload.previousPosition);
+      if (Object.hasOwn(payload, 'biome')) biome = payload.biome;
+      if (Object.hasOwn(payload, 'waterSafety')) waterSafety = payload.waterSafety;
+      if (payload.world) {
+        updateLocation({ ...payload.world, biome, waterSafety });
+        window.dispatchEvent(new CustomEvent('terra-dev-teleport', { detail: payload.world }));
+      } else updateLocation({ player: payload.player, biome: payload.biome, waterSafety });
+      teleportStatus.textContent = path.endsWith('/return') ? '이전 위치로 돌아왔습니다.' : '이동했습니다.';
+    } catch (error) {
+      teleportStatus.textContent = error.message || '좌표 이동 요청에 실패했습니다.';
+    } finally {
+      teleportPending = false;
+      teleportButton.disabled = false;
+      returnButton.disabled = !previousAvailable;
+    }
+  }
 
   function render() {
     current.textContent = `${clock.multiplier}×`;
@@ -82,6 +186,45 @@ export function mountDevPanel(initialSnapshot) {
     });
     rates.append(button);
   }
+  autoY.addEventListener('change', () => { tpY.disabled = autoY.checked; });
+  tpY.disabled = autoY.checked;
+  teleportButton.addEventListener('click', () => {
+    const x = tpX.valueAsNumber, z = tpZ.valueAsNumber, y = tpY.valueAsNumber;
+    if (!Number.isFinite(x) || !Number.isFinite(z) || (!autoY.checked && !Number.isFinite(y))) {
+      teleportStatus.textContent = 'X/Z와 직접 지정할 Y에는 유효한 숫자를 입력해 주세요.';
+      return;
+    }
+    const minXZ = generatedWorld ? -4096 : -64, maxXZ = generatedWorld ? 4096 : 64;
+    const minY = generatedWorld ? -32 : -8, maxY = generatedWorld ? 32 : 16;
+    if (x < minXZ || x >= maxXZ || z < minXZ || z >= maxXZ) {
+      teleportStatus.textContent = `X/Z 범위는 ${minXZ} 이상 ${maxXZ} 미만입니다.`;
+      return;
+    }
+    if (!autoY.checked && (y < minY || y > maxY)) {
+      teleportStatus.textContent = `Y 범위는 ${minY}부터 ${maxY}까지입니다.`;
+      return;
+    }
+    void postTeleport('/api/dev/teleport', {
+      x, z, ...(autoY.checked ? {} : { y }), autoY: autoY.checked, allowWater: allowWater.checked
+    });
+  });
+  returnButton.addEventListener('click', () => void postTeleport('/api/dev/teleport/return'));
+  panel.querySelector('[data-tp-copy]').addEventListener('click', async () => {
+    const point = coordinates(playerPosition);
+    if (!point) { teleportStatus.textContent = '복사할 현재 좌표가 없습니다.'; return; }
+    const value = `${point.x}, ${point.y}, ${point.z}`;
+    try {
+      await navigator.clipboard.writeText(value);
+      teleportStatus.textContent = '현재 좌표를 복사했습니다.';
+    } catch {
+      const field = document.createElement('textarea');
+      field.value = value; field.setAttribute('readonly', '');
+      field.style.position = 'fixed'; field.style.opacity = '0';
+      document.body.append(field); field.select();
+      const copied = document.execCommand('copy'); field.remove();
+      teleportStatus.textContent = copied ? '현재 좌표를 복사했습니다.' : '좌표를 복사할 수 없습니다.';
+    }
+  });
   fold.addEventListener('click', () => {
     const collapsed = panel.classList.toggle('is-collapsed');
     fold.textContent = collapsed ? '+' : '−';
@@ -89,7 +232,8 @@ export function mountDevPanel(initialSnapshot) {
     fold.setAttribute('aria-label', collapsed ? '개발자 패널 펼치기' : '개발자 패널 접기');
   });
 
-  function update(snapshot) { clock = clockFrom(snapshot); render(); }
+  function update(snapshot) { clock = clockFrom(snapshot); updateLocation(snapshot); returnButton.disabled = teleportPending || !previousAvailable; render(); }
+  updateLocation(initialSnapshot || {});
   render();
   return { update, destroy() { panel.remove(); css.remove(); } };
 }

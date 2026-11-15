@@ -15,7 +15,7 @@ const PLAYER_HEIGHT_METERS=1.78;
 const PLAYER_HALF_WIDTH_METERS=0.34;
 const WORLD_SCALE=3.75;
 let world,meshes=[],terrain=null,gridVisible=false,mode='place',busy=false,placingMachine=null,machineRotation=0,selectedSlot=1,selectedTool='wood_axe',camYaw=.78,camPitch=.55,camDistance=14.5;
-let devTimePanel=null,hubRoots=[],farmerModel=null,nearInteraction=null,interactionBusy=false,shopRevision=0,shopQuantity='1',activeCraftStation='t0';
+let devTimePanel=null,devTeleportVersion=0,hubRoots=[],farmerModel=null,nearInteraction=null,interactionBusy=false,shopRevision=0,shopQuantity='1',activeCraftStation='t0';
 const scene=new THREE.Scene();scene.background=new THREE.Color('#94c5e7');scene.fog=new THREE.Fog('#94c5e7',90,240);
 const worldRoot=new THREE.Group();worldRoot.scale.setScalar(WORLD_SCALE);scene.add(worldRoot);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.12,260);
@@ -477,12 +477,13 @@ function sendMovement(now){
  const length=Math.hypot(dx,dz),sx=length>1?dx/length:dx,sz=length>1?dz/length:dz;
  const dirX=sx*Math.cos(camYaw)-sz*Math.sin(camYaw),dirZ=-sx*Math.sin(camYaw)-sz*Math.cos(camYaw);
  if(Math.hypot(dirX,dirZ)>.05)humanoid.rotation.y=Math.atan2(-dirX,-dirZ);
- const jump=jumpQueued;jumpQueued=false;movementBusy=true;
+ const jump=jumpQueued;jumpQueued=false;movementBusy=true;const teleportVersion=devTeleportVersion;
  void api('/api/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({x:dirX,z:dirZ,jump})}).then(data=>{
+  if(teleportVersion!==devTeleportVersion)return;
   player.pos.set(data.player.x,data.player.y,data.player.z);player.grounded=data.player.grounded;humanoid.position.copy(player.pos);
   const stationState=(world?.machines||[]).filter(m=>['t1_bench','tool_bench','agriculture_bench','farming_bench','block_bench','basic_assembler','workbench','drill'].includes(m.type)).map(m=>m.type+':'+(Math.hypot(m.x+.5-player.pos.x,m.y+.6-(player.pos.y+1),m.z+.5-player.pos.z)<=4.5)).join('|');
   if(!$('craftPanel').hidden&&stationState!==lastCraftStationState){lastCraftStationState=stationState;updateCrafting();}
- }).catch(err=>{if(jump)jumpQueued=true;if(!movementBusy)return;notice('이동 동기화 실패: '+err.message);}).finally(()=>{movementBusy=false;});
+ }).catch(err=>{if(teleportVersion!==devTeleportVersion)return;if(jump)jumpQueued=true;if(!movementBusy)return;notice('이동 동기화 실패: '+err.message);}).finally(()=>{if(teleportVersion===devTeleportVersion)movementBusy=false;});
 }
 const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
 const MINING_DURATION_MS=1200;
@@ -795,6 +796,18 @@ function loop(now){requestAnimationFrame(loop);const rawFrameMs=Math.max(0,now-l
 }
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 $('grid').onclick=()=>{gridVisible=!gridVisible;$('grid').classList.toggle('selected',gridVisible);$('grid').setAttribute('aria-pressed',String(gridVisible));if(outlines)outlines.visible=gridVisible;if(world?.worldGenVersion)setChunkOutlines(gridVisible);};
-async function init(){try{world=await api('/api/world');if(world.devtoolsEnabled===true){try{const devtools=await import('/devtools/time-control.js');devTimePanel=devtools.mountDevPanel(world);}catch(error){console.warn('Optional developer panel unavailable:',error);}}if(world.player){player.pos.set(world.player.x,world.player.y,world.player.z);player.grounded=world.player.grounded;humanoid.position.copy(player.pos);}selectedSlot=Number.isInteger(world.inventory.selectedSlot)?world.inventory.selectedSlot:1;selectedTool=world.inventory.quickSlots[selectedSlot]||world.inventory.quickSlots.find(Boolean)||'wood_axe';equipHeldTool(selectedTool);rebuild();rebuildMachines();rebuildResources();inventory();updateCrafting();updateInteractionUi();if(!world.worldGenVersion||streamedTerrain.has(terrainChunkKey(chunkCoord(player.pos.x),chunkCoord(player.pos.z))))$('loading').hidden=true;notice(world.worldKind==='shopHub'?'농부에게 다가가 E 또는 상호작용 버튼을 눌러.':'밀·나무·돌을 도구로 수확하고 T1 제작대를 사용해봐.');}catch(e){$('loading').textContent='서버 연결 실패: '+e.message+' · node server.mjs로 실행해야 해.';}}
+function applyDeveloperTeleport(next){
+ if(!next?.player||!world?.devtoolsEnabled)return;
+ devTeleportVersion++;const previousWorld=world;world=next;
+ player.pos.set(next.player.x,next.player.y,next.player.z);player.grounded=next.player.grounded===true;humanoid.position.copy(player.pos);
+ keys.clear();touchMove.set(0,0);$('knob').style.transform='translate(0,0)';jumpQueued=false;movementBusy=false;lastMovementAt=performance.now();
+ $('loading').hidden=false;$('loading').textContent='새 좌표의 청크를 불러오는 중…';
+ if(next.worldGenVersion){
+  rebuild();
+  if(streamedTerrain.has(terrainChunkKey(chunkCoord(player.pos.x),chunkCoord(player.pos.z))))$('loading').hidden=true;
+ }else{$('loading').hidden=true;if(previousWorld.worldId!==next.worldId||previousWorld.worldInstanceId!==next.worldInstanceId)rebuild();}
+ rebuildResources();updateInteractionUi();devTimePanel?.update(next);
+}
+async function init(){try{world=await api('/api/world');if(world.devtoolsEnabled===true){try{const devtools=await import('/devtools/time-control.js');devTimePanel=devtools.mountDevPanel(world);window.addEventListener('terra-dev-teleport',event=>applyDeveloperTeleport(event.detail));}catch(error){console.warn('Optional developer panel unavailable:',error);}}if(world.player){player.pos.set(world.player.x,world.player.y,world.player.z);player.grounded=world.player.grounded;humanoid.position.copy(player.pos);}selectedSlot=Number.isInteger(world.inventory.selectedSlot)?world.inventory.selectedSlot:1;selectedTool=world.inventory.quickSlots[selectedSlot]||world.inventory.quickSlots.find(Boolean)||'wood_axe';equipHeldTool(selectedTool);rebuild();rebuildMachines();rebuildResources();inventory();updateCrafting();updateInteractionUi();if(!world.worldGenVersion||streamedTerrain.has(terrainChunkKey(chunkCoord(player.pos.x),chunkCoord(player.pos.z))))$('loading').hidden=true;notice(world.worldKind==='shopHub'?'농부에게 다가가 E 또는 상호작용 버튼을 눌러.':'밀·나무·돌을 도구로 수확하고 T1 제작대를 사용해봐.');}catch(e){$('loading').textContent='서버 연결 실패: '+e.message+' · node server.mjs로 실행해야 해.';}}
 requestAnimationFrame(loop);init();
-setInterval(()=>{if(!world||busy)return;void api('/api/world').then(next=>{const changed=(next.crops||[]).some((c,i)=>c.stage!==world.crops?.[i]?.stage)||(next.trees||[]).some((t,i)=>t.stage!==world.trees?.[i]?.stage)||JSON.stringify(next.watered)!==JSON.stringify(world.watered);world=next;devTimePanel?.update(next);syncWorldDrops();updateInteractionUi();if(changed){rebuildResources();inventory();}}).catch(()=>{});},500);
+setInterval(()=>{if(!world||busy)return;const teleportVersion=devTeleportVersion;void api('/api/world').then(next=>{if(teleportVersion!==devTeleportVersion)return;const changed=(next.crops||[]).some((c,i)=>c.stage!==world.crops?.[i]?.stage)||(next.trees||[]).some((t,i)=>t.stage!==world.trees?.[i]?.stage)||JSON.stringify(next.watered)!==JSON.stringify(world.watered);world=next;devTimePanel?.update(next);syncWorldDrops();updateInteractionUi();if(changed){rebuildResources();inventory();}}).catch(()=>{});},500);

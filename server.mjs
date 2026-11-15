@@ -9,7 +9,7 @@ import { advanceItemLogistics, normalizeDrops } from './src/item-logistics.mjs';
 import { WORLD_GEN_VERSION, WORLD_MIN_Y, WORLD_MAX_Y, blockAt } from './src/chunk-world.mjs';
 import { mineralDrop, mineralTier, pickaxeTier, canMineMineral, mineralCore, isCoreDrop } from './src/mineral-world.mjs';
 import { normalizeResourceInventory, RESOURCE_KEYS, WOOD_LOG_KEYS, SAPLING_KEYS, TREE_LOGS, TREE_SAPLINGS, MINERAL_ITEMS } from './src/resource-catalog.mjs';
-import { generateTreesForChunk, treeDimensions } from './src/tree-world.mjs';
+import { biomeAt, generateTreesForChunk, treeDimensions } from './src/tree-world.mjs';
 import { heightAt } from './src/chunk-world.mjs';
 import { COAL_BLOCK_RECIPE } from './src/recipe-settings.mjs';
 
@@ -19,10 +19,19 @@ const PORT=Number(process.env.PORT || 3000);
 const HOST=process.env.HOST || '127.0.0.1';
 const SECRET=process.env.TERRA_SESSION_SECRET || '';
 if(SECRET.length<32) { console.error('Set TERRA_SESSION_SECRET (at least 32 characters).'); process.exit(1); }
-let devClockModule=null;
+let devClockModule=null,devTeleportService=null;
 if(process.env.NODE_ENV==='development'){
- try{await access(join(ROOT,'devtools','index.mjs'));devClockModule=await import('./devtools/index.mjs');if(typeof devClockModule.createTimeControl!=='function')devClockModule=null;}
- catch{devClockModule=null;}
+ try{
+  await access(join(ROOT,'devtools','index.mjs'));
+  devClockModule=await import('./devtools/index.mjs');
+  if(typeof devClockModule.createTimeControl!=='function'||typeof devClockModule.createTeleportService!=='function')devClockModule=null;
+  if(devClockModule)devTeleportService=devClockModule.createTeleportService({
+   worldMinY:WORLD_MIN_Y,worldMaxY:WORLD_MAX_Y,surfaceAt,biomeAt,
+   isSolidForPlayer:solidForBody,
+   hasGroundSupport:(world,x,y,z)=>!!block(world,Math.floor(x),Math.floor(y-.025),Math.floor(z)),
+   isLiquidAt:(world,x,y,z)=>{const cells=world?.fluidCells||world?.fluid?.cells||null;const value=cells?.[key(Math.floor(x),Math.floor(y),Math.floor(z))];return Number(value?.level??value)>0;}
+  });
+ }catch{devClockModule=null;devTeleportService=null;}
 }
 let developerMultiplier=1,devtimeQueue=Promise.resolve();
 const devtoolsEnabled=!!devClockModule;
@@ -257,7 +266,7 @@ function stepPlayer(session,input){
 function publicWorld(session,id,req){
  const w=session.world,hub=w.location.worldId==='shop-hub';
  const result=hub?{schema:w.schema,worldVersion:w.worldVersion,islandSize:SHOP_HUB_LAYOUT.size.x,revision:w.revision,coins:w.coins,inventory:w.inventory,edits:{},machines:[],trees:[],harvestedTrees:[],tilled:[],crops:[],watered:{},waterSources:[],harvestedCrops:[],oreNodes:[],player:{...session.player},worldId:SHOP_HUB_WORLD_ID,worldInstanceId:w.location.hubInstanceId,worldKind:'shopHub',hub:createShopHubInstance(id)}:{...w,worldId:'personal-island',worldInstanceId:w.location.personalInstanceId,worldKind:'personal',personalPortal:PERSONAL_ISLAND_PORTAL,player:{...session.player}};
- if(devtoolsEnabled&&localAddress(req)){const snapshot=session.gameClock.snapshot();result.devtoolsEnabled=true;result.gameClock={...snapshot,gameMinutes:snapshot.gameTimeMinutes};}
+ if(devtoolsEnabled&&localAddress(req)){const snapshot=session.gameClock.snapshot();result.devtoolsEnabled=true;result.gameClock={...snapshot,gameMinutes:snapshot.gameTimeMinutes};result.biome=w.worldGenVersion&&w.location.worldId!=='shop-hub'?biomeAt(w.worldSeed,Math.floor(session.player.x),Math.floor(session.player.z)):null;result.devTeleport={previousAvailable:devTeleportService?.hasPrevious(session)===true,waterSafety:'not-modeled'};}
  return result;
 }
 function near(session,target,radius){const p=session.player;return Math.hypot(target.x+.5-p.x,target.y-(p.y+1),target.z+.5-p.z)<=radius;}
@@ -275,9 +284,10 @@ async function handler(req,res){
  if(!['GET','POST'].includes(req.method)){error(res,405,'Method not allowed');return;}
  const path=requestPath;
  const devTimePath=path==='/api/dev/time';
- if(devTimePath&&(!devtoolsEnabled||!localAddress(req))){error(res,404,'Not found');return;}
+ const devTeleportPath=path==='/api/dev/teleport',devTeleportReturnPath=path==='/api/dev/teleport/return';
+ if((devTimePath||devTeleportPath||devTeleportReturnPath)&&(!devtoolsEnabled||!devTeleportService||!localAddress(req))){error(res,404,'Not found');return;}
  const hubPaths=['/api/world/transition','/api/shop/open','/api/shop/trade','/api/inventory/drop','/api/npc/attack','/api/items/pickup'];
- if(path!=='/api/world'&&path!=='/api/action'&&path!=='/api/mine'&&path!=='/api/move'&&path!=='/api/harvest'&&path!=='/api/farm'&&path!=='/api/slot'&&path!=='/api/craft'&&path!=='/api/machine/place'&&!hubPaths.includes(path)&&!devTimePath){error(res,404,'Not found');return;}
+ if(path!=='/api/world'&&path!=='/api/action'&&path!=='/api/mine'&&path!=='/api/move'&&path!=='/api/harvest'&&path!=='/api/farm'&&path!=='/api/slot'&&path!=='/api/craft'&&path!=='/api/machine/place'&&!hubPaths.includes(path)&&!devTimePath&&!devTeleportPath&&!devTeleportReturnPath){error(res,404,'Not found');return;}
  // Cross-origin browser actions should not mutate a player's island.
  const origin=req.headers.origin;if(origin&&origin!== 'http://'+req.headers.host && origin!=='https://'+req.headers.host){error(res,403,'Origin denied');return;}
  const who=identity(req);
@@ -300,6 +310,33 @@ async function handler(req,res){
    const snapshot=session.gameClock.snapshot();return {gameClock:{...snapshot,gameMinutes:snapshot.gameTimeMinutes}};
   });devtimeQueue=job.then(()=>undefined,()=>undefined);
   try{send(res,200,await job);}catch(err){console.error('Developer clock update failed:',err);error(res,500,'Unable to update developer clock');}return;
+ }
+ if(devTeleportPath||devTeleportReturnPath){
+  if(req.method!=='POST'){error(res,405,'Method not allowed');return;}
+  const body=devTeleportPath?await jsonBody(req):{};
+  const job=session.queue.catch(()=>{}).then(async()=>{
+   const world=session.world,previousPlayer=session.player,previousSaved=world.player;
+   const outcome=devTeleportPath?devTeleportService.resolve(world,previousPlayer,body):devTeleportService.returnToPrevious(session,world,previousPlayer);
+   if(!outcome.ok){
+    const reason=outcome.reason||'순간이동을 완료하지 못했습니다.';
+    console.info(JSON.stringify({event:'dev-teleport',worldSeed:world.worldSeed??null,worldGenVersion:world.worldGenVersion??null,from:{x:previousPlayer.x,y:previousPlayer.y,z:previousPlayer.z},requested:{x:body.x,y:body.y,z:body.z,autoY:body.autoY===true},biome:world.worldGenVersion?biomeAt(world.worldSeed,Math.floor(previousPlayer.x),Math.floor(previousPlayer.z)):null,success:false,reason}));
+    return {status:outcome.status||400,data:{error:reason,code:outcome.code||'teleport-failed',world:publicWorld(session,who.id,req),waterSafety:'not-modeled'}};
+   }
+   const now=Date.now(),nextPlayer={...outcome.player,vy:0,lastAt:now};
+   session.player=nextPlayer;
+   world.player={x:nextPlayer.x,y:nextPlayer.y,z:nextPlayer.z,grounded:nextPlayer.grounded===true};
+   session.mining=null;session.harvesting=null;
+   try{await save(who.id,world);session.lastPlayerSaveAt=now;}
+   catch(err){session.player=previousPlayer;world.player=previousSaved;throw err;}
+   if(devTeleportPath)devTeleportService.rememberPrevious(session,world,outcome.origin);
+   else devTeleportService.clearPrevious(session);
+   const data={world:publicWorld(session,who.id,req),player:{x:nextPlayer.x,y:nextPlayer.y,z:nextPlayer.z,grounded:nextPlayer.grounded},previousPosition:devTeleportPath?outcome.previousPosition:null,biome:outcome.biome,waterSafety:outcome.waterSafety};
+   console.info(JSON.stringify({event:'dev-teleport',worldSeed:world.worldSeed??null,worldGenVersion:world.worldGenVersion??null,from:{x:previousPlayer.x,y:previousPlayer.y,z:previousPlayer.z},to:{x:nextPlayer.x,y:nextPlayer.y,z:nextPlayer.z},biome:outcome.biome,success:true,operation:devTeleportPath?'teleport':'return'}));
+   return {status:200,data};
+  });
+  session.queue=job;
+  try{const result=await job;send(res,result.status,result.data);}catch(err){console.error('Developer teleport failed:',err);error(res,500,'Unable to save teleport position');}
+  return;
  }
  if(path==='/api/world/transition'&&req.method==='POST'){
   const body=await jsonBody(req),destination=body?.destination;

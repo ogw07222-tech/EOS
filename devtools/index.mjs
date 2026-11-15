@@ -3,3 +3,4 @@ export {
   DEV_TIME_MULTIPLIERS,
   createTimeControl,
 } from './time-control-server.mjs';
+export { createTeleportService } from './teleport-server.mjs';

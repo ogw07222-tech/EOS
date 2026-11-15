@@ -1,0 +1,9 @@
+Date: 2026-11-15 Asia/Seoul
+Device: Samsung SM-X820, Android 16
+ADB: 127.0.0.1:45027 (authorized, connected)
+ECLIPSE virtual display: ID 16, 1280x720, VIRTUAL, owner dev.eclipse.vdisplay (uid 10303), removeMode 1
+Isolation: FLAG_OWN_CONTENT_ONLY; mWindowManagerMirroring=false; mDisplayIdToMirror=0
+TERRA Activity: dev.terra.vdtest/.BrowserActivity, mDisplayId=16; absent from Display 0 activity list
+WebGL: true, one canvas at 1280x720
+Test input: taps explicitly used adb input -d 16; current-run touch records are in touches-current-run.csv
+Capture: ECLIPSE HostService snapshot Surface via run-as dev.eclipse.vdisplay; no screencap

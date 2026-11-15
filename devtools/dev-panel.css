@@ -27,10 +27,28 @@
 .terra-dev-body p { margin:7px 1px 0; color:#c2d6dc; font-size:11px; }
 .terra-dev-body b { color:#f0d88b; font-variant-numeric:tabular-nums; }
 .terra-dev-status { min-height:14px; color:#dfc787 !important; font-size:10px !important; }
+.terra-dev-teleport { margin-top:11px; padding-top:9px; border-top:1px solid #557c7d88; }
+.terra-dev-teleport h2 { margin:0 0 7px; color:#8ce0b9; font-size:12px; letter-spacing:.02em; }
+.terra-dev-coordinates { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; }
+.terra-dev-coordinates label { display:grid; gap:3px; color:#c2d6dc; font-size:10px; }
+.terra-dev-coordinates input { box-sizing:border-box; width:100%; min-width:0; min-height:36px; padding:5px 6px; color:#f4faf8; background:#0c202b; border:1px solid #557c7d; border-radius:7px; font:12px/1.2 system-ui,-apple-system,"Noto Sans KR",sans-serif; font-variant-numeric:tabular-nums; }
+.terra-dev-coordinates input:disabled { opacity:.55; }
+.terra-dev-check { display:flex; align-items:center; gap:7px; min-height:34px; color:#c2d6dc; font-size:10px; touch-action:manipulation; }
+.terra-dev-check input { width:18px; height:18px; margin:0; accent-color:#8ce0b9; }
+.terra-dev-risk { color:#f0d88b; }
+.terra-dev-water-status { margin:0 1px 3px !important; color:#dfc787 !important; font-size:10px !important; }
+.terra-dev-actions { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:4px; }
+.terra-dev-actions button { min-height:40px; padding:6px 8px; font-size:11px; font-weight:700; }
+.terra-dev-actions button:disabled,.terra-dev-location button:disabled { opacity:.55; }
+.terra-dev-location { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:8px; color:#c2d6dc; font-size:10px; }
+.terra-dev-location b { display:block; margin-top:2px; color:#f0d88b; font-size:10px; font-variant-numeric:tabular-nums; }
+.terra-dev-location button { min-width:52px; min-height:36px; padding:5px 9px; }
+.terra-dev-biome { margin-top:5px !important; }
+.terra-dev-tp-status { min-height:14px; color:#dfc787 !important; font-size:10px !important; overflow-wrap:anywhere; }
 .terra-dev-time-panel.is-collapsed { width:min(190px,calc(100vw - 24px)); }
 .terra-dev-time-panel.is-collapsed .terra-dev-body { display:none; }
 @media (max-width:620px) {
-  .terra-dev-time-panel { top:max(145px,calc(env(safe-area-inset-top) + 138px)); right:8px; width:min(252px,calc(100vw - 16px)); }
+  .terra-dev-time-panel { top:max(145px,calc(env(safe-area-inset-top) + 138px)); right:8px; width:min(280px,calc(100vw - 16px)); max-height:calc(100dvh - max(145px,calc(env(safe-area-inset-top) + 138px)) - 10px); overflow-y:auto; overscroll-behavior:contain; }
   .terra-dev-body { padding-bottom:8px; }
   .terra-dev-rates { gap:3px; }
   .terra-dev-rates button { min-height:38px; }
