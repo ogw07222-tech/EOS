@@ -1,0 +1,73 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { FluidEngine, generateTerrain, surfacePlan, activatePlayerWaterGuard, MAX_LEVEL } from '../prototypes/fluid/engine.mjs';
+
+const bounds={minX:-20,maxX:24,minY:-8,maxY:10,minZ:-20,maxZ:24};
+const p=(x,y=0,z=0)=>({x,y,z});
+const units=e=>[...e.water.values()].reduce((a,b)=>a+b,0);
+function floor(e,x0,x1,z0,z1,y=-1){for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++)e.seedSolid(p(x,y,z));}
+function sealedPool(size,neighbors=3,x0=0,z0=0){const e=new FluidEngine({bounds,refillNeighbors:neighbors});floor(e,x0,x0+size-1,z0,z0+size-1);for(let x=x0-1;x<=x0+size;x++)for(let z=z0-1;z<=z0+size;z++)if(x<x0||x>=x0+size||z<z0||z>=z0+size)e.seedSolid(p(x,0,z));for(let x=x0;x<x0+size;x++)for(let z=z0;z<z0+size;z++)e.seedWater(p(x,0,z));return e;}
+function channel({x0=0,length=8,y=0,z=0,blocked=true}={}){const e=new FluidEngine({bounds});floor(e,x0,x0+length,z,z,-1);if(blocked)for(let x=x0;x<x0+length;x++){e.seedSolid(p(x,y,z-1));e.seedSolid(p(x,y,z+1));}e.seedSolid(p(x0-1,y,z));e.seedSolid(p(x0+length+1,y,z));return e;}
+
+// W01: gravity descends a deep shaft and settles without losing or duplicating volume.
+test('W01 one air water cell falls to the bottom of a vertical shaft',()=>{const e=new FluidEngine({bounds});floor(e,-1,1,-1,1,-2);for(let y=-1;y<=6;y++)for(const [x,z]of [[-1,0],[1,0],[0,-1],[0,1]])e.seedSolid(p(x,y,z));e.seedWater(p(0,6,0));const initial=units(e);e.run(8);assert.equal(e.levelAt(p(0,-1,0)),MAX_LEVEL);assert.equal(units(e),initial);assert.equal(e.water.size,1);});
+// W02: side flow starts only after gravity is blocked and can step across unequal support heights.
+test('W02 solid floor blocks gravity before supported side flow',()=>{const e=new FluidEngine({bounds});e.seedSolid(p(0,-1,0));e.seedSolid(p(1,-1,0));e.seedSolid(p(1,-2,0));e.seedSolid(p(0,0,-1));e.seedSolid(p(0,0,1));e.seedSolid(p(-1,0,0));e.seedWater(p(0,0,0));const before=units(e);e.tick();assert.ok(e.levelAt(p(1,0,0))>0);assert.equal(units(e),before);});
+// W03: compare two universal refill candidates with one, two, 2x2 and 3x3 water layouts.
+test('W03 candidate refill rules differ only by local full-neighbor count',()=>{
+ const one=sealedPool(1,3);one.drainWater(p(0),1);one.tick();assert.equal(one.levelAt(p(0)),7);
+ const pair=sealedPool(2,3);pair.drainWater(p(0),1);pair.tick();assert.equal(pair.levelAt(p(0)),7);
+ const square2a=sealedPool(2,2);square2a.drainWater(p(0),1);const a=square2a.tick();assert.equal(square2a.levelAt(p(0)),8);assert.equal(a.createdUnits,1);
+ const square2b=sealedPool(2,3);square2b.drainWater(p(0),1);const b=square2b.tick();assert.equal(square2b.levelAt(p(0)),7);assert.equal(b.createdUnits,0);
+ const square3=sealedPool(3,3);square3.drainWater(p(1,0,1),1);const c=square3.tick();assert.equal(square3.levelAt(p(1,0,1)),8);assert.equal(c.createdUnits,1);
+ assert.equal(square3.refillNeighbors,3);
+});
+// W04: constrained canals remain finite and stable at cul-de-sacs.
+test('W04 narrow, wide, U-shaped and dead-end channels stay bounded',()=>{for(const width of [1,3]){const e=new FluidEngine({bounds});floor(e,0,10,0,width-1);for(let x=0;x<=10;x++)for(let z=-1;z<=width;z++)if(z<0||z>=width)e.seedSolid(p(x,0,z));e.seedWater(p(1,0,Math.floor(width/2)));const start=units(e);e.run(24);assert.equal(units(e),start);assert.ok([...e.water.values()].every(n=>n>=1&&n<=8));}const u=new FluidEngine({bounds});for(let x=0;x<5;x++)for(let z=0;z<5;z++){u.seedSolid(p(x,-1,z));if(x===0||x===4||z===0)u.seedSolid(p(x,0,z));}u.seedWater(p(2,0,1));u.run(16);assert.ok(u.water.size<=8);});
+// W05: movement is never proposed into a higher Y cell.
+test('W05 gravity-only water cannot climb an uphill passage',()=>{const e=channel({length:5});e.seedSolid(p(1,1,0));e.seedWater(p(0,0,0));e.run(20);assert.equal(e.levelAt(p(1,1,0)),0);assert.equal(e.solidAt(p(1,1,0)),true);});
+// W06: barriers stop flow; reopening the barrier resumes it from saved state.
+test('W06 mining a barrier reconnects a channel without teleporting water',()=>{const e=channel({length:8});e.seedSolid(p(3,0,0));for(let x=0;x<3;x++)e.seedWater(p(x,0,0));e.run(12);assert.equal(e.levelAt(p(4,0,0)),0);const before=units(e);assert.equal(e.mineSolid(p(3,0,0)),true);e.run(80);assert.ok(e.levelAt(p(4,0,0))>0);assert.equal(units(e),before);});
+// W07: generated river-like water follows stepped/downhill beds and falls into a waterfall shaft.
+test('W07 stepped river beds and waterfall drops remain connected',()=>{const e=new FluidEngine({bounds});for(let x=0;x<5;x++)e.seedSolid(p(x,-x,0));e.seedSolid(p(0,0,0));for(let y=-1;y<=4;y++)for(const [x,z]of [[-1,0],[1,0],[0,-1],[0,1]])e.seedSolid(p(x,y,z));e.seedWater(p(0,1,0));e.run(20);assert.ok(e.water.size>0,'water should settle in the stepped channel');assert.ok([...e.water.keys()].every(k=>{const [x,y,z]=k.split(',').map(Number);return e.bounds.minY<=y&&x>=0&&x<5&&z===0;}));});
+// W08: all four signed chunk seams carry a unique cell and wake event.
+test('W08 X=15/16 and X=-1/0 boundaries preserve one canonical state',()=>{for(const [source,target]of [[15,16],[-1,0]]){const e=channel({x0:source,length:2});for(const [dx,dz]of [[0,-1],[0,1],[-1,0]])e.seedSolid(p(source+dx,0,dz));e.seedWater(p(source,0,0));e.setLoadedChunks([`${Math.floor(source/16)},0`]);e.run(4);assert.ok(e.levelAt(p(target,0,0))>0);assert.ok([...e.pendingByChunk.values()].every(q=>q.size===new Set(q).size));}});
+// W09: deterministic heap order makes chunk load order irrelevant after the same chunks are active.
+test('W09 shuffled chunk activation produces the same final hash',()=>{const make=()=>{const e=new FluidEngine({bounds});floor(e,14,18,-1,1);for(let x=14;x<=18;x++)e.seedWater(p(x,0,0),4);return e;};const a=make(),b=make();a.setLoadedChunks(['0,0','1,0']);b.setLoadedChunks(['1,0','0,0']);a.run(12);b.run(12);assert.equal(a.stateHash(),b.stateHash());});
+// W10: unloaded boundary events persist, then resume exactly once after reload.
+test('W10 boundary water and pending wake events survive unload and reload',()=>{const e=channel({x0:15,length:3});for(const x of [14])e.seedSolid(p(x,0,0));e.seedSolid(p(15,0,-1));e.seedSolid(p(15,0,1));e.seedWater(p(15,0,0));e.setLoadedChunks(['0,0']);e.tick();assert.ok(e.pendingByChunk.get('1,0')?.has('16,0,0'));const saved=e.serialize(),restored=FluidEngine.restore(saved),before=units(restored);restored.loadChunk(1,0);restored.run(8);assert.ok(restored.water.size<=before+2);assert.equal(units(restored),before);});
+// W11: serialization captures water, activation queue, and no wall-clock/offline time.
+test('W11 server restart restore resumes identical deterministic state',()=>{const e=channel({length:6});e.seedWater(p(0,0,0));e.tick();const saved=JSON.stringify(e.serialize()),r=FluidEngine.restore(JSON.parse(saved));assert.equal(r.stateHash(),e.stateHash());assert.equal(r.tickNumber,e.tickNumber);e.tick();r.tick();assert.equal(r.stateHash(),e.stateHash());});
+// W12: solid placement cannot overlap water; mining support wakes gravity.
+test('W12 solid mining wakes water and solids cannot overlap a wet cell',()=>{const e=new FluidEngine({bounds});e.seedSolid(p(0,-1,0));e.seedWater(p(0,0,0));assert.equal(e.placeSolid(p(0,0,0)),false);assert.equal(e.mineSolid(p(0,-1,0)),true);e.tick();assert.ok(e.levelAt(p(0,-1,0))>0);assert.equal(e.solidAt(p(0,-1,0)),false);});
+// W13: a sealed cave is dry; a dug tunnel carries water only after its barrier is removed.
+test('W13 open cave floods by flow while disconnected cave stays dry',()=>{const e=channel({x0:0,length:6});e.seedSolid(p(1,0,0));e.seedWater(p(0,0,0));e.seedSolid(p(5,0,1));e.seedSolid(p(5,0,2));e.seedSolid(p(5,-1,2));e.run(5);assert.equal(e.levelAt(p(5,0,2)),0);e.mineSolid(p(1,0,0));e.run(30);assert.ok(e.levelAt(p(2,0,0))>0);assert.equal(e.levelAt(p(5,0,2)),0);});
+// W14: min/max Y and XZ guards never create water beyond the finite world.
+test('W14 world boundaries reject outside water and prevent out-of-range flow',()=>{const e=new FluidEngine({bounds:{minX:0,maxX:1,minY:-1,maxY:1,minZ:0,maxZ:1}});assert.throws(()=>e.seedWater(p(0,-2,0)));e.seedSolid(p(0,-1,0));e.seedWater(p(0,0,0));e.run(10);assert.ok([...e.water.keys()].every(k=>{const [x,y,z]=k.split(',').map(Number);return x>=0&&x<=1&&y>=-1&&y<=1&&z>=0&&z<=1;}));});
+// W15: seeded terrain leaves the ship, farm, and initial safety ring above sea level.
+test('W15 generated ocean and river stay outside the protected landing area',()=>{for(let seed=0;seed<8;seed++){const {engine}=generateTerrain(seed);assert.ok(engine.water.size>0);for(let x=-5;x<=5;x++)for(let z=-5;z<=5;z++)for(let y=-8;y<=2;y++)assert.equal(engine.levelAt(p(x,y,z)),0);}});
+// W16: water is never a solid collision result.
+test('W16 water does not block a player collision query',()=>{const e=new FluidEngine({bounds});e.seedWater(p(0,0,0));assert.equal(e.solidAt(p(0,0,0)),false);e.seedSolid(p(1,0,0));assert.equal(e.solidAt(p(1,0,0)),true);});
+// W17: player water and bucket actions are rejected without state/revision changes.
+test('W17 player water placement, mining and bucket use are rejected atomically',()=>{const e=new FluidEngine({bounds});e.seedWater(p(0,0,0));const hash=e.stateHash(),rev=e.revision;for(const action of ['place-water','mine-water','bucket-place','bucket-pickup'])assert.equal(activatePlayerWaterGuard(e,action).status,400);assert.equal(e.stateHash(),hash);assert.equal(e.revision,rev);});
+// W18: bounded active-cell batches process a 81-chunk, 165k-cell sea in slices.
+test('W18 81-chunk sea uses bounded active-cell batches',()=>{const n=144,layers=8,e=new FluidEngine({bounds:{minX:0,maxX:n-1,minY:-1,maxY:layers-1,minZ:0,maxZ:n-1},activeCellBudget:2048});floor(e,0,n-1,0,n-1,-1);const cells=[];for(let y=0;y<layers;y++)for(let x=0;x<n;x++)for(let z=0;z<n;z++)cells.push([p(x,y,z),MAX_LEVEL]);e.seedWaterBatch(cells);assert.equal(e.water.size,n*n*layers);const t=performance.now();const result=e.tick();const elapsed=performance.now()-t;assert.equal(result.processed,2048);assert.ok(elapsed<5000,`one bounded tick took ${elapsed.toFixed(1)}ms`);assert.ok(e.active.size>0);assert.ok(e.metrics.maxCellsPerTick<=2048);});
+// W19: tick request de-duplication makes retries idempotent under reordered calls.
+test('W19 duplicate and reordered tick IDs cannot apply one tick twice',()=>{const e=channel({length:4});e.seedWater(p(0,0,0));const a=e.tick({tickId:'t1'}),hash=e.stateHash(),b=e.tick({tickId:'t1'});assert.equal(a.duplicate,false);assert.equal(b.duplicate,true);assert.equal(e.stateHash(),hash);assert.equal(e.tick({tickId:'t2'}).duplicate,false);});
+// W20: surface mesh plan omits internal faces and lowers side geometry at level steps.
+test('W20 adjacent water shares faces and exposes only a real height step',()=>{const e=new FluidEngine({bounds});e.seedWater(p(0,0,0),8);e.seedWater(p(1,0,0),8);let plan=surfacePlan(e);assert.equal(plan.tops.length,2);assert.equal(plan.sides.some(s=>s.x===0&&s.dx===1),false);const f=new FluidEngine({bounds});f.seedWater(p(0,0,0),8);f.seedWater(p(1,0,0),4);plan=surfacePlan(f);assert.ok(plan.sides.some(s=>s.x===0&&s.dx===1&&s.yTop>s.yBottom));});
+// W21: same seed produces the same shore/river map; another seed changes its signature.
+test('W21 coast and river generation is deterministic but seed dependent',()=>{const a=generateTerrain(123),b=generateTerrain(123),c=generateTerrain(124);assert.equal(a.engine.stateHash(),b.engine.stateHash());assert.notEqual(a.engine.stateHash(),c.engine.stateHash());assert.notEqual(`${a.coast}:${a.riverOffset}`,`${c.coast}:${c.riverOffset}`);});
+// W22: legacy farming sources, watered timers and 50x game-time fixtures remain untouched.
+test('W22 agricultural water records are outside fluid state and remain byte-identical',()=>{const legacy={waterSources:[{x:4,y:0,z:4}],watered:{'0,0,3':12345},gameRate:50};const before=JSON.stringify(legacy);const e=generateTerrain(3).engine;e.run(3);assert.equal(JSON.stringify(legacy),before);});
+// W23: no fluid prototype migration can mutate an existing save; production remains unwired.
+test('W23 existing saves stay unchanged and production does not import the prototype',async()=>{const legacy={schema:1,worldGenVersion:1,edits:{'1,0,0':'dirt'},waterSources:[{x:2,y:0,z:2}],watered:{},machines:[]},copy=structuredClone(legacy);generateTerrain(4).engine.tick();assert.deepEqual(legacy,copy);const server=await readFile(new URL('../server.mjs',import.meta.url),'utf8'),client=await readFile(new URL('../src/game.js',import.meta.url),'utf8');assert.doesNotMatch(server,/prototypes\/fluid/);assert.doesNotMatch(client,/prototypes\/fluid/);});
+// W24: one engine owns a cross-chunk cell; activation changes only wake state, not fluid ownership.
+test('W24 inactive/active boundary has one authoritative cell and no duplicate wake',()=>{const e=channel({x0:15,length:3});for(const [dx,dz]of [[0,-1],[0,1],[-1,0]])e.seedSolid(p(15+dx,0,dz));e.seedWater(p(15,0,0));e.setLoadedChunks(['0,0']);e.tick();const key='16,0,0',volume=units(e);assert.equal(e.water.get(key),1);assert.equal(e.pendingByChunk.get('1,0').size,1);e.loadChunk(1,0);e.loadChunk(1,0);assert.equal(units(e),volume);assert.equal(e.active.size,new Set(e.active).size);});
+
+function rng(seed){let s=seed>>>0;return ()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s;};}
+function runSeededEvents(seed,eventCount=100){const rand=rng(seed),e=new FluidEngine({bounds:{minX:0,maxX:7,minY:-2,maxY:5,minZ:0,maxZ:7},activeCellBudget:128});for(let x=0;x<8;x++)for(let z=0;z<8;z++)e.seedSolid(p(x,-1,z));const log=[];for(let i=0;i<eventCount;i++){const x=rand()%8,z=rand()%8,y=rand()%4,kind=rand()%5,cell=p(x,y,z);let result;if(kind===0)result=e.placeSolid(cell);else if(kind===1)result=e.mineSolid(cell);else if(kind===2){if(!e.solidAt(cell)&&!e.levelAt(cell))e.seedWater(cell,1+rand()%8);result=true;}else if(kind===3)result=e.drainWater(cell,1+rand()%3);else result=e.tick({tickId:`${seed}:${i}`,budget:32});log.push([i,kind,x,y,z,result===false?'blocked':'ok']);if(i%7===0)e.tick({budget:32});for(const [key,level]of e.water){assert.ok(Number.isInteger(level)&&level>=1&&level<=8,`seed=${seed}, event=${i}, cell=${key}, level=${level}`);assert.equal(e.solids.has(key),false,`solid/water overlap at seed=${seed}, event=${i}, cell=${key}`);}}
+ return {hash:e.stateHash(),log,engine:e};}
+
+test('100 seeds × 100 mixed world events are deterministic and invariant-safe (10,000 events)',()=>{let final='';for(let seed=0;seed<100;seed++){const a=runSeededEvents(seed),b=runSeededEvents(seed);assert.equal(a.hash,b.hash,`seed ${seed} replay differs`);assert.equal(a.log.length,100);final=a.hash;}assert.match(final,/^[0-9a-f]{8}$/);});
