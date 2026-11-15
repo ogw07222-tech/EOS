@@ -12,7 +12,11 @@ test('one logical voxel is one metre and the avatar uses the same world scale',(
  assert.match(source,/const PLAYER_HEIGHT_METERS=1\.78;/);
  assert.match(source,/const PLAYER_HALF_WIDTH_METERS=0\.34;/);
  assert.doesNotMatch(source,/humanoid\.scale\.setScalar/);
- assert.match(source,/g\.position\.set\(x\+\.5,tree\.y\|\|0,z\+\.5\);g\.userData\.resourceId=id;g\.userData\.resourceTree=tree;treeGroups\.push\(g\);worldRoot\.add\(g\);resourceRoots\.push\(g\)/);
+ assert.match(source,/function makeTree\(tree\)\{const group=createTreeVisual\(THREE,tree,natureMaterials\);treeGroups\.push\(group\);worldRoot\.add\(group\);resourceRoots\.push\(group\);\}/);
+ const nature=readFileSync(new URL('../src/nature-visuals.js',import.meta.url),'utf8');
+ assert.match(nature,/groupAt\(THREE, tree\.x \+ 0\.5, tree\.y \|\| 0, tree\.z \+ 0\.5\)/);
+ assert.match(nature,/group\.userData\.resourceId = tree\.id/);
+ assert.match(nature,/group\.userData\.resourceTree = tree/);
 });
 test('selection resolves scaled world intersections back into unscaled grid coordinates',()=>{
  assert.match(source,/worldRoot\.worldToLocal\(hit\.point\.clone\(\)\)\.addScaledVector/);
@@ -25,7 +29,8 @@ test('selection resolves scaled world intersections back into unscaled grid coor
 });
 test('follow camera and projection use rendered coordinates and wider distances',()=>{
  assert.match(source,/const target=player\.pos\.clone\(\)\.add\(new THREE\.Vector3\(0,PLAYER_HEIGHT_METERS\*\.54,0\)\)\.multiplyScalar\(WORLD_SCALE\)/);
- assert.match(source,/camDistance=14\.5;/);
+ assert.match(source,/camDistance=9\.5;/);
+ assert.match(source,/camDistance\*WORLD_SCALE\*Math\.sin\(camYaw\)/);
  assert.match(source,/Math\.min\(38,Math\.max\(8,camDistance\+/);
  assert.match(source,/hit\.distance>75/);
  assert.match(source,/PerspectiveCamera\(65,innerWidth\/innerHeight,\.12,260\)/);

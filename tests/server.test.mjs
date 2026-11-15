@@ -126,3 +126,19 @@ test('private shop hub transitions preserve island state, guard protected action
   const portalBlock=await request(port,'/api/action',{method:'POST',headers,body:JSON.stringify({type:'place',x:-2,y:0,z:0,revision:response.body.world.revision})});assert.equal(portalBlock.status,400);assert.match(portalBlock.body.error,/portal area/i);
  }finally{await stop(proc);await rm(dir,{recursive:true,force:true});}
 });
+
+
+test('allowlisted render modules cover the complete client dependency graph',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'terra-render-assets-')),port=await randomPort();let proc;
+ try{
+  proc=await boot(port,dir);
+  for(const path of ['/src/game.js','/src/terrain-atlas.js','/src/greedy-chunk-mesh.js','/src/nature-visuals.js']){
+   const response=await fetch(`http://127.0.0.1:${port}${path}`);
+   assert.equal(response.status,200,`${path} must be available to browser ES modules`);
+   assert.match(response.headers.get('content-type')||'',/javascript/);
+   assert.ok((await response.text()).length>100);
+  }
+  const unknown=await fetch(`http://127.0.0.1:${port}/src/not-allowlisted.js`);
+  assert.equal(unknown.status,404,'new modules are added explicitly without exposing the source tree');
+ }finally{await stop(proc);await rm(dir,{recursive:true,force:true});}
+});
