@@ -1,11 +1,11 @@
 # TERRA / EOS — server-authoritative voxel survival prototype
 
-EOS is a browser based, single-player voxel survival and factory game. A Node.js server owns the world state, validates actions, and saves each guest island as JSON. The Three.js client renders the terrain, tools, resources, crops, machines, inventory, and eight-slot quickbar.
+EOS is a browser based, single-player voxel survival and factory game. A Node.js server owns the world state, validates actions, and saves each guest open world as JSON. The Three.js client renders the terrain, tools, resources, crops, machines, inventory, and eight-slot quickbar.
 
 ## Current game features
 
 - Third-person movement, jumping, camera orbit and zoom, touch joystick, and tablet controls.
-- Seeded chunk terrain, resource veins, trees, farming, crafting, a farmer shop, and a protected shop hub.
+- Continuous seeded open-world chunks, resource veins, trees, farming, crafting, a farmer shop, and a protected shop hub.
 - Server-validated mining and harvesting, block edits, machine placement, explicit item pickup, and persistent saves.
 - Shared low-poly 3D item models for held tools, world drops, and cached transparent quickbar thumbnails.
 - Legacy schema-1 guest saves are normalized during load, including old tool lists, resource aliases, node stocks, and sand edits.

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {
  CHUNK_SIZE,DEFAULT_CHUNK_RADIUS,MIN_CHUNK_RADIUS,MAX_CHUNK_RADIUS,LEGACY_WORLD_GEN_VERSION,WORLD_GEN_VERSION,WORLD_MIN_Y,WORLD_MAX_Y,HEIGHT_CACHE_MAX_ENTRIES,
- chunkCoord,localCoord,chunkKey,heightAt,blockAt,generateChunkColumns,planChunkWindow,isChunkJobCurrent
+ chunkCoord,localCoord,chunkKey,biomeAt,heightAt,blockAt,generateChunkColumns,planChunkWindow,isChunkJobCurrent
 } from '../src/chunk-world.mjs';
 
 const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -31,6 +31,13 @@ test('new world terrain is versioned, layered, and leaves legacy worlds ungenera
 
 test('safe landing plateau is exactly flat over its inclusive 12 by 12 footprint',()=>{
  for(let z=-6;z<=5;z++)for(let x=-6;x<=5;x++)assert.equal(heightAt('any-seed',x,z),0,`${x},${z}`);
+});
+
+test('surface heights normalize negative zero without changing the sampled beach level',()=>{
+ const seed=0,x=-296,z=-344;
+ assert.equal(biomeAt(seed,x,z,WORLD_GEN_VERSION),'beach');
+ assert.equal(heightAt(seed,x,z,WORLD_GEN_VERSION),0);
+ assert.equal(Object.is(heightAt(seed,x,z,WORLD_GEN_VERSION),-0),false);
 });
 
 test('seeded global noise is reproducible and independent of chunk generation order',()=>{

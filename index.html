@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>TERRA — My Island</title><link rel="icon" href="data:,">
+<title>TERRA — Open World</title><link rel="icon" href="data:,">
 <style>
 :root{font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;color-scheme:dark}
 *{box-sizing:border-box}body{margin:0;overflow:hidden;color:#e7f3fb;background:#101f2e}
@@ -64,7 +64,7 @@ button{border-color:#a9b79b66;background:linear-gradient(180deg,#34463c,#25382f)
 @media(max-width:620px){#top{left:8px;right:8px;top:max(8px,env(safe-area-inset-top))}#right{max-width:50vw}#resources{font-size:9px;max-width:48vw}#quickbar{gap:3px;padding:4px}.quickSlot{height:49px;min-height:49px}.quickSlot img{width:28px;height:28px}#knob{width:43px;height:43px}#jump{width:64px;height:64px}#grid{top:91px;right:8px}#inventoryButton{top:145px;min-height:44px}#craftPanel{top:calc(100% - 260px - env(safe-area-inset-bottom));right:8px;width:min(340px,calc(100vw - 16px));max-height:min(44vh,400px)}#farmSelectors{max-width:calc(100vw - 20px)}#shopPanel,#inventoryPanel{max-height:calc(100dvh - 24px);padding:13px}#inventoryItems{gap:6px}}
 </style></head><body>
 <div id="hud">
- <div id="top"><div class="panel"><h1>TERRA <span style="color:#93d7b2">/ MY ISLAND</span></h1><small>1인 전용 서버 기반 스카이랜드</small></div><div class="panel" id="right"><span id="revision">저장 상태 확인 중</span><div id="stats">10×10 시작 섬</div><div id="resources">목재 0 · 돌 0 · 밀 0 · 흙 —</div></div></div>
+ <div id="top"><div class="panel"><h1>TERRA <span style="color:#93d7b2">/ OPEN WORLD</span></h1><small>시드 기반 오픈월드 생존·제작</small></div><div class="panel" id="right"><span id="revision">저장 상태 확인 중</span><div id="stats">오픈월드 탐험 중</div><div id="resources">목재 0 · 돌 0 · 밀 0 · 흙 —</div></div></div>
  <div id="notice" role="status" aria-live="polite"></div>
  <div id="objective"><strong id="objectiveTitle">첫 목표</strong><small id="objectiveText">주변 나무를 길게 눌러 목재를 모아봐.</small></div>
  <div id="placementHint" hidden></div>
@@ -91,7 +91,7 @@ button{border-color:#a9b79b66;background:linear-gradient(180deg,#34463c,#25382f)
   <button class="quickSlot" data-slot="6" aria-label="슬롯 7"><small class="slotNum">7</small><img alt=""><small></small></button>
   <button class="quickSlot" data-slot="7" aria-label="슬롯 8"><small class="slotNum">8</small><img alt=""><small></small></button>
  </div>
- <div id="loading">나만의 섬을 불러오는 중…</div>
+ <div id="loading">오픈월드를 불러오는 중…</div>
 </div>
 <script type="module" src="/src/game.js"></script>
 </body></html>

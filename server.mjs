@@ -75,7 +75,7 @@ const inBounds=(x,y,z,world=null)=>Number.isInteger(x)&&Number.isInteger(y)&&Num
 const nativeBlock=(size,x,y,z)=>{const half=size/2;return x>=-half&&x<half&&z>=-half&&z<half&&y>=-3&&y<0?'dirt':null;};
 function block(world,x,y,z){const k=key(x,y,z);if(Object.hasOwn(world.edits,k))return world.edits[k];return world.worldGenVersion?blockAt(world,x,y,z):nativeBlock(world.islandSize||16,x,y,z);}
 function biomeForWorld(world,x,z){return world?.worldGenVersion===WORLD_GEN_VERSION?generatedBiomeAt(world.worldSeed,x,z,world.worldGenVersion):world?.worldGenVersion===LEGACY_WORLD_GEN_VERSION?legacyBiomeAt(world.worldSeed,x,z):null;}
-function personalPortalCell(x,y,z){return Math.abs(x-PERSONAL_ISLAND_PORTAL.x)<=1&&z===PERSONAL_ISLAND_PORTAL.z&&y>=0&&y<=2;}
+function personalPortalCell(world,x,y,z){const floor=surfaceAt(world,PERSONAL_ISLAND_PORTAL.x,PERSONAL_ISLAND_PORTAL.z);return Math.abs(x-PERSONAL_ISLAND_PORTAL.x)<=1&&z===PERSONAL_ISLAND_PORTAL.z&&y>=floor&&y<=floor+2;}
 const naturalTreeCache=new Map();
 const biomeSamplesCache=new Map();
 function surfaceAt(world,x,z){return world.worldGenVersion?heightAt(world.worldSeed,x,z,world.worldGenVersion):0;}
@@ -158,6 +158,7 @@ async function load(id){if(sessions.has(id))return sessions.get(id);
  let w,created=false;try{w=JSON.parse(await readFile(join(SAVE_DIR,id+'.json'),'utf8'));if(!validWorld(w))throw Error('Invalid save');}
  catch(e){if(e.code!=='ENOENT')throw e;w=fresh();created=true;}
  if(!Number.isSafeInteger(w.islandSize))w.islandSize=16;
+ const migrateOpenWorld=!created&&w.islandSize===10&&w.worldGenVersion===undefined;
  if(!Number.isSafeInteger(w.worldVersion))w.worldVersion=w.islandSize===10?2:1;
  if(!validPlayerPosition(w.player,w))w.player={x:.5,y:0,z:.5,grounded:true};
  w.inventory.wood=Number.isSafeInteger(w.inventory.wood)&&w.inventory.wood>=0?w.inventory.wood:0;
@@ -179,6 +180,7 @@ async function load(id){if(sessions.has(id))return sessions.get(id);
   w.trees=w.islandSize===16?legacyTrees:[];
  }
  if(!Array.isArray(w.harvestedTrees))w.harvestedTrees=[];
+ if(!Array.isArray(w.oreNodes))w.oreNodes=[];
  if(w.nodes&&typeof w.nodes==='object'&&!Array.isArray(w.nodes)){
   for(const [id,node]of Object.entries(LEGACY_NODE_DEFS)){
    const remaining=Number.isInteger(w.nodes[id])?Math.max(0,Math.min(node.capacity,w.nodes[id])):node.capacity;
@@ -208,15 +210,23 @@ async function load(id){if(sessions.has(id))return sessions.get(id);
  if(w.location.worldId==='shop-hub'&&(!w.location.hubInstanceId||typeof w.location.hubInstanceId!=='string'))w.location.hubInstanceId=createShopHubInstance(id).instanceId;
  if(w.location.worldId==='shop-hub'&&(!validPlayerPosition(w.location.hubPlayer)||Math.abs(w.location.hubPlayer.x)>SHOP_HUB_LAYOUT.size.x/2||Math.abs(w.location.hubPlayer.z)>SHOP_HUB_LAYOUT.size.z/2))w.location.hubPlayer={...SHOP_HUB_LAYOUT.spawn,grounded:true};
  for(const t of ['hoe','watering_can','scythe'])if(!Number.isSafeInteger(w.inventory.tools[t]))w.inventory.tools[t]=0;
+ if(migrateOpenWorld){
+  w.worldSeed=randomBytes(4).readUInt32BE(0);w.worldGenVersion=WORLD_GEN_VERSION;w.seaLevel=0;w.fluidRevision=0;w.fluidEdits={};w.fluidActive=[];w.fluidTickRate=5;
+  const ground=(x,z)=>heightAt(w.worldSeed,x,z,WORLD_GEN_VERSION);
+  for(const entity of [...w.machines,...w.trees,...w.oreNodes])entity.y=(Number.isFinite(entity.y)?entity.y:0)+ground(entity.x,entity.z);
+  w.tilled=w.tilled.map(([x,y,z])=>[x,(Number.isFinite(y)?y:0)+ground(x,z),z]);
+  for(const crop of w.crops)crop.y=(Number.isFinite(crop.y)?crop.y:0)+ground(crop.x,crop.z);
+  for(const source of w.waterSources)source.y=(Number.isFinite(source.y)?source.y:0)+ground(source.x,source.z);
+  w.player={...w.player,y:(Number.isFinite(w.player.y)?w.player.y:0)+ground(0,0)};
+ }
  if(!Array.isArray(w.inventory.quickSlots))w.inventory.quickSlots=[...starterSlots];while(w.inventory.quickSlots.length<8)w.inventory.quickSlots.push(null);
  const loadedAt=Date.now();for(const c of w.crops){c.cropType=cropTypeOf(c);if(!Number.isInteger(c.stage))c.stage=4;if(!Number.isFinite(c.progress))c.progress=0;c.lastTick=loadedAt;}
  for(const t of w.trees){if(!t.species)t.species='oak';if(!t.source)t.source='planted';if(!Number.isInteger(t.stage))t.stage=3;if(!Number.isFinite(t.progress))t.progress=0;t.lastTick=loadedAt;t.harvested=w.harvestedTrees.includes(t.id);}
- if(!Array.isArray(w.oreNodes))w.oreNodes=[];
  const sessionLoadedAt=Date.now();w.lastGameTick=sessionLoadedAt;for(const c of w.crops)c.lastTick=sessionLoadedAt;for(const t of w.trees)t.lastTick=sessionLoadedAt;
  const gameClock=devtoolsEnabled?devClockModule.createTimeControl({now:sessionLoadedAt}):null;
  if(gameClock&&developerMultiplier!==1)gameClock.setMultiplier(developerMultiplier,sessionLoadedAt);
  const activePlayer=w.location.worldId==='shop-hub'?w.location.hubPlayer:w.player;
- const session={world:w,queue:Promise.resolve(),mining:null,harvesting:null,gameClock,player:{...activePlayer,vy:0,grounded:activePlayer.grounded===true,lastAt:sessionLoadedAt},lastPlayerSaveAt:sessionLoadedAt,lastLogisticsAt:sessionLoadedAt,lastFluidTickAt:sessionLoadedAt,fluidTickRemainder:0};if(created)await save(id,w);sessions.set(id,session);return session;
+ const session={world:w,queue:Promise.resolve(),mining:null,harvesting:null,gameClock,player:{...activePlayer,vy:0,grounded:activePlayer.grounded===true,lastAt:sessionLoadedAt},lastPlayerSaveAt:sessionLoadedAt,lastLogisticsAt:sessionLoadedAt,lastFluidTickAt:sessionLoadedAt,fluidTickRemainder:0};if(created||migrateOpenWorld)await save(id,w);sessions.set(id,session);return session;
 }
 function advanceSessionTime(session,now=Date.now(),multiplierOverride){
  const multiplier=multiplierOverride??(devtoolsEnabled?(session.gameClock?.snapshot().multiplier||developerMultiplier):1);
@@ -230,7 +240,7 @@ async function jsonBody(req){let body='';for await(const chunk of req){body+=chu
 function change(current,action){const {type,x,y,z,revision}=action||{};
  if(!inBounds(x,y,z,current))return {error:'Invalid coordinates'};
  if(!Number.isSafeInteger(revision)||revision!==current.revision)return {error:'Revision conflict',conflict:true};
- if(type==='place'&&personalPortalCell(x,y,z))return {error:'The portal area is protected'};
+ if(type==='place'&&personalPortalCell(current,x,y,z))return {error:'The portal area is protected'};
  const existing=block(current,x,y,z);
  if(type==='place'){
   const item=['dirt','sand','coal_block'].includes(action.item)?action.item:'dirt';
@@ -314,8 +324,8 @@ function publicWorld(session,id,req){
  const player={...session.player,immersed:playerImmersed(w,session.player),swimming:session.player.swimming===true};
  let result;
  if(hub)result={schema:w.schema,worldVersion:w.worldVersion,islandSize:SHOP_HUB_LAYOUT.size.x,revision:w.revision,coins:w.coins,inventory:w.inventory,edits:{},machines:[],trees:[],harvestedTrees:[],tilled:[],crops:[],watered:{},waterSources:[],harvestedCrops:[],oreNodes:[],player,worldId:SHOP_HUB_WORLD_ID,worldInstanceId:w.location.hubInstanceId,worldKind:'shopHub',hub:createShopHubInstance(id)};
- else if(w.worldGenVersion===WORLD_GEN_VERSION){const {fluidEdits,fluidActive,...publicSave}=w;result={...publicSave,fluidCells:fluidCellsNear(w,session.player.x,session.player.z),player,worldId:'personal-island',worldInstanceId:w.location.personalInstanceId,worldKind:'personal',personalPortal:PERSONAL_ISLAND_PORTAL};}
- else result={...w,player,worldId:'personal-island',worldInstanceId:w.location.personalInstanceId,worldKind:'personal',personalPortal:PERSONAL_ISLAND_PORTAL};
+ else if(w.worldGenVersion===WORLD_GEN_VERSION){const {fluidEdits,fluidActive,...publicSave}=w;result={...publicSave,fluidCells:fluidCellsNear(w,session.player.x,session.player.z),player,worldId:'personal-island',worldInstanceId:w.location.personalInstanceId,worldKind:'personal',personalPortal:{...PERSONAL_ISLAND_PORTAL,y:surfaceAt(w,PERSONAL_ISLAND_PORTAL.x,PERSONAL_ISLAND_PORTAL.z)}};}
+ else result={...w,player,worldId:'personal-island',worldInstanceId:w.location.personalInstanceId,worldKind:'personal',personalPortal:{...PERSONAL_ISLAND_PORTAL,y:surfaceAt(w,PERSONAL_ISLAND_PORTAL.x,PERSONAL_ISLAND_PORTAL.z)}};
  if(devtoolsEnabled&&localAddress(req)){const snapshot=session.gameClock.snapshot();result.devtoolsEnabled=true;result.gameClock={...snapshot,gameMinutes:snapshot.gameTimeMinutes};result.biome=w.worldGenVersion&&w.location.worldId!=='shop-hub'?biomeForWorld(w,Math.floor(session.player.x),Math.floor(session.player.z)):null;result.devTeleport={previousAvailable:devTeleportService?.hasPrevious(session)===true,waterSafety:w.worldGenVersion===WORLD_GEN_VERSION?'modeled':'not-modeled'};if(w.worldGenVersion===WORLD_GEN_VERSION)result.fluidTickRate=w.fluidTickRate;}
  return result;
 }
@@ -405,7 +415,7 @@ async function handler(req,res){
   const body=await jsonBody(req),destination=body?.destination;
   const job=session.queue.catch(()=>{}).then(async()=>{
    const loc=session.world.location,wasHub=loc.worldId==='shop-hub';
-   if(destination==='shopHub'&&!wasHub){if(!near(session,PERSONAL_ISLAND_PORTAL,PERSONAL_ISLAND_PORTAL.interactionRadius))return {status:400,data:{error:'Move closer to the shop portal'}};loc.personalSpawn={...session.world.player};loc.worldId='shop-hub';loc.hubInstanceId=createShopHubInstance(who.id).instanceId;loc.hubPlayer={...SHOP_HUB_LAYOUT.spawn,grounded:true};session.player={...loc.hubPlayer,vy:0,lastAt:Date.now()};}
+   if(destination==='shopHub'&&!wasHub){const portal={...PERSONAL_ISLAND_PORTAL,y:surfaceAt(session.world,PERSONAL_ISLAND_PORTAL.x,PERSONAL_ISLAND_PORTAL.z)};if(!near(session,portal,PERSONAL_ISLAND_PORTAL.interactionRadius))return {status:400,data:{error:'Move closer to the shop portal'}};loc.personalSpawn={...session.world.player};loc.worldId='shop-hub';loc.hubInstanceId=createShopHubInstance(who.id).instanceId;loc.hubPlayer={...SHOP_HUB_LAYOUT.spawn,grounded:true};session.player={...loc.hubPlayer,vy:0,lastAt:Date.now()};}
    else if(destination==='personal'&&wasHub){const portal=SHOP_HUB_LAYOUT.portals.find(p=>p.direction==='toPersonal');if(!portal||!near(session,portal,3.5))return {status:400,data:{error:'Move closer to the return portal'}};loc.worldId='personal-island';session.player={...(loc.personalSpawn||session.world.player),vy:0,lastAt:Date.now()};}
    else return {status:409,data:{error:'Already in destination world'}};
    session.mining=null;session.harvesting=null;session.world.revision++;session.world.updatedAt=Date.now();await save(who.id,session.world);return {status:200,data:{world:publicWorld(session,who.id,req)}};
@@ -464,7 +474,7 @@ async function handler(req,res){
    const validCell=Number.isInteger(body.x)&&Number.isInteger(body.y)&&Number.isInteger(body.z)&&inBounds(body.x,body.y,body.z,w);
    if(!validCell)return {status:400,data:{error:'Invalid coordinates',world:w}};
    const {x,y,z}=body,cell=key(x,y,z),near=point([x,y,z]);
-   if(personalPortalCell(x,y,z))return {status:400,data:{error:'The portal area is protected',world:w}};
+   if(personalPortalCell(w,x,y,z))return {status:400,data:{error:'The portal area is protected',world:w}};
    if(Math.hypot(near.x-p.x,near.y-(p.y+1),near.z-p.z)>5.5)return {status:400,data:{error:'Target out of reach',world:w}};
    const next={...w,inventory:inv,tilled:[...w.tilled],crops:[...w.crops],watered:{...w.watered},trees:[...w.trees],revision:w.revision+1,updatedAt:Date.now()};
    if(action==='till'){
@@ -576,7 +586,7 @@ async function handler(req,res){
   const job=session.queue.catch(()=>{}).then(async()=>{
    if(!Number.isSafeInteger(body.revision)||body.revision!==session.world.revision)return {status:409,data:{error:'Revision conflict',world:session.world}};
    const {x,y,z}=body,p=session.player,center={x:x+.5,y:y+.5,z:z+.5};
-   if(!inBounds(x,y,z,session.world)||personalPortalCell(x,y,z)||Math.hypot(center.x-p.x,center.y-(p.y+1),center.z-p.z)>5.5)return {status:400,data:{error:'Machine placement out of reach or reserved',world:session.world}};
+   if(!inBounds(x,y,z,session.world)||personalPortalCell(session.world,x,y,z)||Math.hypot(center.x-p.x,center.y-(p.y+1),center.z-p.z)>5.5)return {status:400,data:{error:'Machine placement out of reach or reserved',world:session.world}};
    if(block(session.world,x,y,z)||!block(session.world,x,y-1,z))return {status:400,data:{error:'Machine needs a clear, supported tile',world:session.world}};
    if(session.world.machines.some(m=>m.x===x&&m.y===y&&m.z===z))return {status:400,data:{error:'Tile already occupied',world:session.world}};
    if(!session.world.inventory.items[type])return {status:400,data:{error:'No crafted machine in inventory',world:session.world}};

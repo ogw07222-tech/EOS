@@ -102,6 +102,7 @@ export function biomeAt(seed,x,z,genVersion=WORLD_GEN_VERSION){
 }
 
 function heightV2(seed,x,z){
+ // A compact, flat landing/farm clearing sits inside the continuous open world.
  if(x>=-6&&x<=5&&z>=-6&&z<=5)return 0;
  const biome=biomeAt(seed,x,z,WORLD_GEN_VERSION);
  const broad=valueNoise(seed,x,z,160)*2.8;
@@ -115,7 +116,7 @@ function heightV2(seed,x,z){
  return 6+Math.round(broad+detail);
 }
 
-/** Deterministic, globally sampled smooth field. The starter landing area is flat. */
+/** Deterministic, globally sampled terrain with no island-sized starter plateau. */
 export function heightAt(seed,x,z,genVersion=WORLD_GEN_VERSION){
  const worldSeed=validateGeneration(seed,x,z,genVersion);
  const cacheKey=JSON.stringify([worldSeed,genVersion,x,z]);
@@ -132,6 +133,8 @@ export function heightAt(seed,x,z,genVersion=WORLD_GEN_VERSION){
   const detail=valueNoise(worldSeed,x+7919,z-104729,24)*.45;
   height=Math.round(broad+detail);
  }
+ // Math.round can yield -0 for beach heights; expose one canonical zero through APIs.
+ if(Object.is(height,-0))height=0;
  if(heightCache.size>=HEIGHT_CACHE_MAX_ENTRIES)heightCache.delete(heightCache.keys().next().value);
  heightCache.set(cacheKey,height);
  return height;

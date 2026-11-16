@@ -115,6 +115,8 @@ test('game integration preserves existing type IDs, rotation, save contract, and
   assert.match(game,/function disposeMachineVisual\(/);
   assert.match(game,/function machineOperating\(/);
   assert.match(game,/function updateMachineVisuals\(/);
+  assert.match(game,/rotor\.rotation\.y\+=frameDt\*2\.6/,'drill auger spins around its modeled Y-axis shaft');
+  assert.doesNotMatch(game,/rotor\.rotation\.x\+=frameDt/,'drill auger must not spin around the perpendicular X axis');
   assert.match(game,/drop\.conveyorId/,'conveyor motion is coupled to a live transported item');
   assert.match(game,/Math\.hypot\([^;]+\)<=5/,'drill motion is limited to an active nearby ore vein');
   assert.match(game,/machine\.rotation\*Math\.PI\/2/);

@@ -15,6 +15,16 @@ test('quickbar keeps eight accessible 3D thumbnail slots with compact quantities
  assert.match(html,/\.quickSlot\{height:48px;min-height:48px/);
 });
 
+test('touch devices default to a lighter chunk window while saved quality preference remains available',()=>{
+ assert.match(game,/function configuredChunkRadius\(\)\{let requested=\(navigator\.maxTouchPoints\|\|0\)>0\?MIN_CHUNK_RADIUS:DEFAULT_CHUNK_RADIUS/);
+ assert.match(game,/localStorage\.getItem\('terra\.chunkRadius'\)/);
+ assert.match(game,/Math\.max\(MIN_CHUNK_RADIUS,Math\.min\(MAX_CHUNK_RADIUS,Math\.trunc\(requested\)\)\)/);
+ assert.match(game,/const touchHardware=\(navigator\.maxTouchPoints\|\|0\)>0/);
+ assert.match(game,/renderer\.shadowMap\.enabled=!touchHardware/);
+ assert.match(game,/light\.castShadow=!touchHardware/);
+ assert.match(game,/light\.shadow\.mapSize\.set\(touchHardware\?512:1024,touchHardware\?512:1024\)/);
+});
+
 test('icon controls retain accessible names and default debug stats stay hidden',()=>{
  assert.match(html,/id="jump" class="iconButton" aria-label="점프"/);
  assert.match(html,/id="grid" class="iconButton" aria-label="블록 윤곽 표시"/);
@@ -43,6 +53,18 @@ test('block placement preview is cached, matches server placement rules, and nev
  assert.match(game,/\[\[1,0,0\],\[-1,0,0\],\[0,1,0\],\[0,-1,0\],\[0,0,1\],\[0,0,-1\]\]/);
  assert.match(game,/async function interact\(sx,sy\)[\s\S]*?updateBlockPreview\(sx,sy\);if\(!blockPlacementValid\)/);
  assert.match(game,/renderer\.domElement\.addEventListener\('pointermove',e=>\{[\s\S]*?updateBlockPreview\(e\.clientX,e\.clientY\)/);
+});
+
+test('resource selection obeys server reach and farm taps stay on the selected tile',()=>{
+ const resources=game.slice(game.indexOf('function targetHarvestable(sx,sy){'),game.indexOf('function beginHoldMining('));
+ assert.match(resources,/const inReach=point=>Math\.hypot\(point\.x-player\.pos\.x,point\.y-\(player\.pos\.y\+1\),point\.z-player\.pos\.z\)<=5\.5/);
+ assert.match(resources,/crop\.x\+\.5,y:crop\.y\+\.45,z:crop\.z\+\.5/);
+ assert.match(resources,/tree\.y\+Math\.max\(1\.7,\(tree\.height\|\|5\)\*\.55\)/);
+ const farming=game.slice(game.indexOf('function cropAt('),game.indexOf('async function interactFarm('));
+ assert.match(farming,/function cropAt\(sx,sy,groundCell\)/);
+ assert.match(farming,/crop\.x!==groundCell\.x\|\|crop\.z!==groundCell\.z\|\|Math\.abs\(crop\.y-groundCell\.y\)>1/);
+ assert.match(farming,/Math\.hypot\(center\.x-player\.pos\.x,center\.y-\(player\.pos\.y\+1\),center\.z-player\.pos\.z\)>5\.5/);
+ assert.match(game,/const crop=cropAt\(sx,sy,target\)/);
 });
 
 test('T0 workshops use dedicated cached V2-style part models within the one metre footprint',()=>{

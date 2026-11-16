@@ -275,17 +275,20 @@ test('81-chunk natural ocean remains generated and developer APIs are hidden in 
  assert.equal((await request(port,'/api/dev/teleport',{method:'POST',body:{x:0,z:0,autoY:true}})).status,404);
 });
 
-test('saved worlds with missing generation metadata and islandSize 10 stay legacy',async t=>{
- const saveDir=await mkdtemp(join(tmpdir(),'terra-world-v2-legacy-')),port=await randomPort(),id='abcdef0123456789abcdef0123456789';
+test('versionless 10×10 saves migrate once to open-world generation while preserving saved state',async t=>{
+ const server=await isolatedServer(t),id='abcdef0123456789abcdef0123456789';
  const legacy={schema:1,worldVersion:3,islandSize:10,revision:7,inventory:{dirt:21},edits:{'2,0,2':'dirt'},player:{x:.5,y:0,z:.5,grounded:true}};
- await writeFile(join(saveDir,id+'.json'),JSON.stringify(legacy));let proc;
- try{
-  proc=await boot(port,saveDir);const signature=createHmac('sha256',secret).update(id).digest('hex'),cookie=`terra_session=${id}.${signature}`;
-  const loaded=await request(port,'/api/world',{cookie});assert.equal(loaded.status,200);
-  assert.equal(loaded.body.islandSize,10);assert.equal(loaded.body.worldGenVersion,undefined);
-  assert.equal(loaded.body.worldSeed,undefined);assert.equal(loaded.body.seaLevel,undefined);assert.equal(loaded.body.fluidCells,undefined);
-  assert.equal(loaded.body.edits['2,0,2'],'dirt');assert.equal(blockAt(loaded.body,1,-1,1),null,'missing version must not invent generated terrain');
- }finally{await stop(proc);await rm(saveDir,{recursive:true,force:true});}
+ await writeFile(join(server.saveDir,id+'.json'),JSON.stringify(legacy));
+ const signature=createHmac('sha256',secret).update(id).digest('hex'),cookie=`terra_session=${id}.${signature}`;
+ const loaded=await request(server.port,'/api/world',{cookie});assert.equal(loaded.status,200,loaded.body.error);
+ assert.equal(loaded.body.islandSize,10);assert.equal(loaded.body.worldGenVersion,2);
+ assert.ok(Number.isSafeInteger(loaded.body.worldSeed));assert.equal(loaded.body.seaLevel,0);assert.deepEqual(loaded.body.fluidCells,{});
+ assert.equal(loaded.body.revision,7);assert.equal(loaded.body.inventory.dirt,21);assert.equal(loaded.body.edits['2,0,2'],'dirt');
+ assert.equal(blockAt(loaded.body,1,-1,1),'grass','the migrated world gets terrain under the starter clearing');
+ const seed=loaded.body.worldSeed,saved=JSON.parse(await readFile(join(server.saveDir,id+'.json'),'utf8'));
+ assert.equal(saved.worldGenVersion,2);assert.equal(saved.worldSeed,seed);assert.equal(saved.revision,7);assert.equal(saved.inventory.dirt,21);assert.equal(saved.edits['2,0,2'],'dirt');
+ await server.restart();const reloaded=await request(server.port,'/api/world',{cookie});assert.equal(reloaded.status,200);
+ assert.equal(reloaded.body.worldGenVersion,2);assert.equal(reloaded.body.worldSeed,seed);assert.equal(reloaded.body.revision,7);assert.equal(reloaded.body.inventory.dirt,21);assert.equal(reloaded.body.edits['2,0,2'],'dirt');
 });
 
 test('version 1 and legacy saves remain unmodified by v2 generation helpers',()=>{
