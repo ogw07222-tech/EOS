@@ -7,7 +7,8 @@ const server=readFileSync(new URL('../server.mjs',import.meta.url),'utf8');
 test('browser entry point loads active game module',()=>{
  assert.match(html,/src="\/src\/game.js"/);
  assert.match(html,/id="joystick"/);assert.match(html,/id="jump"/);
- assert.match(html,/id="place"/);assert.match(html,/id="mine"/);
+ assert.doesNotMatch(html,/id="(place|mine|farm)"/);
+ assert.match(html,/id="worldInteract"/);
 });
 test('client uses Three.js WebGL and exposed voxel faces',()=>{
  assert.match(game,/three\.module\.js/);

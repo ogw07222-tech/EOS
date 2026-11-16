@@ -17,12 +17,14 @@ test('camera-relative WASD is correct in all four cardinal camera rotations',()=
  }
  assert.match(code,/api\('\/api\/move'/);
 });
-test('UI mode changes do not reference missing mode element',()=>{
- assert.match(code,/function setMode\(s\)/);
- assert.doesNotMatch(code,/\$\('mode'\)/);
+test('equipped item drives actions without legacy interaction modes',()=>{
+ assert.doesNotMatch(code,/function setMode\(s\)/);
+ assert.doesNotMatch(code,/\$\('(place|mine|farm)'\)/);
  assert.match(code,/const toolDisplay=/);
  assert.match(code,/function selectQuickSlot\(slot\)/);
  assert.match(code,/equipHeldTool\(id\)/);
+ assert.match(code,/function isBlockEquipped\(\)/);
+ assert.match(code,/function isFarmEquipped\(\)/);
 });
 test('jump key uses keydown edge; joystick is radial normalized',()=>{
  assert.match(code,/if\(e\.code==='Space'&&!e\.repeat\)jump\(\)/);

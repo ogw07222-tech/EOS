@@ -29,15 +29,14 @@ test('releasing early cancels and resets mining progress',()=>{
  game.cancelMine();game.updateMine(3000);
  assert.equal(game.requests.length,0);assert.equal(game.miningHud.hidden,true);assert.equal(game.miningFill.style.width,'0%');
 });
-test('drag, lost capture, hidden browser and mode change cancel mining',()=>{
+test('drag, lost capture, and hidden browser cancel mining',()=>{
  assert.match(code,/if\(holdMining\)cancelMine\(\)/);
  assert.match(code,/addEventListener\('lostpointercapture'/);
  assert.match(code,/document\.hidden\)cancelMine\(\)/);
- assert.match(code,/function setMode\(s\)\{cancelMine\(\)/);
+ assert.match(code,/function refreshActionPreview\(/);
 });
-test('mine uses hold, place remains click, HUD components exist',()=>{
- assert.match(code,/if\(mode==='mine'&&!busy\)/);
- assert.match(code,/if\(mode==='mine'&&!busy\)/);
+test('equipped pickaxe mines on hold and action HUD exists',()=>{
+ assert.match(code,/if\(!placingMachine&&!isBlockEquipped\(\)&&!isFarmEquipped\(\)&&!busy\)/);
  assert.match(code,/void interactCell\(cell,'mine',tool\)/);
  assert.match(html,/id="mining" hidden/);assert.match(html,/id="miningFill"/);assert.match(html,/길게 누르기/);
 });

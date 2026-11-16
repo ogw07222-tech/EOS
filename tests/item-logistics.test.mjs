@@ -39,7 +39,7 @@ test('legacy saves normalize drops; duplicate IDs are discarded',()=>{
 test('active game renders world entities with cached item models and only offers explicit pickup',()=>{
  const game=readFileSync(join(root,'src','game.js'),'utf8'),html=readFileSync(join(root,'index.html'),'utf8');
  assert.match(game,/function syncWorldDrops\(\)/);assert.match(game,/makeItemModel\(drop\.item\)/);assert.match(game,/entry\.root\.rotation\.y/);
- assert.match(game,/api\('\/api\/items\/pickup'/);assert.match(game,/kind:'item'/);assert.match(game,/itemThumbnail\(id\)/);
+ assert.match(game,/api\('\/api\/items\/pickup'/);assert.match(game,/considerInteraction\(best,'item'/);assert.match(game,/itemThumbnail\(id\)/);
  assert.match(html,/data-slot="7"[\s\S]*?<img alt="">/);assert.doesNotMatch(game,/auto.?pickup|automatic.?pickup/i);
 });
 
