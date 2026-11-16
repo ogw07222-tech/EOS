@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path';
 import { once } from 'node:events';
 import net from 'node:net';
 import { createHmac } from 'node:crypto';
+import { blockAt, heightAt } from '../src/chunk-world.mjs';
 
 const root=resolve(import.meta.dirname,'..');
 const secret='testing_secret_for_terra_game_1234567890';
@@ -39,7 +40,9 @@ test('crafted workstation placement consumes one item and survives server restar
  const ctx=await setup(t,fixture({wood:5,stone:10}));
  let world=(await request(ctx.port,'/api/world',{cookie:ctx.cookie})).body;
  let craft=await request(ctx.port,'/api/craft',{method:'POST',cookie:ctx.cookie,body:{recipe:'tool_bench',revision:world.revision}});assert.equal(craft.status,200);world=craft.body.world;
- const placement=await request(ctx.port,'/api/machine/place',{method:'POST',cookie:ctx.cookie,body:{type:'tool_bench',x:-2,y:0,z:-2,rotation:0,revision:world.revision}});assert.equal(placement.status,200,placement.body.error);assert.equal(placement.body.world.inventory.items.tool_bench,0);assert.equal(placement.body.world.machines[0].type,'tool_bench');
+ const candidates=[];for(let x=-4;x<=4;x++)for(let z=-4;z<=4;z++){const y=heightAt(world.worldSeed,x,z,world.worldGenVersion),center={x:x+.5,y:y+.5,z:z+.5};if(Math.abs(x+2)<=1&&z===0)continue;if(blockAt(world,x,y,z)!=null||blockAt(world,x,y-1,z)==null||Math.hypot(center.x-world.player.x,center.y-(world.player.y+1),center.z-world.player.z)>5.5)continue;candidates.push({x,y,z});}
+ assert.ok(candidates.length,'migrated fixture should contain a reachable supported tile');const tile=candidates[0];
+ const placement=await request(ctx.port,'/api/machine/place',{method:'POST',cookie:ctx.cookie,body:{type:'tool_bench',...tile,rotation:0,revision:world.revision}});assert.equal(placement.status,200,placement.body.error);assert.equal(placement.body.world.inventory.items.tool_bench,0);assert.equal(placement.body.world.machines[0].type,'tool_bench');
  await ctx.restart();world=(await request(ctx.port,'/api/world',{cookie:ctx.cookie})).body;assert.equal(world.machines[0].type,'tool_bench');assert.equal(world.revision,2);
 });
 

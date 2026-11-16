@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 const game=await readFile(new URL('../src/game.js',import.meta.url),'utf8');
+const workstationModels=await readFile(new URL('../src/workstation-visuals.js',import.meta.url),'utf8');
 
 test('quickbar keeps eight accessible 3D thumbnail slots with compact quantities',()=>{
  assert.equal((html.match(/class="quickSlot" data-slot=/g)||[]).length,8);
@@ -44,9 +45,10 @@ test('block placement preview is cached, matches server placement rules, and nev
  assert.match(game,/renderer\.domElement\.addEventListener\('pointermove',e=>\{[\s\S]*?updateBlockPreview\(e\.clientX,e\.clientY\)/);
 });
 
-test('T0 workshop models use translated V2 parts and uniform tile scale',()=>{
- for(const id of ['tool_bench','agriculture_bench','block_bench','basic_assembler'])assert.match(game,new RegExp(`type==='${id}'`));
- assert.match(game,/root\.scale\.setScalar\(\.54\)/);
- const assembler=game.slice(game.indexOf('function makeBasicAssembler(root)'),game.indexOf('function makeDrill(root)'));
- assert.match(assembler,/hand-crank|machineBox/);assert.doesNotMatch(assembler,/screen|machineMaterials\.cyan/);
+test('T0 workshops use dedicated cached V2-style part models within the one metre footprint',()=>{
+ for(const id of ['workbench','t1_bench','tool_bench','agriculture_bench','block_bench','basic_assembler'])assert.ok(workstationModels.includes(id),`missing workstation model ${id}`);
+ assert.match(game,/function makeMachineModel\(type,options=\{\}\)[\s\S]*?workstationVisuals\.create\(type,options\)/);
+ assert.match(workstationModels,/0\.98/);
+ const assembler=workstationModels.slice(workstationModels.indexOf('basic_assembler'),workstationModels.indexOf('function createRoot'));
+ assert.match(assembler,/crank|handle|gear/i);assert.doesNotMatch(assembler,/screen|display/i);
 });

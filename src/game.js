@@ -9,7 +9,12 @@ import { COAL_BLOCK_RECIPE } from './recipe-settings.mjs';
 import { createNatureMaterials, createTreeVisual, createCropVisual } from './nature-visuals.js';
 import { createTerrainAtlas } from './terrain-atlas.js';
 import { buildGreedyChunkMesh, createGreedyChunkGeometry, installGreedyAtlasShader } from './greedy-chunk-mesh.js';
+import { createWorkstationVisuals } from './workstation-visuals.js';
+import { createIndustrialVisuals } from './industrial-visuals.js';
 const $=id=>document.getElementById(id);
+const terraDebug=new URLSearchParams(location.search).get('terraDebug')==='1';
+if(terraDebug)document.body.classList.add('debug-mode');
+const terraDebugFps=terraDebug&&['30','60'].includes(new URLSearchParams(location.search).get('terraFps'))?Number(new URLSearchParams(location.search).get('terraFps')):0;
 const SIZE=10;
 const surfaceHeightAt=(x,z)=>heightAt(world.worldSeed,x,z,world.worldGenVersion);
 // Simulation units are metres: one voxel grid cell measures 1 m on each axis.
@@ -295,177 +300,48 @@ function updateResources(){
  for(const g of oreGroups){const node=(world.oreNodes||[]).find(n=>n.id===g.userData.resourceId);if(node)updateOreVisual(g,node);}
 }
 
-// Craftable island machinery. Each model is assembled from detailed low-poly parts.
-const machineMaterials={
- wood:new THREE.MeshStandardMaterial({color:0x72513a,roughness:.82}),woodLight:new THREE.MeshStandardMaterial({color:0x9a7049,roughness:.75}),
- metal:new THREE.MeshStandardMaterial({color:0x637785,metalness:.68,roughness:.38}),light:new THREE.MeshStandardMaterial({color:0xaebfc4,metalness:.72,roughness:.31}),
- dark:new THREE.MeshStandardMaterial({color:0x263944,metalness:.42,roughness:.58}),stone:new THREE.MeshStandardMaterial({color:0x6f7375,roughness:.95}),soil:new THREE.MeshStandardMaterial({color:0x554334,roughness:1}),leaf:new THREE.MeshStandardMaterial({color:0x5f965f,roughness:1}),water:new THREE.MeshStandardMaterial({color:0x397d9a,roughness:.25}),
- v2dark:new THREE.MeshStandardMaterial({color:0x273237,roughness:.9}),v2steel:new THREE.MeshStandardMaterial({color:0x667881,metalness:.45,roughness:.5}),v2silver:new THREE.MeshStandardMaterial({color:0xb2b8b4,metalness:.35,roughness:.55}),v2light:new THREE.MeshStandardMaterial({color:0xd5d6c6,roughness:.7}),v2iron:new THREE.MeshStandardMaterial({color:0x454f53,metalness:.25,roughness:.8}),v2wood:new THREE.MeshStandardMaterial({color:0x785337,roughness:.95}),v2woodlight:new THREE.MeshStandardMaterial({color:0xb08958,roughness:.9}),v2wooddark:new THREE.MeshStandardMaterial({color:0x503d31,roughness:.98}),v2stone:new THREE.MeshStandardMaterial({color:0x777777,roughness:1}),v2stoneDark:new THREE.MeshStandardMaterial({color:0x50545a,roughness:1}),v2tan:new THREE.MeshStandardMaterial({color:0x9a7452,roughness:.95}),v2soil:new THREE.MeshStandardMaterial({color:0x5b4634,roughness:1}),v2green:new THREE.MeshStandardMaterial({color:0x658b55,roughness:1}),v2lime:new THREE.MeshStandardMaterial({color:0x95b471,roughness:1}),v2leaf:new THREE.MeshStandardMaterial({color:0x3d725b,roughness:1}),v2gold:new THREE.MeshStandardMaterial({color:0xd6ab59,metalness:.55,roughness:.45}),v2copper:new THREE.MeshStandardMaterial({color:0xae724a,metalness:.5,roughness:.5}),v2rust:new THREE.MeshStandardMaterial({color:0x865540,roughness:.9}),v2blue:new THREE.MeshStandardMaterial({color:0x5aa8ad,roughness:.7}),v2water:new THREE.MeshStandardMaterial({color:0x387b9a,roughness:.3}),v2red:new THREE.MeshStandardMaterial({color:0xba7153,roughness:.9}),v2screen:new THREE.MeshStandardMaterial({color:0x8bd6ba,roughness:.5}),v2yellow:new THREE.MeshStandardMaterial({color:0xe7c875,roughness:.75}),v2black:new THREE.MeshStandardMaterial({color:0x1c2528,roughness:1}),belt:new THREE.MeshStandardMaterial({color:0x25343c,roughness:.9}),
- brass:new THREE.MeshStandardMaterial({color:0xc29248,metalness:.72,roughness:.34}),cyan:new THREE.MeshStandardMaterial({color:0x62c1c3,emissive:0x164d55,emissiveIntensity:.55}),
- ember:new THREE.MeshStandardMaterial({color:0xf48a45,emissive:0xb93d0c,emissiveIntensity:1.8}),
-};
+// Facility appearance is isolated from placement and world-state rules.
+const machineMaterials={dark:new THREE.MeshStandardMaterial({color:0x263944,metalness:.42,roughness:.58})};
+const workstationVisuals=createWorkstationVisuals(THREE),industrialVisuals=createIndustrialVisuals(THREE);
 let machineRoots=[];const dropRoots=new Map();
-function machineBox(parent,w,h,d,mat,x,y,z){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o;}
-function machineCylinder(parent,r1,r2,h,mat,x,y,z,axis='y',segments=16){const o=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,segments),mat);o.position.set(x,y,z);if(axis==='x')o.rotation.z=Math.PI/2;if(axis==='z')o.rotation.x=Math.PI/2;o.castShadow=true;o.receiveShadow=true;parent.add(o);return o;}
-function machineBolt(parent,x,y,z){machineCylinder(parent,.035,.035,.025,machineMaterials.brass,x,y,z,'z',8);}
-function makeT1Bench(root){
- const m=machineMaterials;
- machineBox(root,.94,.12,.78,m.dark,0,.82,0);machineBox(root,.84,.055,.7,m.woodLight,0,.91,0);
- for(const x of [-.38,.38])for(const z of [-.29,.29]){machineBox(root,.09,.75,.09,m.metal,x,.39,z);machineBox(root,.13,.07,.13,m.brass,x,.08,z);}
- machineBox(root,.78,.23,.58,m.dark,0,.62,.01);
- for(const x of [-.25,0,.25]){machineBox(root,.22,.12,.035,m.metal,x,.65,.31);machineBox(root,.075,.035,.025,m.brass,x,.65,.34);}
- // T1 control spine, recipe plate and illuminated work surface.
- machineBox(root,.58,.08,.09,m.dark,0,1.03,-.28);machineBox(root,.35,.22,.06,m.metal,0,1.17,-.28);
- machineBox(root,.25,.13,.018,m.cyan,0,1.17,-.24);
- machineCylinder(root,.19,.19,.055,m.brass,.29,1.02,.05,'y',20);machineCylinder(root,.135,.135,.06,m.cyan,.29,1.075,.05,'y',20);
- for(const x of [-.36,.36])machineBolt(root,x,.97,.34);
-}
-function makeWorkbench(root){
- const m=machineMaterials;
- for(const x of [-.39,.39])for(const z of [-.29,.29]){
-  machineBox(root,.09,.77,.09,m.wood,x,.39,z);machineBox(root,.12,.08,.12,m.dark,x,.08,z);
- }
- machineBox(root,1,.12,.78,m.woodLight,0,.82,0);
- for(const x of [-.31,0,.31])machineBox(root,.29,.025,.75,m.wood, x,.89,0);
- machineBox(root,.78,.28,.58,m.wood,0,.61,.03);
- for(const y of [.57,.70]){
-  machineBox(root,.7,.075,.025,m.woodLight,0,y,.335);
-  machineCylinder(root,.025,.025,.09,m.brass,0,y,.365,'z',10);
- }
- // A functional-looking bench vise, threaded handle and jaws.
- machineBox(root,.22,.07,.22,m.dark,-.29,.96,-.22);machineBox(root,.25,.08,.1,m.light,-.29,1.02,-.22);
- machineBox(root,.055,.16,.1,m.brass,-.39,1.08,-.22);machineBox(root,.055,.16,.1,m.brass,-.19,1.08,-.22);
- machineCylinder(root,.024,.024,.31,m.light,-.29,.95,-.38,'x',12);machineCylinder(root,.045,.045,.055,m.brass,-.45,.95,-.38,'x',12);
- // Peg rail with a hammer and two hanging hand tools.
- machineBox(root,.7,.08,.07,m.wood,0,1.18,-.34);
- machineBox(root,.06,.26,.055,m.woodLight,-.22,1.04,-.31);machineBox(root,.24,.08,.10,m.light,-.22,1.17,-.31);
- machineBox(root,.06,.22,.05,m.brass,.05,1.02,-.31);machineBox(root,.24,.035,.05,m.light,.05,1.12,-.31);
- // A compact inspection lamp and green status lens.
- machineCylinder(root,.025,.025,.23,m.dark,.34,1.02,-.25);machineBox(root,.22,.09,.18,m.brass,.34,1.16,-.25);
- machineBox(root,.07,.045,.035,m.cyan,.34,1.11,-.15);
- for(const x of [-.44,.44])for(const z of [-.32,.32])machineBolt(root,x,.91,z);
-}
-// T0 station models translated from TERRA_T0_Workstations_3D_v2.html.
-// The source parts share one uniform 0.54 scale, keeping the complete XZ bounds below 1 m.
-function makeToolBench(root){
- const m=machineMaterials;
- for(const x of [-.68,.68])for(const z of [-.58,.58])machineBox(root,.15,.73,.15,m.v2wood,x,.38,z);
- machineBox(root,1.7,.18,1.43,m.v2woodlight,0,.82,0);machineBox(root,1.75,.05,1.47,m.v2wood,0,.88,0);
- machineBox(root,.58,.31,.42,m.v2dark,-.48,1.12,-.1);machineBox(root,.81,.1,.3,m.v2steel,-.48,1.32,-.1);machineBox(root,.25,.16,.2,m.v2silver,-.79,1.27,-.1);
- machineBox(root,.55,.25,.42,m.v2wood,.36,1.05,.05);machineBox(root,.45,.045,.36,m.v2dark,.36,1.23,.05);
- for(const x of [.6,-.48])machineBox(root,.11,.83,.13,m.v2wood,x,1.33,-.49);machineBox(root,1.18,.13,.13,m.v2woodlight,.07,1.7,-.49);
- machineBox(root,.06,.43,.05,m.v2woodlight,-.28,1.46,-.4);machineBox(root,.36,.07,.07,m.v2silver,-.28,1.63,-.4);
- machineBox(root,.07,.36,.05,m.v2woodlight,.03,1.45,-.4);machineBox(root,.23,.17,.1,m.v2steel,.03,1.6,-.4);
- machineBox(root,.06,.4,.05,m.v2gold,.34,1.45,-.4);machineBox(root,.44,.065,.15,m.v2silver,.34,1.53,-.4);
- for(const x of [-.6,.35]){machineBox(root,.45,.2,.1,m.v2wood,x,.53,.68);machineBox(root,.18,.055,.04,m.v2gold,x,.53,.74);}
-}
-function makeAgricultureBench(root){
- const m=machineMaterials;
- for(const x of [-.68,.68])for(const z of [-.58,.58])machineBox(root,.15,.73,.15,m.v2wood,x,.38,z);
- machineBox(root,1.73,.15,1.44,m.v2woodlight,0,.82,0);machineBox(root,1.6,.04,1.34,m.v2dark,0,.91,0);
- machineBox(root,.83,.23,.8,m.v2wood,-.43,1.02,0);machineBox(root,.74,.07,.72,m.v2soil,-.43,1.17,0);
- for(const x of [-.66,-.38,-.12])for(const z of [-.2,.2]){machineBox(root,.06,.32,.06,m.v2green,x,1.35,z);machineBox(root,.18,.1,.07,m.v2green,x-.1,1.41,z);machineBox(root,.15,.08,.08,m.v2green,x+.08,1.52,z);}
- machineBox(root,.5,.2,.75,m.v2dark,.51,1.02,.02);machineBox(root,.43,.04,.65,m.v2water,.51,1.14,.02);
- machineCylinder(root,.125,.125,.32,m.v2gold,.53,1.36,-.17,'y',10);machineBox(root,.16,.09,.1,m.v2silver,.7,1.38,-.17);
- machineBox(root,1.25,.12,.11,m.v2wood,.2,1.38,-.54);machineBox(root,1.25,.64,.1,m.v2wood,.2,1.72,-.54);
- for(let i=0;i<5;i++)machineBox(root,.12,.16,.035,i%2?m.v2woodlight:m.v2gold,-.29+i*.23,1.66,-.47);
- for(const x of [-.4,.35]){machineBox(root,.62,.28,.13,m.v2wood,x,.55,.7);machineBox(root,.1,.05,.04,m.v2gold,x,.55,.78);}
-}
-function makeBlockBench(root){
- const m=machineMaterials;
- for(const x of [-.68,.68])for(const z of [-.58,.58])machineBox(root,.15,.73,.15,m.v2wood,x,.38,z);
- machineBox(root,1.73,.15,1.43,m.v2dark,0,.82,0);machineBox(root,1.65,.05,1.34,m.v2stone,0,.91,0);
- machineBox(root,.68,.31,.8,m.v2stone,-.47,1.09,.04);machineBox(root,.61,.05,.73,m.v2silver,-.49,1.27,.03);
- for(let i=0;i<3;i++)machineBox(root,.55,.17,.47,i%2?m.v2stone:m.v2woodlight,.5,1.01+i*.20,-.13);
- machineBox(root,.55,.25,.35,m.v2wood,.5,1.11,.52);machineBox(root,.24,.05,.22,m.v2woodlight,.5,1.26,.52);
- machineBox(root,.13,.85,.12,m.v2steel,-.84,1.36,-.49);machineBox(root,1.45,.13,.13,m.v2dark,-.15,1.73,-.49);machineBox(root,.08,.53,.09,m.v2steel,.52,1.45,-.49);
- machineBox(root,.08,.63,.53,m.v2steel,-.08,1.39,-.27);machineBox(root,.045,.3,.35,m.v2silver,-.08,1.14,-.12);
- machineBox(root,.77,.04,.08,m.v2gold,.03,.96,.52);for(let i=0;i<8;i++)machineBox(root,.015,.02,.08,m.v2dark,-.33+i*.1,.99,.53);
-}
-function makeBasicAssembler(root){
- const m=machineMaterials;
- for(const x of [-.68,.68])for(const z of [-.58,.58])machineBox(root,.15,.73,.15,m.v2wood,x,.38,z);
- machineBox(root,1.74,.18,1.44,m.v2wood,0,.82,0);machineBox(root,1.8,.055,1.5,m.v2dark,0,.92,0);
- machineBox(root,.67,.43,.65,m.v2stone,-.49,1.13,-.05);machineBox(root,.43,.24,.045,m.v2dark,-.49,1.11,.285);machineBox(root,.26,.12,.022,m.v2rust,-.49,1.11,.312);
- for(const x of [-.78,-.2])machineBox(root,.08,.37,.67,m.v2stone,x,1.27,-.05);machineBox(root,.72,.1,.7,m.v2stone,.49,1.4,-.05);
- machineBox(root,.18,.33,.18,m.v2dark,-.49,1.59,-.26);machineBox(root,.28,.055,.28,m.v2stone,-.49,1.76,-.26);
- machineBox(root,.64,.18,.66,m.v2stone,.39,1.035,0);for(const x of [.1,.68])machineBox(root,.09,.58,.11,m.v2dark,x,1.37,-.24);
- machineBox(root,.72,.12,.13,m.v2wood,.39,1.67,-.24);machineBox(root,.12,.42,.12,m.v2steel,.39,1.42,-.24);machineBox(root,.4,.08,.36,m.v2dark,.39,1.22,0);
- machineBox(root,.12,.12,.48,m.v2wood,.69,1.44,.18);machineBox(root,.13,.35,.11,m.v2woodlight,.69,1.44,.4);machineCylinder(root,.07,.07,.09,m.v2steel,.7,1.58,.45,'z',10);
- machineBox(root,.28,.12,.22,m.v2woodlight,.05,1.05,.51);machineBox(root,.05,.19,.06,m.v2steel,.13,1.16,.51);
- for(const x of [-.72,.72])machineBox(root,.11,.66,.12,m.v2dark,x,1.28,-.62);machineBox(root,1.53,.1,.11,m.v2wood,0,1.65,-.62);
- machineBox(root,.08,.3,.07,m.v2woodlight,.17,1.47,-.58);machineBox(root,.25,.08,.08,m.v2steel,.17,1.6,-.58);
-}
-function makeDrill(root){
- const m=machineMaterials;
- machineBox(root,.92,.12,.88,m.dark,0,.12,0);
- for(const x of [-.36,.36])for(const z of [-.32,.32]){machineBox(root,.1,.27,.1,m.metal,x,.25,z);machineBox(root,.14,.05,.14,m.brass,x,.07,z);}
- machineBox(root,.56,.48,.59,m.metal,.12,.53,0);machineBox(root,.48,.10,.52,m.light,.12,.82,0);
- machineBox(root,.22,.21,.22,m.dark,.29,.46,.34);machineBox(root,.12,.08,.07,m.cyan,.29,.62,.47);
- // Exposed rotary head, auger helix and pointed cutting bit.
- machineCylinder(root,.15,.15,.28,m.dark,-.27,.55,0,'x',20);machineCylinder(root,.11,.11,.7,m.light,-.66,.55,0,'x',20);
- const rotor=new THREE.Group();rotor.position.set(-1.03,.55,0);root.add(rotor);
- const pts=[];for(let i=0;i<=64;i++){const t=i/64,a=t*Math.PI*6;pts.push(new THREE.Vector3(t*.42,.13*Math.cos(a),.13*Math.sin(a)));}
- const helix=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),96,.035,7,false),m.brass);helix.castShadow=true;rotor.add(helix);
- const bit=new THREE.Mesh(new THREE.ConeGeometry(.14,.25,12),m.light);bit.rotation.z=-Math.PI/2;bit.position.x=.51;bit.castShadow=true;rotor.add(bit);
- root.userData.rotors=[rotor];
- machineCylinder(root,.19,.19,.11,m.dark,.18,.79,.34,'z',18);
- for(let i=0;i<10;i++){const a=i*Math.PI/5;machineBox(root,.08,.08,.07,m.brass,.18+Math.cos(a)*.2,.79+Math.sin(a)*.2,.42);}
- machineBox(root,.26,.17,.2,m.dark,.34,.31,-.15);machineBox(root,.07,.08,.05,m.ember,.34,.32,-.26);
- for(const x of [-.4,.4])machineBolt(root,x,.2,.43);
-}
-function makeConveyor(root,uphill=false){
- const m=machineMaterials;
- machineBox(root,.98,.11,.92,m.dark,0,.25,0);
- if(uphill){const belt=machineBox(root,Math.SQRT2,.07,.74,m.belt,0,.9,0);belt.rotation.z=Math.PI/4;for(const z of [-.43,.43]){const rail=machineBox(root,Math.SQRT2,.14,.075,m.light,0,.9,z);rail.rotation.z=Math.PI/4;}}else{machineBox(root,.84,.07,.74,m.belt,0,.34,0);for(const z of [-.43,.43])machineBox(root,.98,.14,.075,m.light,0,.38,z);}
- for(const x of [-.38,-.13,.13,.38])machineCylinder(root,.045,.045,.74,m.metal,x,.31,0,'z',12);
- for(const x of [-.38,.38])for(const z of [-.34,.34])machineBox(root,.08,.20,.08,m.metal,x,.1,z);
- // Raised brass direction chevrons across the moving surface.
- for(const x of [-.2,.12]){const a=machineBox(root,.045,.018,.24,m.brass,x,.39,0);a.rotation.y=Math.PI/4;const b=machineBox(root,.045,.018,.24,m.brass,x,.39,0);b.rotation.y=-Math.PI/4;}
- machineBox(root,.14,.08,.06,m.cyan,-.39,.47,-.39);
- for(const x of [-.44,.44])for(const z of [-.38,.38])machineBolt(root,x,.47,z);
-}
-function makeSmelter(root){
- const m=machineMaterials;
- machineBox(root,.9,.16,.88,m.dark,0,.13,0);
- for(const x of [-.34,.34])for(const z of [-.31,.31])machineBox(root,.12,.18,.12,m.metal,x,.29,z);
- machineBox(root,.78,.78,.72,m.metal,0,.73,0);machineBox(root,.65,.61,.12,m.dark,0,.72,.39);
- machineBox(root,.38,.34,.035,m.ember,0,.70,.46);machineBox(root,.52,.055,.07,m.brass,0,.91,.45);machineBox(root,.52,.055,.07,m.brass,0,.49,.45);
- machineCylinder(root,.25,.25,.045,m.dark,0,.72,.50,'z',20);
- // Chimney stack, segmented collar and cooling fins.
- machineBox(root,.24,.45,.24,m.dark,-.22,1.31,-.18);machineBox(root,.32,.07,.32,m.brass,-.22,1.12,-.18);machineBox(root,.31,.08,.31,m.light,-.22,1.53,-.18);
- machineBox(root,.38,.06,.29,m.dark,.28,1.17,-.12);
- for(let i=0;i<5;i++)machineBox(root,.06,.27,.08,i%2?m.light:m.brass,.36+i*.075,.73,-.18);
- machineBox(root,.19,.16,.12,m.dark,.34,.40,.39);machineBox(root,.07,.06,.04,m.cyan,.34,.42,.46);
- machineCylinder(root,.055,.055,.12,m.brass,.34,.58,.44,'z',12);
- for(const x of [-.34,.34])for(const y of [.39,1.06])machineBolt(root,x,y,.38);
-}
 function makeMachineModel(type,options={}){
- const root=new THREE.Group();
- if(type==='t1_bench')makeT1Bench(root);else if(type==='tool_bench')makeToolBench(root);else if(type==='agriculture_bench')makeAgricultureBench(root);else if(type==='block_bench')makeBlockBench(root);else if(type==='basic_assembler')makeBasicAssembler(root);else if(type==='farming_bench'){makeT1Bench(root);machineBox(root,.58,.12,.48,machineMaterials.woodLight,0,1.28,.08);for(let x=-.18;x<=.19;x+=.36){machineBox(root,.14,.08,.14,machineMaterials.cyan,x,1.38,.08);}}else if(type==='workbench')makeWorkbench(root);else if(type==='drill')makeDrill(root);else if(type==='conveyor')makeConveyor(root,options.uphill===true);else if(type==='smelter')makeSmelter(root);
- if(['tool_bench','agriculture_bench','block_bench','basic_assembler'].includes(type)){
-  root.scale.setScalar(.54);root.updateMatrixWorld(true);const bounds=new THREE.Box3().setFromObject(root),size=bounds.getSize(new THREE.Vector3());
-  if(size.x>.98||size.z>.98)throw new Error(`${type} exceeds its one-tile footprint (${size.x.toFixed(3)} × ${size.z.toFixed(3)} m)`);
-  root.userData.floorOffset=-bounds.min.y;root.userData.modelAabb={min:bounds.min.toArray(),max:bounds.max.toArray()};
- }
- if(type==='drill')root.scale.x=.68; // Keep the auger inside its one-tile footprint.
- return root;
+ return ['drill','conveyor','smelter'].includes(type)?industrialVisuals.create(type,options):workstationVisuals.create(type,options);
+}
+function disposeMachineVisual(root){
+ if(!root)return;
+ if(root.userData.terraIndustrialModel)industrialVisuals.dispose(root);
+ else workstationVisuals.dispose(root);
 }
 function buildMachineMesh(machine){
  const [dx,dz]=[[1,0],[0,1],[-1,0],[0,-1]][machine.rotation]||[1,0];
  const uphill=machine.type==='conveyor'&&(world.machines||[]).some(m=>m.type==='conveyor'&&m.x===machine.x+dx&&m.y===machine.y+1&&m.z===machine.z+dz);
  const root=makeMachineModel(machine.type,{uphill});
- root.userData.machineType=machine.type;
+ root.userData.machineType=machine.type;root.userData.machineId=machine.id;root.userData.machineRotation=machine.rotation;
  root.position.set(machine.x+.5,machine.y+(root.userData.floorOffset||0),machine.z+.5);root.rotation.y=machine.rotation*Math.PI/2;worldRoot.add(root);return root;
+}
+function machineOperating(machine){
+ if(machine.type==='drill')return (world?.oreNodes||[]).some(node=>node.remaining>0&&Math.hypot(node.x-machine.x,node.y-machine.y,node.z-machine.z)<=5);
+ if(machine.type==='conveyor')return (world?.drops||[]).some(drop=>drop.conveyorId===machine.id);
+ // There is no smelting simulation/state yet, so the furnace stays visibly idle.
+ return false;
+}
+function updateMachineVisuals(frameDt){
+ const machines=new Map((world?.machines||[]).map(machine=>[machine.id,machine]));
+ for(const root of machineRoots){
+  const machine=machines.get(root.userData.machineId),active=machine?machineOperating(machine):false;root.userData.operating=active;
+  if(active)for(const rotor of root.userData.rotors||[])rotor.rotation.x+=frameDt*2.6;
+  for(const belt of root.userData.belts||[])if(active)for(const roller of belt.rollers||[])roller.rotation.z+=frameDt*(belt.speed||1.8);
+  for(const part of root.userData.activeParts||[])if(part.material?.emissiveIntensity!==undefined)part.material.emissiveIntensity=active?.82:(root.userData.idleEmissiveIntensity??.12);
+ }
 }
 function syncWorldDrops(){
  const live=new Set((world?.drops||[]).map(d=>d.id));
- for(const [id,entry]of dropRoots)if(!live.has(id)){worldRoot.remove(entry.root);entry.root.traverse(o=>{if(o.geometry)o.geometry.dispose();});dropRoots.delete(id);}
+ for(const [id,entry]of dropRoots)if(!live.has(id)){worldRoot.remove(entry.root);entry.root.traverse(o=>{if(o.geometry&&!o.geometry.userData?.terraIndustrialShared&&!o.geometry.userData?.terraWorkstationShared)o.geometry.dispose();});dropRoots.delete(id);}
  for(const drop of world?.drops||[]){let entry=dropRoots.get(drop.id);if(!entry){const root=makeItemModel(drop.item);root.scale.setScalar(.82);root.userData.dropId=drop.id;worldRoot.add(root);entry={root,target:new THREE.Vector3(),phase:(drop.id.charCodeAt(0)||0)*.17};dropRoots.set(drop.id,entry);}entry.target.set(drop.x,drop.y,drop.z);entry.conveyor=!!drop.conveyorId;entry.quantity=drop.quantity;}
 }
 let machinePreview=null,previewValid=false;
-function clearMachinePreview(){if(!machinePreview)return;worldRoot.remove(machinePreview);machinePreview.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){for(const m of Array.isArray(o.material)?o.material:[o.material])m.dispose();}});machinePreview=null;}
-function createMachinePreview(type){clearMachinePreview();machinePreview=makeMachineModel(type);machinePreview.traverse(o=>{if(!o.material)return;o.material=Array.isArray(o.material)?o.material.map(m=>m.clone()):o.material.clone();for(const m of Array.isArray(o.material)?o.material:[o.material]){m.transparent=true;m.opacity=.58;m.depthWrite=false;}});machinePreview.visible=false;worldRoot.add(machinePreview);}
+function clearMachinePreview(){if(!machinePreview)return;const root=machinePreview;machinePreview=null;if(root.userData.terraIndustrialModel){root.traverse(o=>{if(o.material){for(const m of Array.isArray(o.material)?o.material:[o.material])if(!m.userData?.terraIndustrialShared&&!m.userData?.terraWorkstationShared)m.dispose();}});industrialVisuals.dispose(root);}else workstationVisuals.dispose(root);}
+function createMachinePreview(type){clearMachinePreview();machinePreview=makeMachineModel(type);machinePreview.traverse(o=>{if(!o.material)return;const clone=m=>{const copy=m.clone();copy.userData={...copy.userData};delete copy.userData.terraIndustrialShared;delete copy.userData.terraWorkstationShared;return copy;};o.material=Array.isArray(o.material)?o.material.map(clone):clone(o.material);for(const m of Array.isArray(o.material)?o.material:[o.material]){m.transparent=true;m.opacity=.58;m.depthWrite=false;}});machinePreview.visible=false;worldRoot.add(machinePreview);}
 function updateMachinePreview(sx,sy){
  if(mode!=='machine'||!placingMachine||!machinePreview)return;const cell=targetBlock(sx,sy,'place');
  if(!cell){machinePreview.visible=false;return;}
@@ -478,7 +354,7 @@ function updateMachinePreview(sx,sy){
  machinePreview.traverse(o=>{if(!o.material)return;for(const m of Array.isArray(o.material)?o.material:[o.material]){m.color.set(previewValid?0x77d6ac:0xe68070);m.emissive.set(previewValid?0x184c36:0x60251d);}});
 }
 function rebuildMachines(){
- for(const root of machineRoots){worldRoot.remove(root);root.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
+ for(const root of machineRoots)disposeMachineVisual(root);
  machineRoots=(world?.machines||[]).map(buildMachineMesh);
 }
 function clearHubRoots(){for(const root of hubRoots){worldRoot.remove(root);root.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose();}});}hubRoots=[];farmerModel=null;}
@@ -744,7 +620,7 @@ async function api(path,opts){const r=await fetch(path,{credentials:'same-origin
 const postJson=body=>({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 function tileDistance(o){return Math.hypot(o.x+.5-player.pos.x,o.y-(player.pos.y+1),o.z+.5-player.pos.z);}
 function nearbyInteraction(){if(!world)return null;const all=[];if(world.worldKind!=='shopHub')for(const d of world.drops||[]){const distance=Math.hypot(d.x-player.pos.x,d.y-(player.pos.y+1),d.z-player.pos.z);all.push({kind:'item',id:d.id,item:d.item,quantity:d.quantity,label:`줍기 · ${d.item} ×${d.quantity}`,distance,radius:2.35});}if(world.worldKind==='shopHub'){for(const p of world.hub?.layout?.portals||[])all.push({kind:'portal',label:'개인 섬으로 돌아가기',destination:'personal',distance:tileDistance(p),radius:3.5});for(const n of world.hub?.layout?.npcs||[])all.push({kind:'farmer',id:n.id,label:'농부 상점 열기',distance:tileDistance(n),radius:n.interactionRadius});}else {for(const m of world.machines||[]){if(!stationLabels[m.type])continue;all.push({kind:'station',id:m.id,station:m.type,label:`${stationLabels[m.type]} 열기`,distance:tileDistance(m),radius:3.5});}if(world.personalPortal)all.push({kind:'portal',label:'상점 허브 입장',destination:'shopHub',distance:tileDistance(world.personalPortal),radius:world.personalPortal.interactionRadius});}return all.filter(x=>x.distance<=x.radius).sort((a,b)=>a.distance-b.distance)[0]||null;}
-function updateInteractionUi(){nearInteraction=nearbyInteraction();const hub=world?.worldKind==='shopHub';$('worldInteract').hidden=!nearInteraction||!$('shopPanel').hidden;$('worldInteract').textContent=nearInteraction?.label||'상호작용';$('hotbar').hidden=hub;$('objective').hidden=hub;$('grid').hidden=hub;document.querySelector('#top h1 span').textContent=hub?'/ SHOP HUB':'/ MY ISLAND';if(hub)$('craftPanel').hidden=true;}
+function updateInteractionUi(){nearInteraction=nearbyInteraction();const hub=world?.worldKind==='shopHub';$('worldInteract').hidden=!nearInteraction||!$('shopPanel').hidden;$('worldInteract').textContent=nearInteraction?.label||'상호작용';$('hotbar').hidden=hub;$('objective').hidden=hub;$('grid').hidden=hub;document.querySelector('#top h1 span').textContent=hub?'/ SHOP HUB':'/ OPEN WORLD';if(hub)$('craftPanel').hidden=true;}
 function loadWorld(next){const old=world?.worldKind,previous=world;world=next;syncWaterEdits(previous,next);if(world.player){player.pos.set(world.player.x,world.player.y,world.player.z);player.grounded=world.player.grounded===true;humanoid.position.copy(player.pos);setAuthoritativeWaterState(world.player);}if(old!==world.worldKind){$('shopPanel').hidden=true;setMode('place');rebuild();rebuildMachines();rebuildResources();}inventory();updateCrafting();updateInteractionUi();}
 function rewardToast(item,amount){if(!amount)return;const line=document.createElement('div');line.className='pickup';line.textContent=(RESOURCE_LABELS[item]||item)+' ×'+amount;$('pickups').append(line);setTimeout(()=>line.remove(),2200);}
 async function interactWorld(){if(!nearInteraction||interactionBusy)return;interactionBusy=true;const action=nearInteraction;try{if(action.kind==='item'){const data=await api('/api/items/pickup',postJson({dropId:action.id,revision:world.revision}));world=data.world;inventory();syncWorldDrops();rewardToast(action.item,action.quantity);notice(`${action.item} +${action.quantity} · 수동 획득`);}else if(action.kind==='portal'){const data=await api('/api/world/transition',postJson({destination:action.destination}));loadWorld(data.world);notice(action.destination==='shopHub'?'상점 허브에 도착했어.':'개인 섬으로 돌아왔어.');}else if(action.kind==='station'){activeCraftStation=action.station;updateCrafting();$('craftPanel').hidden=false;updateInteractionUi();}else{const data=await api('/api/shop/open',postJson({npcId:action.id}));shopRevision=data.revision;$('shopCoins').textContent='보유 코인 · '+data.coins.toLocaleString()+' 코인';$('shopPanel').hidden=false;refreshShopButtons();updateInteractionUi();}}catch(e){if(e.world)loadWorld(e.world);notice(e.message);}finally{interactionBusy=false;}}
@@ -856,19 +732,19 @@ function joystick(){
  const stop=e=>{if(e.pointerId!==id)return;id=null;touchMove.set(0,0);knob.style.transform='translate(0,0)'};
  area.addEventListener('pointerup',stop);area.addEventListener('pointercancel',stop);
 }joystick();
-let lastFrameAt=performance.now();
+let lastFrameAt=performance.now(),lastRenderedAt=0;const renderedFrameIntervals=[];
 function loop(now){requestAnimationFrame(loop);const rawFrameMs=Math.max(0,now-lastFrameAt),frameDt=Math.min(.05,rawFrameMs/1000);lastFrameAt=now;
  if(world?.worldGenVersion)terrainFrameAvgMs=terrainFrameAvgMs?terrainFrameAvgMs*.95+rawFrameMs*.05:rawFrameMs;
  const moving=keys.has('KeyW')||keys.has('KeyA')||keys.has('KeyS')||keys.has('KeyD')||keys.has('ArrowUp')||keys.has('ArrowDown')||keys.has('ArrowLeft')||keys.has('ArrowRight')||touchMove.length()>.05;animateWalk(frameDt,moving);
  if(world){sendMovement(now);updateTerrainStreaming();pumpTerrainWork();pumpWaterWork();}
  farmerModel?.update(frameDt);updateInteractionUi();
- for(const machine of machineRoots)for(const rotor of machine.userData.rotors||[])rotor.rotation.x+=frameDt*2.6;
+ updateMachineVisuals(frameDt);
  for(const entry of dropRoots.values()){entry.root.position.lerp(entry.target,Math.min(1,frameDt*10));entry.root.rotation.y+=frameDt*(entry.conveyor?.45:.65);if(!entry.conveyor)entry.root.position.y=entry.target.y+.09+Math.sin(now*.0018+entry.phase)*.055;}
- if(machineRoots.some(m=>m.userData.machineType==='smelter'))machineMaterials.ember.emissiveIntensity=1.55+Math.sin(now*.006)*.28;
  updateMine(now);
  const target=player.pos.clone().add(new THREE.Vector3(0,PLAYER_HEIGHT_METERS*.54,0)).multiplyScalar(WORLD_SCALE);
  camera.position.set(target.x+camDistance*WORLD_SCALE*Math.sin(camYaw)*Math.cos(camPitch),target.y+camDistance*WORLD_SCALE*Math.sin(camPitch)+2.0,target.z+camDistance*WORLD_SCALE*Math.cos(camYaw)*Math.cos(camPitch));camera.lookAt(target);
- renderer.render(scene,camera);if(world?.worldGenVersion&&now-lastTerrainStatsAt>1000){lastTerrainStatsAt=now;const biome=biomeAt(world.worldSeed,Math.floor(player.pos.x),Math.floor(player.pos.z),world.worldGenVersion),waterMeshes=[...streamedWater.values()].filter(entry=>entry.mesh).length;$('stats').textContent=`${biome} · 청크 ${streamedTerrain.size}/${desiredTerrainChunks.size} · 물 메시 ${waterMeshes} · 반경 ${configuredChunkRadius()} · 청크 ${terrainBuildLastMs.toFixed(1)}/${(terrainBuildTotalMs/Math.max(1,terrainBuildCount)).toFixed(1)}ms 평균 · RAF 간격 ${terrainFrameAvgMs.toFixed(1)}ms EMA · GPU 지오메트리 ${renderer.info.memory.geometries} · draw ${renderer.info.render.calls}`;}
+ const renderInterval=terraDebugFps?1000/terraDebugFps:0;if(!renderInterval||!lastRenderedAt||now-lastRenderedAt>=renderInterval){renderer.render(scene,camera);if(terraDebug){if(lastRenderedAt){renderedFrameIntervals.push(now-lastRenderedAt);if(renderedFrameIntervals.length>3600)renderedFrameIntervals.shift();}lastRenderedAt=now;}}
+ if(world?.worldGenVersion&&now-lastTerrainStatsAt>1000){lastTerrainStatsAt=now;const biome=biomeAt(world.worldSeed,Math.floor(player.pos.x),Math.floor(player.pos.z),world.worldGenVersion),waterMeshes=[...streamedWater.values()].filter(entry=>entry.mesh).length;let frameMetrics='';if(terraDebug&&renderedFrameIntervals.length){const sorted=[...renderedFrameIntervals].sort((a,b)=>a-b),percentile=q=>sorted[Math.min(sorted.length-1,Math.floor((sorted.length-1)*q))],mean=sorted.reduce((sum,value)=>sum+value,0)/sorted.length;frameMetrics=` · 렌더 FPS ${(1000/mean).toFixed(1)} · 프레임 p50/p95 ${percentile(.5).toFixed(1)}/${percentile(.95).toFixed(1)}ms · 삼각형 ${renderer.info.render.triangles} · 텍스처 ${renderer.info.memory.textures}`;}$('stats').textContent=`${biome} · 청크 ${streamedTerrain.size}/${desiredTerrainChunks.size} · 물 메시 ${waterMeshes} · 반경 ${configuredChunkRadius()} · 청크 생성 ${terrainBuildLastMs.toFixed(1)}/${(terrainBuildTotalMs/Math.max(1,terrainBuildCount)).toFixed(1)}ms 평균 · RAF 간격 ${terrainFrameAvgMs.toFixed(1)}ms EMA · GPU 지오메트리 ${renderer.info.memory.geometries} · draw ${renderer.info.render.calls}${frameMetrics}`;}
 }
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 $('grid').onclick=()=>{gridVisible=!gridVisible;$('grid').classList.toggle('selected',gridVisible);$('grid').setAttribute('aria-pressed',String(gridVisible));if(outlines)outlines.visible=gridVisible;if(world?.worldGenVersion)setChunkOutlines(gridVisible);};
