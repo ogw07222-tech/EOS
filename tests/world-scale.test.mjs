@@ -30,7 +30,7 @@ test('selection resolves scaled world intersections back into unscaled grid coor
 });
 test('follow camera and projection use rendered coordinates and wider distances',()=>{
  assert.match(source,/const cameraTarget=new THREE\.Vector3\(\)/);
- assert.match(source,/cameraTarget\.copy\(player\.pos\);cameraTarget\.y\+=PLAYER_HEIGHT_METERS\*\.54;cameraTarget\.multiplyScalar\(WORLD_SCALE\)/);
+ assert.match(source,/cameraTarget\.copy\(humanoid\.position\);cameraTarget\.y\+=PLAYER_HEIGHT_METERS\*\.54;cameraTarget\.multiplyScalar\(WORLD_SCALE\)/);
  assert.match(source,/camera\.lookAt\(cameraTarget\)/);
  assert.match(source,/camDistance=9\.5;/);
  assert.match(source,/camDistance\*WORLD_SCALE\*Math\.sin\(camYaw\)/);

@@ -178,12 +178,12 @@ function chunkTint(block,topFace,x,y,z,faceNumber){
 }
 function rebuildTerrainEditIndex(){terrainEditedChunks.clear();for(const key of terrainEditSnapshot.keys()){const [x,,z]=key.split(',').map(Number);if(Number.isInteger(x)&&Number.isInteger(z))terrainEditedChunks.add(terrainChunkKey(chunkCoord(x),chunkCoord(z)));}}
 function hasNearbyTerrainEdits(cx,cz){for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)if(terrainEditedChunks.has(terrainChunkKey(cx+dx,cz+dz)))return true;return false;}
-function greedyChunkGeometry(getBlock,cx,cz,upper){
- const min=[cx*CHUNK_SIZE,WORLD_MIN_Y,cz*CHUNK_SIZE],size=[CHUNK_SIZE,Math.max(1,upper-WORLD_MIN_Y),CHUNK_SIZE];
+function greedyChunkGeometry(getBlock,cx,cz,upper,lower=WORLD_MIN_Y){
+ const min=[cx*CHUNK_SIZE,lower,cz*CHUNK_SIZE],size=[CHUNK_SIZE,Math.max(1,upper-lower),CHUNK_SIZE];
  // Greedy meshing asks for the same voxel from several face directions.
  // Resolve each world cell once per chunk instead of repeating terrain/noise
  // and edit lookups for every adjacent face test.
- const rawGetBlock=getBlock,startX=min[0]-1,startZ=min[2]-1,startY=WORLD_MIN_Y-1,width=CHUNK_SIZE+2,height=size[1]+2,blockCache=new Array(width*height*width);
+ const rawGetBlock=getBlock,startX=min[0]-1,startZ=min[2]-1,startY=lower-1,width=CHUNK_SIZE+2,height=size[1]+2,blockCache=new Array(width*height*width);
  getBlock=(x,y,z)=>{
   const ix=x-startX,iy=y-startY,iz=z-startZ;
   if(ix<0||ix>=width||iy<0||iy>=height||iz<0||iz>=width)return rawGetBlock(x,y,z);
@@ -197,15 +197,19 @@ function greedyChunkGeometry(getBlock,cx,cz,upper){
  meshData.colors=colorsOut;return createGreedyChunkGeometry(THREE,meshData);
 }
 function makeHeightfieldChunk(cx,cz,columnMap){
- const startX=cx*CHUNK_SIZE,startZ=cz*CHUNK_SIZE;let top=WORLD_MIN_Y;
- for(const column of columnMap.values())top=Math.max(top,column.surfaceY);
+ // Unedited heightfields are solid below the lowest column, including the
+ // neighbour halo. Only the surface band can contribute visible triangles.
+ let top=WORLD_MIN_Y,bottom=WORLD_MAX_Y;
+ for(const column of columnMap.values()){
+  top=Math.max(top,column.surfaceY);bottom=Math.min(bottom,column.surfaceY-1);
+ }
  const getBlock=(x,y,z)=>{
   if(y<WORLD_MIN_Y)return 'stone';if(y>WORLD_MAX_Y)return null;
   const column=columnMap.get(`${x},${z}`);if(!column)return blockAt(world,x,y,z);
   if(y>=column.surfaceY)return null;
   const depth=column.surfaceY-1-y;if(depth===0)return blockAt(world,x,y,z);if(depth<=3)return 'dirt';return blockAt(world,x,y,z);
  };
- return greedyChunkGeometry(getBlock,cx,cz,Math.min(WORLD_MAX_Y+1,top+1));
+ return greedyChunkGeometry(getBlock,cx,cz,Math.min(WORLD_MAX_Y+1,top+1),Math.max(WORLD_MIN_Y,bottom));
 }
 function makeChunkTerrain(cx,cz){
  const startX=cx*CHUNK_SIZE,startZ=cz*CHUNK_SIZE,columns=[];let top=WORLD_MIN_Y;
@@ -471,7 +475,9 @@ function sendMovement(now){
  void api('/api/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({x:dirX,z:dirZ,jump,swim,dive})}).then(data=>{
   if(teleportVersion!==devTeleportVersion)return;
   const previousWorld=world;if(data.world)world=data.world;else if(data.fluidCells)world={...world,fluidCells:data.fluidCells,fluidRevision:data.fluidRevision,player:{...world.player,...data.player}};syncWaterEdits(previousWorld,world);
-  player.pos.set(data.player.x,data.player.y,data.player.z);player.grounded=data.player.grounded;humanoid.position.copy(player.pos);
+  player.pos.set(data.player.x,data.player.y,data.player.z);player.grounded=data.player.grounded;
+  // A respawn or large correction must be visible immediately.
+  if(humanoid.position.distanceToSquared(player.pos)>4)humanoid.position.copy(player.pos);
   setAuthoritativeWaterState(data.player);
   if(!$('craftPanel').hidden){
   const stationState=(world?.machines||[]).filter(m=>['t1_bench','tool_bench','agriculture_bench','farming_bench','block_bench','basic_assembler','workbench','drill'].includes(m.type)).map(m=>m.type+':'+(Math.hypot(m.x+.5-player.pos.x,m.y+.6-(player.pos.y+1),m.z+.5-player.pos.z)<=4.5)).join('|');
@@ -800,7 +806,8 @@ function loop(now){requestAnimationFrame(loop);const rawFrameMs=Math.max(0,now-l
  updateMachineVisuals(frameDt);
  for(const entry of dropRoots.values()){entry.root.position.lerp(entry.target,Math.min(1,frameDt*10));entry.root.rotation.y+=frameDt*(entry.conveyor?.45:.65);if(!entry.conveyor)entry.root.position.y=entry.target.y+.09+Math.sin(now*.0018+entry.phase)*.055;}
  updateMine(now);
- cameraTarget.copy(player.pos);cameraTarget.y+=PLAYER_HEIGHT_METERS*.54;cameraTarget.multiplyScalar(WORLD_SCALE);
+ humanoid.position.lerp(player.pos,1-Math.exp(-30*rawFrameMs/1000));
+ cameraTarget.copy(humanoid.position);cameraTarget.y+=PLAYER_HEIGHT_METERS*.54;cameraTarget.multiplyScalar(WORLD_SCALE);
  camera.position.set(cameraTarget.x+camDistance*WORLD_SCALE*Math.sin(camYaw)*Math.cos(camPitch),cameraTarget.y+camDistance*WORLD_SCALE*Math.sin(camPitch)+2.0,cameraTarget.z+camDistance*WORLD_SCALE*Math.cos(camYaw)*Math.cos(camPitch));camera.lookAt(cameraTarget);
  const renderInterval=terraDebugFps?1000/terraDebugFps:0;if(!renderInterval||!lastRenderedAt||now-lastRenderedAt>=renderInterval){renderer.render(scene,camera);if(terraDebug){if(lastRenderedAt){renderedFrameIntervals[frameSampleIndex]=now-lastRenderedAt;frameSampleIndex=(frameSampleIndex+1)%renderedFrameIntervals.length;frameSampleCount=Math.min(frameSampleCount+1,renderedFrameIntervals.length);}lastRenderedAt=now;}}
  if(world?.worldGenVersion&&now-lastTerrainStatsAt>1000){lastTerrainStatsAt=now;const biome=biomeAt(world.worldSeed,Math.floor(player.pos.x),Math.floor(player.pos.z),world.worldGenVersion),waterMeshes=[...streamedWater.values()].filter(entry=>entry.mesh).length;let frameMetrics='';if(terraDebug&&frameSampleCount){const sorted=Array.from(renderedFrameIntervals.subarray(0,frameSampleCount)).sort((a,b)=>a-b),percentile=q=>sorted[Math.min(sorted.length-1,Math.floor((sorted.length-1)*q))],mean=sorted.reduce((sum,value)=>sum+value,0)/sorted.length;frameMetrics=` · 렌더 FPS ${(1000/mean).toFixed(1)} · 프레임 p50/p95 ${percentile(.5).toFixed(1)}/${percentile(.95).toFixed(1)}ms · 삼각형 ${renderer.info.render.triangles} · 텍스처 ${renderer.info.memory.textures}`;}$('stats').textContent=`${biome} · 청크 ${streamedTerrain.size}/${desiredTerrainChunks.size} · 물 메시 ${waterMeshes} · 반경 ${configuredChunkRadius()} · 청크 생성 ${terrainBuildLastMs.toFixed(1)}/${(terrainBuildTotalMs/Math.max(1,terrainBuildCount)).toFixed(1)}ms 평균 · RAF 간격 ${terrainFrameAvgMs.toFixed(1)}ms EMA · GPU 지오메트리 ${renderer.info.memory.geometries} · draw ${renderer.info.render.calls}${frameMetrics}`;}
