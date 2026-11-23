@@ -8,7 +8,7 @@ import { SHOP_CATALOG, resolveShopQuantity, applyShopTrade } from './src/economy
 import { advanceItemLogistics, normalizeDrops } from './src/item-logistics.mjs';
 import { WORLD_GEN_VERSION, PREVIOUS_WORLD_GEN_VERSION, LEGACY_WORLD_GEN_VERSION, WORLD_MIN_Y, WORLD_MAX_Y, blockAt, biomeAt as generatedBiomeAt, findBiomeSamples, waterLevelAt, stepFluid, chunkCoord, DEFAULT_CHUNK_RADIUS } from './src/chunk-world.mjs';
 import { mineralDrop, mineralTier, pickaxeTier, canMineMineral, mineralCore, isCoreDrop } from './src/mineral-world.mjs';
-import { normalizeResourceInventory, RESOURCE_KEYS, WOOD_LOG_KEYS, SAPLING_KEYS, TREE_LOGS, TREE_SAPLINGS, MINERAL_ITEMS } from './src/resource-catalog.mjs';
+import { PLACEABLE_BLOCK_IDS, normalizeResourceInventory, RESOURCE_KEYS, WOOD_LOG_KEYS, SAPLING_KEYS, TREE_LOGS, TREE_SAPLINGS, MINERAL_ITEMS } from './src/resource-catalog.mjs';
 import { biomeAt as legacyBiomeAt, generateTreesForChunk, treeDimensions } from './src/tree-world.mjs';
 import { heightAt } from './src/chunk-world.mjs';
 import { COAL_BLOCK_RECIPE } from './src/recipe-settings.mjs';
@@ -65,7 +65,7 @@ const RECIPES={
  smelter:{cost:{wood:6,dirt:10},station:'basic_assembler'},
  coal_block:{cost:{[COAL_BLOCK_RECIPE.inputItem]:COAL_BLOCK_RECIPE.inputQuantity},station:'block_bench',output:{item:COAL_BLOCK_RECIPE.outputItem,quantity:COAL_BLOCK_RECIPE.outputQuantity}}
 };
-const allowedFiles=new Map([['/','index.html'],['/index.html','index.html'],['/src/game.js','src/game.js'],['/src/terrain-atlas.js','src/terrain-atlas.js'],['/src/greedy-chunk-mesh.js','src/greedy-chunk-mesh.js'],['/src/nature-visuals.js','src/nature-visuals.js'],['/src/workstation-visuals.js','src/workstation-visuals.js'],['/src/industrial-visuals.js','src/industrial-visuals.js'],['/src/farmer-npc.js','src/farmer-npc.js'],['/src/farming-rules.mjs','src/farming-rules.mjs'],['/src/crop-rules.mjs','src/crop-rules.mjs'],['/src/item-logistics.mjs','src/item-logistics.mjs'],['/src/chunk-world.mjs','src/chunk-world.mjs'],['/src/mineral-world.mjs','src/mineral-world.mjs'],['/src/tree-world.mjs','src/tree-world.mjs'],['/src/resource-catalog.mjs','src/resource-catalog.mjs'],['/src/recipe-settings.mjs','src/recipe-settings.mjs']]);
+const allowedFiles=new Map([['/','index.html'],['/index.html','index.html'],['/models','models.html'],['/models.html','models.html'],['/src/model-assets.js','src/model-assets.js'],['/src/model-gallery.js','src/model-gallery.js'],['/src/hub-world.mjs','src/hub-world.mjs'],['/src/game.js','src/game.js'],['/src/terrain-atlas.js','src/terrain-atlas.js'],['/src/greedy-chunk-mesh.js','src/greedy-chunk-mesh.js'],['/src/nature-visuals.js','src/nature-visuals.js'],['/src/workstation-visuals.js','src/workstation-visuals.js'],['/src/industrial-visuals.js','src/industrial-visuals.js'],['/src/farmer-npc.js','src/farmer-npc.js'],['/src/farming-rules.mjs','src/farming-rules.mjs'],['/src/crop-rules.mjs','src/crop-rules.mjs'],['/src/item-logistics.mjs','src/item-logistics.mjs'],['/src/chunk-world.mjs','src/chunk-world.mjs'],['/src/mineral-world.mjs','src/mineral-world.mjs'],['/src/tree-world.mjs','src/tree-world.mjs'],['/src/resource-catalog.mjs','src/resource-catalog.mjs'],['/src/recipe-settings.mjs','src/recipe-settings.mjs']]);
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8'};
 const devFiles=new Map([['/devtools/time-control.js','devtools/time-control.js'],['/devtools/dev-panel.css','devtools/dev-panel.css']]);
 const localAddress=req=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
@@ -251,7 +251,7 @@ function change(current,action){const {type,x,y,z,revision}=action||{};
  if(type==='place'&&personalPortalCell(current,x,y,z))return {error:'The portal area is protected'};
  const existing=block(current,x,y,z);
  if(type==='place'){
-  const item=['dirt','sand','coal_block'].includes(action.item)?action.item:'dirt';
+  const item=PLACEABLE_BLOCK_IDS.includes(action.item)?action.item:'dirt';
   if(existing)return {error:'Space is occupied'};
   if((current.inventory[item]||0)<1)return {error:`Not enough ${item}`};
   if(!(current.worldGenVersion>=PREVIOUS_WORLD_GEN_VERSION&&waterLevelAt(current,x,y,z)>0)&&![[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]].some(([dx,dy,dz])=>block(current,x+dx,y+dy,z+dz)))return {error:'Must attach to existing terrain or water'};
@@ -273,7 +273,7 @@ function change(current,action){const {type,x,y,z,revision}=action||{};
  if(Object.keys(current.edits).length>=20000&&!Object.hasOwn(current.edits,key(x,y,z)))return {error:'World edit limit'};
  // Never mutate the persisted object before the save succeeds.
  const next={...current,edits:{...current.edits},inventory:{...current.inventory},tilled:[...current.tilled],crops:[...current.crops],watered:{...current.watered},revision:current.revision+1,updatedAt:Date.now()};
- const original=block(current,x,y,z),placedItem=['dirt','sand','coal_block'].includes(action.item)?action.item:'dirt',after=type==='place'?placedItem:null;
+ const original=block(current,x,y,z),placedItem=PLACEABLE_BLOCK_IDS.includes(action.item)?action.item:'dirt',after=type==='place'?placedItem:null;
  if(after===original)delete next.edits[key(x,y,z)];else next.edits[key(x,y,z)]=after;
  if(type==='place')next.inventory[placedItem]--;
  else if(['dirt','grass','sand'].includes(original)){const item=original==='sand'?'sand':'dirt';next.inventory[item]++;}

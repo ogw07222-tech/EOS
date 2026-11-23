@@ -8,6 +8,7 @@ export const RESOURCE_LABELS=Object.freeze({
  oak_sapling:'참나무 묘목',birch_sapling:'자작나무 묘목',rubber_sapling:'고무나무 묘목',rubber_sap:'고무 수액',
  carrot:'당근',carrot_seed:'당근 씨앗',potato:'감자',potato_seed:'감자 씨앗'
 });
+export const PLACEABLE_BLOCK_IDS=Object.freeze(['dirt','sand','coal_block']);
 export const RESOURCE_KEYS=Object.freeze(Object.keys(RESOURCE_LABELS));
 export const WOOD_LOG_KEYS=Object.freeze(['oak_log','birch_log','rubberwood']);
 export const SAPLING_KEYS=Object.freeze(['oak_sapling','birch_sapling','rubber_sapling']);

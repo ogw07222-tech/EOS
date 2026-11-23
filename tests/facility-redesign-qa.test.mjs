@@ -5,6 +5,7 @@ import { createWorkstationVisuals } from '../src/workstation-visuals.js';
 import { createIndustrialVisuals } from '../src/industrial-visuals.js';
 
 const game = await readFile(new URL('../src/game.js', import.meta.url), 'utf8');
+const assets = await readFile(new URL('../src/model-assets.js', import.meta.url), 'utf8');
 const server = await readFile(new URL('../server.mjs', import.meta.url), 'utf8');
 const world = await readFile(new URL('../src/chunk-world.mjs', import.meta.url), 'utf8');
 
@@ -106,12 +107,12 @@ test('game integration preserves existing type IDs, rotation, save contract, and
   for(const type of ['t1_bench','workbench','farming_bench','tool_bench','agriculture_bench','block_bench','basic_assembler','drill','conveyor','smelter']){
     assert.ok(game.includes(`'${type}'`)||server.includes(`${type}:`),`${type} remains represented in client/server`);
   }
-  assert.match(game,/createWorkstationVisuals/);
-  assert.match(game,/createIndustrialVisuals/);
+  assert.match(assets,/createWorkstationVisuals/);
+  assert.match(assets,/createIndustrialVisuals/);
   assert.match(server,/\/src\/workstation-visuals\.js/,'the station module must be allowlisted for the browser');
   assert.match(server,/\/src\/industrial-visuals\.js/,'the machine module must be allowlisted for the browser');
-  assert.match(game,/workstationVisuals\.create\(type,options\)/);
-  assert.match(game,/industrialVisuals\.create\(type,options\)/);
+  assert.match(assets,/workstationVisuals\.create\(type,options\)/);
+  assert.match(assets,/industrialVisuals\.create\(type,options\)/);
   assert.match(game,/function disposeMachineVisual\(/);
   assert.match(game,/function machineOperating\(/);
   assert.match(game,/function updateMachineVisuals\(/);
@@ -122,7 +123,7 @@ test('game integration preserves existing type IDs, rotation, save contract, and
   assert.match(game,/machine\.rotation\*Math\.PI\/2/);
   assert.match(server,/rotation<0\|\|body\.rotation>3/,'server still validates four right-angle rotations');
   assert.match(server,/next\.machines\.push\(\{id:randomBytes\(8\)\.toString\('hex'\),type,x,y,z,rotation:body\.rotation\}\)/,'existing machine IDs/types/rotation remain persisted');
-  assert.match(game,/function portalModel\(/,'world transition portal remains a separate visual');
+  assert.match(assets,/function portalModel\(/,'world transition portal remains a separate visual');
   assert.doesNotMatch(server,/RECIPES\s*=\s*\{[^}]*spaceship|RECIPES\s*=\s*\{[^}]*space_station/s,'no unrequested spaceship recipe was introduced');
 });
 

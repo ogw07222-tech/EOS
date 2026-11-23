@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../src/game.js',import.meta.url),'utf8');
+const assets=readFileSync(new URL('../src/model-assets.js',import.meta.url),'utf8');
 test('one logical voxel is one metre and the avatar uses the same world scale',()=>{
  assert.match(source,/const WORLD_SCALE=3\.75;/);
  assert.match(source,/worldRoot\.scale\.setScalar\(WORLD_SCALE\)/);
@@ -45,11 +46,11 @@ test('simulation grid and player physics remain in original block coordinates',(
 });
 
 test('human height and arm span fit one-metre voxel dimensions',()=>{
- assert.match(source,/box\(humanoid,\.28,\.28,\.27,skin,0,1\.64,0\)/);
- assert.match(source,/arm\.position\.set\(side\*\.28,1\.41,0\)/);
- assert.match(source,/box\(arm,\.12,\.60,\.19,suit,0,-\.30,0\)/);
- assert.match(source,/leg\.position\.set\(side\*\.125,\.78,0\)/);
- assert.match(source,/box\(leg,\.18,\.78,\.22,boots,0,-\.39,0\)/);
+ assert.match(assets,/box\(humanoid,\.28,\.28,\.27,skin,0,1\.64,0\)/);
+ assert.match(assets,/arm\.position\.set\(side\*\.28,1\.41,0\)/);
+ assert.match(assets,/box\(arm,\.12,\.60,\.19,suit,0,-\.30,0\)/);
+ assert.match(assets,/leg\.position\.set\(side\*\.125,\.78,0\)/);
+ assert.match(assets,/box\(leg,\.18,\.78,\.22,boots,0,-\.39,0\)/);
  const headTop=1.64+.28/2,armHalfSpan=.28+.12/2;
  assert.ok(Math.abs(headTop-1.78)<1e-12);
  assert.ok(Math.abs(armHalfSpan-.34)<1e-12);

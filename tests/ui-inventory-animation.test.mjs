@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const game=readFileSync(new URL('../src/game.js',import.meta.url),'utf8');
+const assets=readFileSync(new URL('../src/model-assets.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 
 test('eight selectable quick slots persist selection and render item model previews',()=>{
@@ -18,17 +19,17 @@ test('inventory opens, closes, and assigns owned items',()=>{
  assert.match(game,/e\.code==='KeyE'/);assert.match(game,/e\.code==='Escape'/);
 });
 test('equipped block item places only an available dirt or sand stack',()=>{
- assert.match(game,/const placeItem=\['dirt','sand','coal_block'\]\.includes\(selectedTool\)\?selectedTool:'dirt'/);
- assert.match(game,/item:action==='place'&&\['dirt','sand','coal_block'\]\.includes\(selectedTool\)\?selectedTool:undefined/);
+ assert.match(game,/const placeItem=PLACEABLE_BLOCK_IDS\.includes\(selectedTool\)\?selectedTool:'dirt'/);
+ assert.match(game,/item:action==='place'&&PLACEABLE_BLOCK_IDS\.includes\(selectedTool\)\?selectedTool:undefined/);
  assert.match(game,/function isBlockEquipped\(\)/);
  assert.match(game,/else if\(isBlockEquipped\(\)\)void interact\(/);
  assert.doesNotMatch(game,/mode==='place'/);
 });
 test('held tools and resource models use the shared 3D model generator',()=>{
- assert.match(game,/function makeItemModel\(id\)/);assert.match(game,/function equipHeldTool\(id\)/);
+ assert.match(assets,/function makeItemModel\(id\)/);assert.match(game,/function equipHeldTool\(id\)/);
  assert.match(game,/heldToolModel=makeItemModel\(id\)/);
- assert.match(game,/if\(id==='wood_pickaxe'\|\|id==='stone_pickaxe'\)/);
- assert.match(game,/else if\(id==='wood_axe'\)/);assert.match(game,/else if\(id==='wood_shovel'\)/);
+ assert.match(assets,/if\(id==='wood_pickaxe'\|\|id==='stone_pickaxe'\)/);
+ assert.match(assets,/else if\(id==='wood_axe'\)/);assert.match(assets,/else if\(id==='wood_shovel'\)/);
 });
 test('mobile quickbar retains all eight compact slots',()=>{
  assert.match(html,/#quickbar\{[^}]*grid-template-columns:repeat\(8,minmax\(0,1fr\)\)/);
@@ -38,8 +39,8 @@ test('mobile quickbar retains all eight compact slots',()=>{
 
 test('player arms and legs swing in opposite phase and ease to idle',()=>{
  assert.match(game,/const arms=\[\],legs=\[\]/);
- assert.match(game,/arm\.position\.set\(side\*\.28,1\.41,0\)/);
- assert.match(game,/leg\.position\.set\(side\*\.125,\.78,0\)/);
+ assert.match(assets,/arm\.position\.set\(side\*\.28,1\.41,0\)/);
+ assert.match(assets,/leg\.position\.set\(side\*\.125,\.78,0\)/);
  assert.match(game,/targetArm=-targetLeg\*\.75/);
  assert.match(game,/THREE\.MathUtils\.damp/);
  assert.match(game,/animateWalk\(frameDt,moving\)/);

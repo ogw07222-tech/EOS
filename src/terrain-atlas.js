@@ -2,9 +2,9 @@
 // one merged mesh each; this module only supplies a shared texture and UVs.
 export const TERRAIN_ATLAS_TILE_SIZE = 32;
 export const TERRAIN_ATLAS_COLUMNS = 8;
-export const TERRAIN_ATLAS_ROWS = 6;
+
 export const TERRAIN_ATLAS_WIDTH = TERRAIN_ATLAS_COLUMNS * TERRAIN_ATLAS_TILE_SIZE;
-export const TERRAIN_ATLAS_HEIGHT = TERRAIN_ATLAS_ROWS * TERRAIN_ATLAS_TILE_SIZE;
+
 
 const tileNames = [
   'grass_top','grass_side','grass_bottom','dirt_top','dirt_side','dirt_bottom','stone_top','stone_side','stone_bottom',
@@ -14,6 +14,8 @@ const tileNames = [
   'water_top','water_side','water_bottom','gravel_top','gravel_side','gravel_bottom','brick_top','brick_side','brick_bottom',
   'pale_stone_top','pale_stone_side','pale_stone_bottom',
 ];
+export const TERRAIN_ATLAS_ROWS = Math.ceil(tileNames.length / TERRAIN_ATLAS_COLUMNS);
+export const TERRAIN_ATLAS_HEIGHT = TERRAIN_ATLAS_ROWS * TERRAIN_ATLAS_TILE_SIZE;
 export const TERRAIN_ATLAS_TILES = Object.freeze(Object.fromEntries(tileNames.map((name, index) => [name, Object.freeze({ x: index % TERRAIN_ATLAS_COLUMNS, y: Math.floor(index / TERRAIN_ATLAS_COLUMNS) })])));
 
 const PALETTES = Object.freeze({
@@ -57,6 +59,7 @@ function coordHash(x, y, z, salt = 0) {
 export function terrainTileForBlock(block, faceIndex = 2) {
   const id = String(block || '').toLowerCase();
   const face = faceIndex === 0 ? 'top' : faceIndex === 1 ? 'bottom' : 'side';
+  if (Object.hasOwn(TERRAIN_ATLAS_TILES, id+'_'+face)) return id+'_'+face;
   if (id === 'grass') return `grass_${face}`;
   if (id === 'dirt' || id === 'soil') return `dirt_${face}`;
   if (['farmland','tilled_soil','wet_farmland'].includes(id)) return `farmland_${face}`;
