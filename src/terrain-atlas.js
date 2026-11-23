@@ -105,6 +105,15 @@ function seededRandom(seed) {
 function drawTile(ctx, name, x0, y0, seed) {
   const size = TERRAIN_ATLAS_TILE_SIZE, rand = seededRandom(seed), { kind, face } = tileParts(name), colors = paletteFor(name);
   ctx.fillStyle = baseFor(name); ctx.fillRect(x0, y0, size, size);
+  // Shallow stepped strata bind adjacent texels into larger geological forms.
+  for (let band = 0; band < 3; band++) {
+    const y = 3 + band * 10;
+    ctx.fillStyle = colors[band % colors.length];
+    for (let x = 0; x < size; x += 4) {
+      const offset = Math.round(1.5 * Math.sin(x / 7 + band));
+      ctx.fillRect(x0 + x, y0 + y + offset, 4, face === 'side' ? 2 : 1);
+    }
+  }
   const grassSurface=kind==='grass'&&face==='top';
   for (let y = 0; y < size; y += 4) for (let x = 0; x < size; x += 4) if (rand() < (grassSurface ? 0.09 : 0.28)) { ctx.fillStyle = colors[Math.floor(rand() * colors.length)]; ctx.fillRect(x0 + x, y0 + y, 4, 4); }
   for (let i = 0, n = grassSurface ? 20 : kind === 'sand' ? 48 : 44; i < n; i++) {

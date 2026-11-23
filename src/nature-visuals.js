@@ -12,9 +12,9 @@ export function createNatureMaterials(THREE) {
     oakBark: material(0x70503a), oakBarkLight: material(0x8c6647),
     birchBark: material(0xe0d7b9), birchMark: material(0x4a4a3e),
     rubberBark: material(0x514039), rubberTap: material(0xb78346, 0.68),
-    oakLeaf: material(0x527b55), oakLeafLight: material(0x6d9360),
-    birchLeaf: material(0x76935b), birchLeafLight: material(0x92a96b),
-    rubberLeaf: material(0x365e4c), rubberLeafLight: material(0x4b7558),
+    oakLeaf: material(0x387668), oakLeafLight: material(0x6d9360),
+    birchLeaf: material(0x89a64e), birchLeafLight: material(0x92a96b),
+    rubberLeaf: material(0x245948), rubberLeafLight: material(0x4b7558),
     wheatGreen: material(0x66864b), wheatGreenLight: material(0x85a858),
     wheatRipe: material(0xc6a449), wheatRipeLight: material(0xe0bf61),
     carrotLeaf: material(0x55874b), carrotLeafLight: material(0x76a75b),
@@ -33,6 +33,16 @@ function addBox(THREE, parent, material, width, height, depth, x, y, z, rz = 0) 
   mesh.receiveShadow = true;
   parent.add(mesh);
   return mesh;
+}
+
+// Broad flat facets catch the light in distinct tiers for each species.
+function foliage(THREE, parent, material, width, height, depth, x, y, z, angle) {
+  const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(.56, 0), material);
+  mesh.scale.set(width, height, depth);
+  mesh.position.set(x, y, z);
+  mesh.rotation.y = angle || 0;
+  mesh.castShadow = mesh.receiveShadow = true;
+  parent.add(mesh);
 }
 
 function groupAt(THREE, x, y, z) {
@@ -66,8 +76,8 @@ export function createTreeVisual(THREE, tree, materials = createNatureMaterials(
     const stemWidth = Math.max(0.11, Math.min(0.24, trunkWidth * 0.22));
     addBox(THREE, group, bark, stemWidth, stemHeight, stemWidth, 0, stemHeight / 2, 0);
     const leafW = 0.26 + stage * 0.12;
-    addBox(THREE, group, leaves, leafW, leafW * 0.74, leafW, 0, stemHeight + leafW * 0.18, 0, Math.PI / 4);
-    if (stage > 0) addBox(THREE, group, leavesLight, leafW * 0.68, leafW * 0.62, leafW * 0.68, 0.11, stemHeight + leafW * 0.48, 0.04, -Math.PI / 5);
+    foliage(THREE, group, leaves, leafW, leafW * 0.74, leafW, 0, stemHeight + leafW * 0.18, 0, Math.PI / 4);
+    if (stage > 0) foliage(THREE, group, leavesLight, leafW * 0.68, leafW * 0.62, leafW * 0.68, 0.11, stemHeight + leafW * 0.48, 0.04, -Math.PI / 5);
     return group;
   }
 
@@ -87,20 +97,20 @@ export function createTreeVisual(THREE, tree, materials = createNatureMaterials(
   const crownY = height * (species === 'rubber' ? 0.76 : species === 'birch' ? 0.79 : 0.77);
   if (species === 'oak') {
     const coreW = crownWidth * 0.56, coreH = height * 0.23;
-    addBox(THREE, group, leaves, coreW, coreH, coreW * 0.92, 0, crownY, 0, Math.PI / 4);
+    foliage(THREE, group, leaves, coreW, coreH, coreW * 0.92, 0, crownY, 0, Math.PI / 4);
     for (const [x, z, mat, angle] of [[-0.23, 0, leavesLight, -0.08], [0.23, 0, leaves, 0.08], [0, -0.2, leaves, -0.05], [0, 0.2, leavesLight, 0.05]]) {
-      addBox(THREE, group, mat, crownWidth * 0.48, height * 0.20, crownWidth * 0.43, x * crownWidth, crownY - height * 0.025, z * crownWidth, angle);
+      foliage(THREE, group, mat, crownWidth * 0.48, height * 0.20, crownWidth * 0.43, x * crownWidth, crownY - height * 0.025, z * crownWidth, angle);
     }
-    addBox(THREE, group, leavesLight, crownWidth * 0.34, height * 0.16, crownWidth * 0.33, -0.11 * crownWidth, crownY + height * 0.15, 0.02 * crownWidth, Math.PI / 4);
+    foliage(THREE, group, leavesLight, crownWidth * 0.34, height * 0.16, crownWidth * 0.33, -0.11 * crownWidth, crownY + height * 0.15, 0.02 * crownWidth, Math.PI / 4);
   } else if (species === 'birch') {
     for (const [y, width, mat, depth] of [[crownY - height * 0.10, 0.54, leaves, 0.48], [crownY + height * 0.07, 0.47, leavesLight, 0.43], [crownY + height * 0.22, 0.37, leaves, 0.35]]) {
-      addBox(THREE, group, mat, crownWidth * width, height * 0.19, crownWidth * depth, 0, y, 0, Math.PI / 4);
+      foliage(THREE, group, mat, crownWidth * width, height * 0.19, crownWidth * depth, 0, y, 0, Math.PI / 4);
     }
-    addBox(THREE, group, leavesLight, crownWidth * 0.30, height * 0.15, crownWidth * 0.28, 0, crownY + height * 0.34, 0, Math.PI / 4);
+    foliage(THREE, group, leavesLight, crownWidth * 0.30, height * 0.15, crownWidth * 0.28, 0, crownY + height * 0.34, 0, Math.PI / 4);
   } else {
-    addBox(THREE, group, leaves, crownWidth * 0.78, height * 0.18, crownWidth * 0.74, 0, crownY, 0, Math.PI / 4);
-    addBox(THREE, group, leavesLight, crownWidth * 0.58, height * 0.13, crownWidth * 0.55, 0, crownY + height * 0.09, 0, Math.PI / 4);
-    addBox(THREE, group, leaves, crownWidth * 0.38, height * 0.16, crownWidth * 0.36, 0, crownY + height * 0.20, 0, Math.PI / 4);
+    foliage(THREE, group, leaves, crownWidth * 0.78, height * 0.18, crownWidth * 0.74, 0, crownY, 0, Math.PI / 4);
+    foliage(THREE, group, leavesLight, crownWidth * 0.58, height * 0.13, crownWidth * 0.55, 0, crownY + height * 0.09, 0, Math.PI / 4);
+    foliage(THREE, group, leaves, crownWidth * 0.38, height * 0.16, crownWidth * 0.36, 0, crownY + height * 0.20, 0, Math.PI / 4);
     const tapY = trunkHeight * 0.36;
     addBox(THREE, group, materials.rubberTap, 0.12, 0.10, 0.07, trunkWidth * 0.34, tapY, 0.04);
     addBox(THREE, group, materials.rubberTap, 0.08, 0.08, 0.08, trunkWidth * 0.34, tapY - 0.09, 0.04);
@@ -109,7 +119,12 @@ export function createTreeVisual(THREE, tree, materials = createNatureMaterials(
 }
 
 function addLeaf(THREE, group, material, x, y, z, length, width, angle) {
-  addBox(THREE, group, material, width, length, width * 0.42, x, y, z, angle);
+  const blade = new THREE.Mesh(new THREE.OctahedronGeometry(.5), material);
+  blade.scale.set(width * 1.5, length, width * .52);
+  blade.position.set(x, y, z);
+  blade.rotation.z = angle;
+  blade.castShadow = true;
+  group.add(blade);
 }
 
 /** Build a crop-stage visual at the crop tile origin; does not alter stage data. */
@@ -134,8 +149,8 @@ export function createCropVisual(THREE, crop, materials = createNatureMaterials(
       addLeaf(THREE, group, leafMat, x - 0.075, h * 0.42, z, h * 0.33, 0.07, -0.55);
       addLeaf(THREE, group, leafMat, x + 0.07, h * 0.63, z, h * 0.28, 0.065, 0.52);
       if (stage === 4) {
-        addBox(THREE, group, materials.wheatRipeLight, 0.085, 0.23, 0.09, x + 0.025, h + 0.09, z, -0.18);
-        for (let i = 0; i < 3; i++) addBox(THREE, group, materials.wheatRipeLight, 0.07, 0.075, 0.075, x + (i - 1) * 0.047, h + 0.07 + i * 0.055, z + 0.01);
+        foliage(THREE, group, materials.wheatRipeLight, 0.085, 0.23, 0.09, x + 0.025, h + 0.09, z, -0.18);
+        for (let i = 0; i < 3; i++) foliage(THREE, group, materials.wheatRipeLight, 0.07, 0.075, 0.075, x + (i - 1) * 0.047, h + 0.07 + i * 0.055, z + 0.01);
       }
     }
     return group;
