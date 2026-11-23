@@ -1,3 +1,7 @@
+import { createTerrainAtlas, TERRAIN_ATLAS_TILES } from './terrain-atlas.js';
+import { buildGreedyChunkMesh, createGreedyChunkGeometry, installGreedyAtlasShader } from './greedy-chunk-mesh.js';
+import { MINERAL_BLOCKS } from './mineral-world.mjs';
+import { PLACEABLE_BLOCK_IDS } from './resource-catalog.mjs';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 import { createIndustrialVisuals } from './industrial-visuals.js';
 import { createWorkstationVisuals } from './workstation-visuals.js';
@@ -22,7 +26,6 @@ function createWaterSource(source){
  water.position.y=.19;g.add(water);return g;
 }
 
-const machineMaterials={dark:new THREE.MeshStandardMaterial({color:0x263944,metalness:.42,roughness:.58})};
 const workstationVisuals=createWorkstationVisuals(THREE),industrialVisuals=createIndustrialVisuals(THREE);
 
 function makeMachineModel(type,options={}){
@@ -168,7 +171,37 @@ function toolModel(id, model, m) {
  box(model,.068,.044,.16,m.wood,0,.405,0);
  box(model,.016,.44,.012,m.woodLight,.015,-.06,.052);
 }
+export const terrainAtlas=createTerrainAtlas(THREE);
+export const blockMaterial=installGreedyAtlasShader(new THREE.MeshLambertMaterial({map:terrainAtlas.texture,vertexColors:true}));
+export const blockIds=new Set([...Object.keys(TERRAIN_ATLAS_TILES).filter(k=>k.endsWith('_top')).map(k=>k.slice(0,-4)),...MINERAL_BLOCKS,...PLACEABLE_BLOCK_IDS]);
+const palette={plains:'#c9dbb8',forest:'#bed5c0',beach:'#e0cfad',side:'#b79878',dirt:'#ba9676',stone:'#b9c2bd',sand:'#ddc696',ore:'#d0bc9c'};
+const faceColors=new Map();
+export function blockFaceTint(id,face,biome='plains'){
+ let tone=id==='grass'?(face===0?(['forest','beach'].includes(biome)?biome:'plains'):'side'):id;
+ // Grass undersides and horizontal faces use the biome's turf tint in the world mesher.
+ if(id==='grass'&&face===1)tone=['forest','beach'].includes(biome)?biome:'plains';
+ if(MINERAL_BLOCKS.includes(id))tone='ore';
+ const color=palette[tone]||palette.stone;
+ const shade=face===1?.68:face===0||id==='grass'?1:.88;
+ const key=color+shade;
+ if(!faceColors.has(key))faceColors.set(key,new THREE.Color(color).multiplyScalar(shade));
+ return faceColors.get(key);
+}
+function makeBlockModel(id){
+ const data=buildGreedyChunkMesh({size:[1,1,1],getBlock:(x,y,z)=>x===0&&y===0&&z===0?id:null});
+ data.colors=new Float32Array(data.positions.length);
+ for(const face of data.faces){
+  const tint=blockFaceTint(id,face.faceIndex);
+  const start=face.indexStart/6*4;
+  for(let i=start;i<start+4;i++)tint.toArray(data.colors,i*3);
+ }
+ const geometry=createGreedyChunkGeometry(THREE,data);
+ geometry.translate(-.5,-.5,-.5);
+ return new THREE.Mesh(geometry,blockMaterial);
+}
 function makeItemModel(id){
+ if(id==='block_dirt')id='dirt';
+ if(blockIds.has(id))return makeBlockModel(id);
  const g=new THREE.Group(),m=itemMats;
  if(['wood_pickaxe','stone_pickaxe','wood_axe','wood_shovel','hoe','scythe'].includes(id)) toolModel(id,g,m);
  else if(id==='watering_can'){
@@ -181,11 +214,8 @@ function makeItemModel(id){
    const seed=new THREE.Mesh(new THREE.IcosahedronGeometry(.14,0),seedMat);
    seed.position.set(x,y,z);seed.scale.set(.61,1.25,.63);seed.rotation.z=r;g.add(seed);
   }
- } else if(id==='wood'){
-  for(const [y,z] of [[0,-.12],[0,.12],[.14,0]])box(g,.60,.12,.19,m.woodLight,0,y,z);
- } else if(['stone','ore','iron_ore','coal_ore','copper_ore','coal','iron_vein_core','coal_vein_core','copper_vein_core'].includes(id)){if(id==='coal'){const coal=new THREE.Mesh(new THREE.DodecahedronGeometry(.27,0),m.dark);coal.scale.set(1,.7,.85);g.add(coal);}else for(let i=0;i<5;i++){const a=new THREE.Mesh(new THREE.IcosahedronGeometry(.19+(i%2)*.045,0),i%3===0?m.metal:m.stone);a.position.set((i-2)*.12,(i%2)*.16,((i*7)%3-1)*.09);a.rotation.set(i*.4,i*.7,i*.2);g.add(a);}if(id.includes('vein_core')){const core=new THREE.Mesh(new THREE.OctahedronGeometry(.25),id.includes('coal')?m.dark:id.includes('iron')?m.metal:m.woodLight);core.position.y=.23;g.add(core);}if(id!=='stone'&&id!=='coal')for(const [x,y]of [[-.1,.12],[.12,.23]]){const gem=id.includes('iron')?m.metal:id.includes('copper')?m.copper:id.includes('coal')?m.dark:m.crystal,c=new THREE.Mesh(new THREE.OctahedronGeometry(.105,0),gem);c.position.set(x,y,.11);g.add(c);}}
+ } else if(['ore','iron_vein_core','coal_vein_core','copper_vein_core'].includes(id)){if(id==='coal'){const coal=new THREE.Mesh(new THREE.DodecahedronGeometry(.27,0),m.dark);coal.scale.set(1,.7,.85);g.add(coal);}else for(let i=0;i<5;i++){const a=new THREE.Mesh(new THREE.IcosahedronGeometry(.19+(i%2)*.045,0),i%3===0?m.metal:m.stone);a.position.set((i-2)*.12,(i%2)*.16,((i*7)%3-1)*.09);a.rotation.set(i*.4,i*.7,i*.2);g.add(a);}if(id.includes('vein_core')){const core=new THREE.Mesh(new THREE.OctahedronGeometry(.25),id.includes('coal')?m.dark:id.includes('iron')?m.metal:m.woodLight);core.position.y=.23;g.add(core);}if(id!=='stone'&&id!=='coal')for(const [x,y]of [[-.1,.12],[.12,.23]]){const gem=id.includes('iron')?m.metal:id.includes('copper')?m.copper:id.includes('coal')?m.dark:m.crystal,c=new THREE.Mesh(new THREE.OctahedronGeometry(.105,0),gem);c.position.set(x,y,.11);g.add(c);}}
  else if(id==='iron_ingot'||id==='ingot'){const a=new THREE.Mesh(new THREE.CylinderGeometry(.30,.36,.17,4),m.metal);a.scale.z=.68;a.rotation.y=Math.PI/4;a.position.y=.05;g.add(a);const b=a.clone();b.scale.multiplyScalar(.85);b.position.y=.21;g.add(b);}
- else if(['dirt','sand','coal_block','block_dirt'].includes(id)){const a=new THREE.Mesh(new THREE.CylinderGeometry(.4,.415,.57,4),id==='sand'?m.sand:id==='coal_block'?machineMaterials.dark:m.wood);a.rotation.y=Math.PI/4;g.add(a);if(!['sand','coal_block'].includes(id))for(const [x,y,z]of [[-.18,.2,.12],[.14,-.1,.2],[.12,.11,-.19]])box(g,.12,.1,.12,m.woodLight,x,y,z);}
  else if(id.includes('wheat')||id==='food'){for(let i=0;i<3;i++){const stem=new THREE.Mesh(new THREE.CylinderGeometry(.018,.024,.58,5),m.leaf);stem.position.set((i-1)*.12,.08,0);g.add(stem);const seed=new THREE.Mesh(new THREE.OctahedronGeometry(.105),m.food);seed.scale.set(.65,1.5,.65);seed.rotation.z=(i-1)*.25;seed.position.set((i-1)*.12,.4,0);g.add(seed);}}
  else if(id.includes('carrot')){const root=new THREE.Mesh(new THREE.ConeGeometry(.17,.65,7),m.carrot);root.rotation.x=Math.PI;root.position.y=-.03;g.add(root);for(let i=0;i<3;i++){const leaf=new THREE.Mesh(new THREE.ConeGeometry(.055,.4,5),m.leaf);leaf.position.set((i-1)*.09,.3,0);leaf.rotation.z=(i-1)*.22;g.add(leaf);}}
  else if(id.includes('potato')){for(const [x,y,z]of [[-.14,0,0],[.08,.05,.1],[.02,-.07,-.1]]){const tuber=new THREE.Mesh(new THREE.IcosahedronGeometry(.16,0),m.potato);tuber.scale.set(1.23,.70,.82);tuber.rotation.z=x;tuber.position.set(x,y,z);g.add(tuber);}}

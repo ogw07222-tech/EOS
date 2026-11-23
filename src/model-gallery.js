@@ -1,13 +1,10 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
-import { RESOURCE_LABELS, TOOL_NAMES, TREE_SPECIES, PLACEABLE_BLOCK_IDS } from './resource-catalog.mjs';
+import { RESOURCE_LABELS, TOOL_NAMES, TREE_SPECIES } from './resource-catalog.mjs';
 import { CROP_TYPES, MAX_CROP_STAGE } from './crop-rules.mjs';
-import { MINERAL_BLOCKS } from './mineral-world.mjs';
 import { SHOP_HUB_LAYOUT } from './hub-world.mjs';
-import { createTerrainAtlas, TERRAIN_ATLAS_TILES } from './terrain-atlas.js';
-import { buildGreedyChunkMesh, createGreedyChunkGeometry, installGreedyAtlasShader } from './greedy-chunk-mesh.js';
 import { createCropVisual, createTreeVisual } from './nature-visuals.js';
 import { createFarmerNpc } from './farmer-npc.js';
-import { createPlayerModel, createOreNode, createWaterSource, makeMachineModel, makeItemModel, portalModel, starshipPortalModel, stationKiosk, stationLamp, createStationStructure, recipeCards } from './model-assets.js';
+import { blockIds, createPlayerModel, createOreNode, createWaterSource, makeMachineModel, makeItemModel, portalModel, starshipPortalModel, stationKiosk, stationLamp, createStationStructure, recipeCards } from './model-assets.js';
 
 const $=id=>document.getElementById(id);
 const canvas=document.querySelector('canvas');
@@ -16,18 +13,12 @@ renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
 const scene=new THREE.Scene(), camera=new THREE.PerspectiveCamera(38,1,.01,1000);
 scene.add(new THREE.HemisphereLight(0xfff9e8,0x9aafa9,2.1));
 const key=new THREE.DirectionalLight(0xffeedb,2.5);key.position.set(-3,5,4);scene.add(key);
-const atlas=createTerrainAtlas(THREE);
-const terrainMaterial=installGreedyAtlasShader(new THREE.MeshLambertMaterial({map:atlas.texture}));
 const origin={x:0,y:0,z:0},entries=[];
 function add(category,id,name,build){entries.push({category,id,name:name||id,build});}
 const blockLabels={grass:'잔디',farmland:'경작지',water:'물',gravel:'자갈',brick:'벽돌',pale_stone:'밝은 석재',coal_ore:'석탄 광석',birch_wood:'자작나무 목재',rubber_wood:'고무나무 목재'};
-const blockIds=new Set([...Object.keys(TERRAIN_ATLAS_TILES).filter(k=>k.endsWith('_top')).map(k=>k.slice(0,-4)),...MINERAL_BLOCKS,...PLACEABLE_BLOCK_IDS]);
-for(const id of blockIds)add('블록',id,blockLabels[id]||RESOURCE_LABELS[id],()=>{
- const mesh=buildGreedyChunkMesh({size:[1,1,1],getBlock:(x,y,z)=>x===0&&y===0&&z===0?id:null});
- return new THREE.Mesh(createGreedyChunkGeometry(THREE,mesh),terrainMaterial);
-});
+for(const id of blockIds)add('블록',id,blockLabels[id]||RESOURCE_LABELS[id],()=>makeItemModel(id));
 for(const [id,name] of Object.entries(TOOL_NAMES))add('도구',id,name,()=>makeItemModel(id));
-for(const [id,name] of Object.entries({...RESOURCE_LABELS,iron_ingot:'철 주괴'}))add('아이템',id,name,()=>makeItemModel(id));
+for(const [id,name] of Object.entries({...RESOURCE_LABELS,iron_ingot:'철 주괴'}))if(!blockIds.has(id))add('아이템',id,name,()=>makeItemModel(id));
 for(const {id,name} of [...recipeCards.filter(r=>!r.tool&&!r.output),{id:'t1_bench',name:'T1 제작대'}])add('설비',id,name,()=>makeMachineModel(id));
 add('설비','conveyor_uphill','경사 컨베이어',()=>makeMachineModel('conveyor',{uphill:true}));
 for(const species of TREE_SPECIES)for(let stage=0;stage<=3;stage++)add('자연물',species+'_'+stage,({oak:'참나무',birch:'자작나무',rubber:'고무나무'}[species]||species)+' · '+(stage+1)+'단계',()=>createTreeVisual(THREE,{...origin,species,stage}));

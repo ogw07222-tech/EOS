@@ -9,8 +9,8 @@ import { COAL_BLOCK_RECIPE } from './recipe-settings.mjs';
 import {PLACEABLE_BLOCK_IDS,RESOURCE_LABELS,RESOURCE_KEYS,TOOL_NAMES,TREE_LOGS,TREE_SAPLINGS,CROP_TYPES,CROP_SEEDS} from './resource-catalog.mjs';
 
 import { createNatureMaterials, createTreeVisual, createCropVisual } from './nature-visuals.js';
-import { createTerrainAtlas } from './terrain-atlas.js';
-import { buildGreedyChunkMesh, createGreedyChunkGeometry, installGreedyAtlasShader } from './greedy-chunk-mesh.js';
+import { terrainAtlas, blockMaterial, blockFaceTint, blockIds } from './model-assets.js';
+import { buildGreedyChunkMesh, createGreedyChunkGeometry } from './greedy-chunk-mesh.js';
 
 
 const $=id=>document.getElementById(id);
@@ -54,9 +54,8 @@ const faces=[
  {d:[0,0,-1],n:[0,0,-1],v:[[1,0,0],[0,0,0],[0,1,0],[1,1,0]]},
  {d:[0,0,1],n:[0,0,1],v:[[0,0,1],[1,0,1],[1,1,1],[0,1,1]]}
 ];
-const terrainAtlas=createTerrainAtlas(THREE);
-const grassMat=new THREE.MeshLambertMaterial({map:terrainAtlas.texture,vertexColors:true,side:THREE.FrontSide});
-installGreedyAtlasShader(grassMat);
+
+const grassMat=blockMaterial;
 const legacyTerrainMat=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.FrontSide});
 const edgesMat=new THREE.LineBasicMaterial({color:0x304b40,transparent:true,opacity:.32});
 const blockPreviewMaterials=[0x6f9d62,0x7b5742,0x79583f,0x956e4f,0x79583f,0x956e4f].map(color=>new THREE.MeshLambertMaterial({color,transparent:true,opacity:.5,depthWrite:false}));
@@ -173,8 +172,9 @@ function installWaterChunk(cx,cz,generation){
 function pumpWaterWork(){const start=performance.now();while(waterWorkQueue.length&&performance.now()-start<1.8){const job=waterWorkQueue.shift(),key=terrainChunkKey(job.cx,job.cz);if(job.generation!==waterGeneration||!desiredWaterChunks.has(key))continue;try{installWaterChunk(job.cx,job.cz,job.generation);}catch(error){console.error('Water mesh build failed:',key,error);}}}
 function configuredChunkRadius(){let requested=(navigator.maxTouchPoints||0)>0?MIN_CHUNK_RADIUS:DEFAULT_CHUNK_RADIUS;try{const value=Number(localStorage.getItem('terra.chunkRadius'));if(Number.isFinite(value)&&value>0)requested=value;}catch{}return Math.max(MIN_CHUNK_RADIUS,Math.min(MAX_CHUNK_RADIUS,Math.trunc(requested)));}
 function disposeTerrainChunk(entry){worldRoot.remove(entry.root);entry.root.traverse(object=>{if(object.geometry)object.geometry.dispose();});}
-const terrainTintCache=new Map(),terrainTintHex={plains:'#c9dbb8',forest:'#bed5c0',beach:'#e0cfad',side:'#b79878',dirt:'#ba9676',stone:'#b9c2bd',sand:'#ddc696',ore:'#d0bc9c'};
-function chunkTint(block,topFace,x,y,z,faceNumber){const cacheKey=`${world.worldSeed}:${world.worldGenVersion}`,biome=biomeAt(world.worldSeed,x,z,world.worldGenVersion);let sets=terrainTintCache.get(cacheKey);if(!sets){sets={};terrainTintCache.set(cacheKey,sets);}let set=sets[biome];if(!set){const grass=biome==='forest'?'forest':biome==='beach'?'beach':'plains';set={grass:[new THREE.Color(terrainTintHex[grass]),new THREE.Color(terrainTintHex.side)],dirt:[new THREE.Color(terrainTintHex.dirt)],sand:[new THREE.Color(terrainTintHex.sand)],ore:[new THREE.Color(terrainTintHex.ore)],stone:[new THREE.Color(terrainTintHex.stone)]};for(const values of Object.values(set)){const base=values[0];values[1]??=base.clone();values[2]=values[0].clone().multiplyScalar(.88);values[3]=values[0].clone().multiplyScalar(.68);}sets[biome]=set;}const kind=block==='grass'?'grass':block==='dirt'?'dirt':block==='sand'?'sand':['iron_ore','coal_ore','copper_ore'].includes(block)?'ore':'stone';return set[kind][faceNumber===0?0:faceNumber===1?3:kind==='grass'?1:2];}
+function chunkTint(block,topFace,x,y,z,faceNumber){
+ return blockFaceTint(block,faceNumber,biomeAt(world.worldSeed,x,z,world.worldGenVersion));
+}
 function rebuildTerrainEditIndex(){terrainEditedChunks.clear();for(const key of terrainEditSnapshot.keys()){const [x,,z]=key.split(',').map(Number);if(Number.isInteger(x)&&Number.isInteger(z))terrainEditedChunks.add(terrainChunkKey(chunkCoord(x),chunkCoord(z)));}}
 function hasNearbyTerrainEdits(cx,cz){for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)if(terrainEditedChunks.has(terrainChunkKey(cx+dx,cz+dz)))return true;return false;}
 function greedyChunkGeometry(getBlock,cx,cz,upper){
@@ -397,7 +397,7 @@ const toolNames=TOOL_NAMES;
 const itemThumbs=new Map();let thumbRenderer=null;const thumbScene=new THREE.Scene();thumbScene.add(new THREE.HemisphereLight(0xffffff,0x566677,2));const thumbLight=new THREE.DirectionalLight(0xffe3b5,2.3);thumbLight.position.set(-3,5,6);thumbScene.add(thumbLight);const thumbCamera=new THREE.PerspectiveCamera(34,1,.1,20);thumbCamera.position.set(1.45,1.25,2.2);thumbCamera.lookAt(0,.12,0);
 function itemThumbnail(id){if(itemThumbs.has(id))return itemThumbs.get(id);if(!thumbRenderer){thumbRenderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'});thumbRenderer.setPixelRatio(1);thumbRenderer.setSize(72,72);thumbRenderer.outputColorSpace=THREE.SRGBColorSpace;thumbRenderer.setClearColor(0x000000,0);}const model=makeItemModel(id);thumbScene.add(model);thumbRenderer.render(thumbScene,thumbCamera);const url=thumbRenderer.domElement.toDataURL('image/png');thumbScene.remove(model);model.traverse(o=>{if(o.geometry&&!o.geometry.userData.terraIndustrialShared&&!o.geometry.userData.terraWorkstationShared)o.geometry.dispose();});itemThumbs.set(id,url);return url;}
 let heldToolModel=null;
-function equipHeldTool(id){if(heldToolModel){heldToolModel.parent?.remove(heldToolModel);heldToolModel=null;}if(!toolNames[id]&&!RESOURCE_KEYS.includes(id))return;heldToolModel=makeItemModel(id);heldToolModel.scale.setScalar(PLACEABLE_BLOCK_IDS.includes(id)?.56:.72);heldToolModel.position.set(.13,-.49,-.19);heldToolModel.rotation.z=-.35;(arms[1]||humanoid).add(heldToolModel);}
+function equipHeldTool(id){if(heldToolModel){heldToolModel.parent?.remove(heldToolModel);heldToolModel.traverse(o=>{if(o.geometry&&!o.geometry.userData.terraIndustrialShared&&!o.geometry.userData.terraWorkstationShared)o.geometry.dispose();});heldToolModel=null;}if(!toolNames[id]&&!RESOURCE_KEYS.includes(id))return;heldToolModel=makeItemModel(id);heldToolModel.scale.setScalar(blockIds.has(id)?.48:.72);heldToolModel.position.set(.13,-.49,-.19);heldToolModel.rotation.z=-.35;(arms[1]||humanoid).add(heldToolModel);}
 const {humanoid,arms,legs}=createPlayerModel();worldRoot.add(humanoid);
 let gaitPhase=0;function animateWalk(dt,moving){if(moving||playerSwimming)gaitPhase+=dt*(playerSwimming?5:8);const targetLeg=playerSwimming?Math.sin(gaitPhase)*.34:moving?Math.sin(gaitPhase)*.55:0,targetArm=playerSwimming?-.45+Math.sin(gaitPhase+Math.PI)*.42:-targetLeg*.75;for(let i=0;i<2;i++){legs[i].rotation.x=THREE.MathUtils.damp(legs[i].rotation.x,i===0?targetLeg:-targetLeg,10,dt);arms[i].rotation.x=THREE.MathUtils.damp(arms[i].rotation.x,i===0?targetArm:-targetArm,10,dt);}}
 const player={pos:new THREE.Vector3(.5,0,.5),grounded:true};
