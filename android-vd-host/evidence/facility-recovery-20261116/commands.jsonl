@@ -1,0 +1,9 @@
+{"time_ns": 1794822306600430424, "args": ["shell", "am start-foreground-service --user 0 -n dev.eclipse.vdisplay/.HostService --es op create --es request fad984bdae7444558fbc56282e647965"], "rc": 0, "stderr": ""}
+{"time_ns": 1794822306829937424, "args": ["exec-out", "run-as", "dev.eclipse.vdisplay", "cat", "files/events.log"], "rc": 0, "stderr": ""}
+{"time_ns": 1794822307246762424, "args": ["exec-out", "run-as", "dev.eclipse.vdisplay", "cat", "files/events.log"], "rc": 0, "stderr": ""}
+{"time_ns": 1794822307533993117, "args": ["exec-out", "run-as", "dev.eclipse.vdisplay", "cat", "files/state.json"], "rc": 0, "stderr": ""}
+{"time_ns": 1794822307727000809, "args": ["shell", "cmd display get-displays"], "rc": 0, "stderr": ""}
+{"time_ns": 1794822331818618041, "args": ["shell", "dumpsys activity activities"], "rc": 0, "stderr": ""}
+{"time_ns": 1794822331887485118, "args": ["exec-out", "run-as", "dev.eclipse.vdisplay", "cat", "files/state.json"], "rc": 0, "stderr": ""}
+{"time_ns": 1794822331938072272, "args": ["shell", "cmd display get-displays"], "rc": 0, "stderr": ""}
+{"time_ns": 1794822332000174041, "args": ["shell", "am start-foreground-service --user 0 -n dev.eclipse.vdisplay/.HostService --es op stop --es request d960ad052dca4c53bf7a403fdc3c516a"], "rc": 0, "stderr": ""}

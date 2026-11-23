@@ -1,0 +1,20 @@
+## prototype/unified-water-gate
+ M README.md
+ M docs/GAME_DESIGN_AND_ROADMAP.md
+ M index.html
+ M server.mjs
+ M src/chunk-world.mjs
+ M src/game.js
+ M tests/chunk-world.test.mjs
+ M tests/facility-redesign-qa.test.mjs
+ M tests/farming.test.mjs
+ M tests/ux-regression.test.mjs
+ M tests/world-v2-generation.test.mjs
+?? FAILURE_MATRIX.md
+?? android-vd-host/evidence/android16-2026-11-15/
+?? android-vd-host/evidence/eos-prompt-2026-11-15/
+?? android-vd-host/evidence/facility-recovery-20261116/
+?? android-vd-host/evidence/terra-e2e-20261116/
+?? android-vd-host/evidence/terra-open-world-20261115/
+?? docs/FACILITY_RECOVERY_QA.md
+?? docs/failure-repro/

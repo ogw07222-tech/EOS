@@ -1,0 +1,16 @@
+	Temperature{mValue=0.0, mType=2, mName=SUBBAT, mStatus=0}
+	Temperature{mValue=49.5, mType=0, mName=AP, mStatus=0}
+	Temperature{mValue=-20.0, mType=12, mName=CP, mStatus=0}
+	Temperature{mValue=-20.0, mType=5, mName=PA, mStatus=0}
+	Temperature{mValue=28.0, mType=2, mName=BAT, mStatus=0}
+	Temperature{mValue=28.1, mType=4, mName=USB, mStatus=0}
+	Temperature{mValue=37.9, mType=3, mName=SKIN, mStatus=0}
+	Temperature{mValue=47.0, mType=0, mName=AP, mStatus=0}
+	Temperature{mValue=30.5, mType=2, mName=BAT, mStatus=0}
+	Temperature{mValue=-20.0, mType=12, mName=CP, mStatus=0}
+	Temperature{mValue=-20.0, mType=5, mName=PA, mStatus=0}
+	Temperature{mValue=39.2, mType=3, mName=SKIN, mStatus=0}
+	Temperature{mValue=0.0, mType=2, mName=SUBBAT, mStatus=0}
+	Temperature{mValue=30.6, mType=4, mName=USB, mStatus=0}
+	TemperatureThreshold{mType=2, mName=BAT, mHotThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, 55.0, 85.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=SKIN, mHotThrottlingThresholds=[38.0, 40.0, 42.0, 45.0, 47.0, 60.0, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}

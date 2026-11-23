@@ -1,0 +1,4 @@
+TERRAVD : CREATE display=16
+         1794707400.213 27882 27882 I TERRAVD : QA fixture cookie installed=true
+         1794707400.424 27882 27882 I TERRAVD : PAGE_FINISHED display=16 url=http://127.0.0.1:38173/ title=TERRA — My Island
+         1794707401.634 27882 27882 I TERRAVD : WEBGL display=16 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":true,"width":1280}

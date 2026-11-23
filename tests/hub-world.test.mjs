@@ -5,7 +5,7 @@ import {SHOP_HUB_LAYOUT,SHOP_HUB_WORLD_ID,PERSONAL_ISLAND_PORTAL,createShopHubIn
 test('hub has a private world instance, spawn, interaction points and protected capabilities',()=>{
  const a=createShopHubInstance('0123456789abcdef0123456789abcdef'),b=createShopHubInstance('abcdef0123456789abcdef0123456789');
  assert.equal(a.worldId,SHOP_HUB_WORLD_ID);assert.notEqual(a.instanceId,b.instanceId);assert.equal(a.kind,'shopHub');
- assert.equal(SHOP_HUB_LAYOUT.size.x,16);assert.equal(SHOP_HUB_LAYOUT.npcs[0].type,'farmer');assert.equal(SHOP_HUB_LAYOUT.portals[0].direction,'toPersonal');
+ assert.equal(SHOP_HUB_LAYOUT.size.x,96);assert.equal(SHOP_HUB_LAYOUT.size.z,64);assert.equal(SHOP_HUB_LAYOUT.shops.length,4);assert.equal(SHOP_HUB_LAYOUT.npcs[0].type,'farmer');assert.equal(SHOP_HUB_LAYOUT.portals[0].direction,'toPersonal');
  assert.equal(PERSONAL_ISLAND_PORTAL.interactionRadius>0,true);
  for(const action of ['mine','place','farm','combat','drop'])assert.equal(isWorldActionAllowed('shopHub',action),false);
  for(const action of ['interact','portal','trade'])assert.equal(isWorldActionAllowed('shopHub',action),true);

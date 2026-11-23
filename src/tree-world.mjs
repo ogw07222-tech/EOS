@@ -1,7 +1,7 @@
 // Deterministic tree and biome primitives. Coordinates are block-space meters;
 // tree x/z locate the trunk center at an integer tile coordinate and y is the
 // generated terrain surface supplied by the caller.
-import {biomeAt as generatedBiomeAt,LEGACY_WORLD_GEN_VERSION,WORLD_GEN_VERSION} from './chunk-world.mjs';
+import {biomeAt as generatedBiomeAt,LEGACY_WORLD_GEN_VERSION,PREVIOUS_WORLD_GEN_VERSION,WORLD_GEN_VERSION} from './chunk-world.mjs';
 export const TREE_CHUNK_SIZE=16;
 export const FOREST_SHARE_TARGET=.4;
 export const FOREST_REGION_METERS=144; // 9 chunks across, within 5–15 chunk goal.
@@ -94,8 +94,9 @@ export function generateTreesForChunk(seed,cx,cz,surfaceAt,genVersion=LEGACY_WOR
   const x=cellX*CANDIDATE_SPACING+2+Math.floor(rand(seed,cellX,cellZ,'tree-x')*3);
   const z=cellZ*CANDIDATE_SPACING+2+Math.floor(rand(seed,cellX,cellZ,'tree-z')*3);
   if(x<minX||x>=maxX||z<minZ||z>=maxZ||Math.hypot(x,z)<15||Math.hypot(x-STARTER_TREE.x,z-STARTER_TREE.z)<4.1)continue;
-  const biome=genVersion===WORLD_GEN_VERSION?generatedBiomeAt(seed,x,z,genVersion):biomeAt(seed,x,z),density=rand(seed,cellX,cellZ,'tree-presence');
-  if(genVersion===WORLD_GEN_VERSION&&!['plains','forest'].includes(biome))continue;
+  const generated=genVersion>=PREVIOUS_WORLD_GEN_VERSION;
+  const biome=generated?generatedBiomeAt(seed,x,z,genVersion):biomeAt(seed,x,z),density=rand(seed,cellX,cellZ,'tree-presence');
+  if(generated&&!['plains','forest'].includes(biome))continue;
   const localDensity=.68+.22*(valueNoise(seed,x,z,72,'forest-density')+1)/2;
   const probability=biome==='forest'?localDensity:.025;
   if(density>=probability)continue;

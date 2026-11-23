@@ -1,0 +1,47 @@
+--------- beginning of main
+11-16 21:19:58.216 14237 14237 I TERRAVD : CREATE display=28
+11-16 21:19:58.473 14237 14237 I TERRAVD : QA fixture cookie installed=true
+11-16 21:19:58.615 14237 14237 I TERRAVD : PAGE_FINISHED display=28 url=http://127.0.0.1:38173/?terraDebug=1 title=웹페이지를 사용할 수 없음
+11-16 21:19:59.820 14237 14237 I TERRAVD : WEBGL display=28 probe=1 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:00.823 14237 14237 I TERRAVD : WEBGL display=28 probe=2 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:01.826 14237 14237 I TERRAVD : WEBGL display=28 probe=3 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:02.828 14237 14237 I TERRAVD : WEBGL display=28 probe=4 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:03.831 14237 14237 I TERRAVD : WEBGL display=28 probe=5 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:04.834 14237 14237 I TERRAVD : WEBGL display=28 probe=6 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:05.839 14237 14237 I TERRAVD : WEBGL display=28 probe=7 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:06.846 14237 14237 I TERRAVD : WEBGL display=28 probe=8 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:07.850 14237 14237 I TERRAVD : WEBGL display=28 probe=9 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:08.852 14237 14237 I TERRAVD : WEBGL display=28 probe=10 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:09.858 14237 14237 I TERRAVD : WEBGL display=28 probe=11 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:10.862 14237 14237 I TERRAVD : WEBGL display=28 probe=12 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:11.869 14237 14237 I TERRAVD : WEBGL display=28 probe=13 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:12.873 14237 14237 I TERRAVD : WEBGL display=28 probe=14 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:13.882 14237 14237 I TERRAVD : WEBGL display=28 probe=15 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:14.893 14237 14237 I TERRAVD : WEBGL display=28 probe=16 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:15.899 14237 14237 I TERRAVD : WEBGL display=28 probe=17 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:16.902 14237 14237 I TERRAVD : WEBGL display=28 probe=18 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:17.909 14237 14237 I TERRAVD : WEBGL display=28 probe=19 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:20:18.916 14237 14237 I TERRAVD : WEBGL display=28 probe=20 result={"canvases":0,"height":0,"href":"chrome-error://chromewebdata/","ready":"complete","title":"웹페이지를 사용할 수 없음","webgl":false,"width":0}
+11-16 21:23:42.332 16787 16787 I TERRAVD : CREATE display=29
+11-16 21:23:42.492 16787 16787 I TERRAVD : QA fixture cookie installed=true
+11-16 21:23:42.700 16787 16787 I TERRAVD : CONSOLE ERROR Uncaught SyntaxError: Identifier 'interactionRefreshAt' has already been declared
+11-16 21:23:42.705 16787 16787 I TERRAVD : PAGE_FINISHED display=29 url=http://127.0.0.1:38173/?terraDebug=1 title=TERRA — Open World
+11-16 21:23:43.911 16787 16787 I TERRAVD : WEBGL display=29 probe=1 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:23:44.915 16787 16787 I TERRAVD : WEBGL display=29 probe=2 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:23:45.921 16787 16787 I TERRAVD : WEBGL display=29 probe=3 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:23:46.926 16787 16787 I TERRAVD : WEBGL display=29 probe=4 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:23:47.933 16787 16787 I TERRAVD : WEBGL display=29 probe=5 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:23:48.940 16787 16787 I TERRAVD : WEBGL display=29 probe=6 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:23:49.947 16787 16787 I TERRAVD : WEBGL display=29 probe=7 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:23:50.953 16787 16787 I TERRAVD : WEBGL display=29 probe=8 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:23:51.956 16787 16787 I TERRAVD : WEBGL display=29 probe=9 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:23:52.961 16787 16787 I TERRAVD : WEBGL display=29 probe=10 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:23:53.967 16787 16787 I TERRAVD : WEBGL display=29 probe=11 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:23:54.974 16787 16787 I TERRAVD : WEBGL display=29 probe=12 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:23:55.979 16787 16787 I TERRAVD : WEBGL display=29 probe=13 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:23:56.984 16787 16787 I TERRAVD : WEBGL display=29 probe=14 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:23:57.987 16787 16787 I TERRAVD : WEBGL display=29 probe=15 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":false,"width":0}
+11-16 21:24:56.481 19158 19158 I TERRAVD : CREATE display=30
+11-16 21:24:56.612 19158 19158 I TERRAVD : QA fixture cookie installed=true
+11-16 21:24:56.847 19158 19158 I TERRAVD : PAGE_FINISHED display=30 url=http://127.0.0.1:38173/?terraDebug=1 title=TERRA — Open World
+11-16 21:24:58.172 19158 19158 I TERRAVD : WEBGL display=30 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":true,"width":1280}

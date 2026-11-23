@@ -1,0 +1,6 @@
+Thermal Status: 0
+	Temperature{mValue=49.5, mType=0, mName=AP, mStatus=0}
+	Temperature{mValue=37.5, mType=3, mName=SKIN, mStatus=0}
+	Temperature{mValue=42.2, mType=0, mName=AP, mStatus=0}
+	Temperature{mValue=36.1, mType=3, mName=SKIN, mStatus=0}
+	TemperatureThreshold{mType=3, mName=SKIN, mHotThrottlingThresholds=[38.0, 40.0, 42.0, 45.0, 47.0, 60.0, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}

@@ -18,7 +18,7 @@ test('chunk helpers use floor division and normalized negative local coordinates
 });
 
 test('new world terrain is versioned, layered, and leaves legacy worlds ungenerated',()=>{
- assert.equal(LEGACY_WORLD_GEN_VERSION,1);assert.equal(WORLD_GEN_VERSION,2);assert.equal(WORLD_MIN_Y,-32);assert.equal(WORLD_MAX_Y,32);
+ assert.equal(LEGACY_WORLD_GEN_VERSION,1);assert.equal(WORLD_GEN_VERSION,3);assert.equal(WORLD_MIN_Y,-32);assert.equal(WORLD_MAX_Y,32);
  const world={worldSeed:'starter-seed',worldGenVersion:LEGACY_WORLD_GEN_VERSION,edits:{}};
  assert.equal(heightAt(world.worldSeed,0,0,LEGACY_WORLD_GEN_VERSION),0);
  assert.equal(blockAt(world,0,-1,0),'grass');
@@ -29,15 +29,17 @@ test('new world terrain is versioned, layered, and leaves legacy worlds ungenera
  assert.equal(blockAt({edits:{'4,2,-3':'dirt'}},4,2,-3),'dirt','legacy saved edits remain addressable');
 });
 
-test('safe landing plateau is exactly flat over its inclusive 12 by 12 footprint',()=>{
- for(let z=-6;z<=5;z++)for(let x=-6;x<=5;x++)assert.equal(heightAt('any-seed',x,z),0,`${x},${z}`);
+test('new starter plains use the seeded terrain surface instead of a flattened clearing',()=>{
+ const seed='any-seed',heights=[];
+ for(let z=-6;z<=5;z++)for(let x=-6;x<=5;x++){assert.equal(biomeAt(seed,x,z,WORLD_GEN_VERSION),'plains');heights.push(heightAt(seed,x,z,WORLD_GEN_VERSION));}
+ assert.ok(new Set(heights).size>1,'plains around the landing origin retain natural height variation');
 });
 
 test('surface heights normalize negative zero without changing the sampled beach level',()=>{
  const seed=0,x=-296,z=-344;
- assert.equal(biomeAt(seed,x,z,WORLD_GEN_VERSION),'beach');
- assert.equal(heightAt(seed,x,z,WORLD_GEN_VERSION),0);
- assert.equal(Object.is(heightAt(seed,x,z,WORLD_GEN_VERSION),-0),false);
+ assert.equal(biomeAt(seed,x,z,2),'beach');
+ assert.equal(heightAt(seed,x,z,2),0);
+ assert.equal(Object.is(heightAt(seed,x,z,2),-0),false);
 });
 
 test('seeded global noise is reproducible and independent of chunk generation order',()=>{

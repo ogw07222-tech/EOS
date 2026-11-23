@@ -1,0 +1,256 @@
+Domain verification status:
+
+Key Set Manager:
+  [dev.eclipse.vdisplay]
+      Signing KeySets: 287
+
+Packages:
+  Package [dev.eclipse.vdisplay] (e531d51):
+    appId=10303
+    pkg=Package{97417aa dev.eclipse.vdisplay}
+    codePath=/data/app/~~5M9xsdkXKLJ8ZSxHnfxb3Q==/dev.eclipse.vdisplay-9pSi9UW70oAUYS0sm1NLAA==
+    resourcePath=/data/app/~~5M9xsdkXKLJ8ZSxHnfxb3Q==/dev.eclipse.vdisplay-9pSi9UW70oAUYS0sm1NLAA==
+    legacyNativeLibraryDir=/data/app/~~5M9xsdkXKLJ8ZSxHnfxb3Q==/dev.eclipse.vdisplay-9pSi9UW70oAUYS0sm1NLAA==/lib
+    extractNativeLibs=true
+    primaryCpuAbi=null
+    secondaryCpuAbi=null
+    cpuAbiOverride=null
+    versionCode=1 minSdk=29 targetSdk=35
+    minExtensionVersions=[]
+    versionName=0.1
+    hiddenApiEnforcementPolicy=2
+    usesNonSdkApi=false
+    splits=[base]
+    apkSigningVersion=4
+    flags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+    privateFlags=[ PRIVATE_FLAG_ACTIVITIES_RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION ALLOW_AUDIO_PLAYBACK_CAPTURE PRIVATE_FLAG_ALLOW_NATIVE_HEAP_POINTER_TAGGING ]
+    forceQueryable=false
+    pageSizeCompat=0
+    queriesPackages=[com.eclipse.nativegame, dev.eclipse.studio]
+    scannedAsStoppedSystemApp=false
+    supportsScreens=[small, medium, large, xlarge, resizeable, anyDensity]
+    timeStamp=2026-11-14 11:52:55
+    lastUpdateTime=2026-11-14 11:52:55
+    installerPackageName=null
+    installerPackageUid=-1
+    initiatingPackageName=com.android.shell
+    originatingPackageName=null
+    category=manifest: -1, override: -1, by user: -1
+    packageSource=1
+    loadingProgress=100%
+    loadingCompletedTime=2026-11-14 11:45:20
+    appMetadataFilePath=null
+    appMetadataSource=0
+    signatures=PackageSignatures{7f28566 version:4, signatures:[5902c386], past signatures:[]}
+    installPermissionsFixed=false
+    pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+    privatePkgFlags=[ PRIVATE_FLAG_ACTIVITIES_RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION ALLOW_AUDIO_PLAYBACK_CAPTURE PRIVATE_FLAG_ALLOW_NATIVE_HEAP_POINTER_TAGGING ]
+    apexModuleName=null
+    componentsDeclared=3
+    requested permissions:
+      android.permission.FOREGROUND_SERVICE
+      android.permission.FOREGROUND_SERVICE_SPECIAL_USE
+    install permissions:
+      android.permission.FOREGROUND_SERVICE: granted=true
+      android.permission.FOREGROUND_SERVICE_SPECIAL_USE: granted=true
+    User 0: ceDataInode=1252524 deDataInode=1248096 installed=true hidden=false suspended=false distractionFlags=0 stopped=false notLaunched=false enabled=0 instant=false virtual=false quarantined=false
+      installReason=0
+      dataDir=/data/user/0/dev.eclipse.vdisplay
+      firstInstallTime=2026-11-14 11:45:20
+      uninstallReason=0
+      overlay paths:
+        /product/overlay/NavigationBarMode3Button/NavigationBarMode3ButtonOverlay.apk
+        /product/overlay/NotesRoleEnabled/NotesRoleEnabledOverlay.apk
+      legacy overlay paths:
+        /product/overlay/NavigationBarMode3Button/NavigationBarMode3ButtonOverlay.apk
+        /product/overlay/NotesRoleEnabled/NotesRoleEnabledOverlay.apk
+      runtime permissions:
+    User 150: ceDataInode=0 deDataInode=0 installed=false hidden=false suspended=false distractionFlags=0 stopped=true notLaunched=true enabled=0 instant=false virtual=false quarantined=false
+      installReason=0
+      dataDir=null
+      firstInstallTime=2026-11-14 11:45:20
+      uninstallReason=0
+      runtime permissions:
+
+Queries:
+  system apps queryable: false
+  queries via forceQueryable:
+  queries via package name:
+    dev.eclipse.vdisplay:
+      dev.eclipse.studio
+      com.eclipse.nativegame
+  queries via component:
+  queryable via interaction:
+    User 0:
+      [com.samsung.android.bixby.wakeup,com.samsung.android.fmm,com.samsung.android.messageguardsync,com.android.keychain,com.samsung.android.wifi.ai,com.android.location.fused,com.sec.usbsettings,com.android.localtransport,com.samsung.android.provider.filterprovider,com.samsung.aasaservice,com.sec.android.soagent,com.samsung.android.stickercenter,com.samsung.android.knox.zt.framework,com.samsung.gpuwatchapp,com.sec.android.app.wlantest,com.samsung.android.mdecservice,com.samsung.android.da.daagent,com.samsung.android.providers.factory,com.sec.android.smartfpsadjuster,com.sec.imsservice,com.samsung.android.app.dressroom,com.sec.android.app.parser,com.samsung.android.knox.pushmanager,com.samsung.android.dqagent,com.sec.android.app.servicemodeapp,android,com.samsung.android.bbc.bbcagent,com.samsung.android.vtcamerasettings,com.samsung.android.photoremasterservice,com.samsung.android.aircommandmanager,com.samsung.android.lool,com.android.server.telecom,com.skms.android.agent,com.samsung.android.wifi.intelligence,com.sec.android.sdhms,com.sec.imslogger,com.sec.facatfunction,com.sec.android.app.hwmoduletest,com.sec.android.app.SecSetupWizard,com.sec.android.app.factorykeystring,com.samsung.android.svcagent,com.sec.android.diagmonagent,com.sec.android.app.quicktool,com.samsung.android.cameraxservice,com.samsung.accessibility,com.wssyncmldm,com.samsung.sait.sohservice,com.samsung.SMT,com.samsung.android.smartface,com.samsung.android.app.omcagent,com.sec.android.emergencylauncher,com.samsung.android.biometrics.app.setting,com.samsung.android.vexfwk.service,com.samsung.android.themecenter,com.sec.mhs.smarttethering,com.samsung.android.motionphoto.app,com.samsung.android.hdmapp,com.sec.factory.camera,com.samsung.android.secondconnection,com.samsung.android.knox.attestation,com.sec.android.iaft,com.samsung.android.smartswitchassistant,com.samsung.android.globalpostprocmgr,com.samsung.android.brightnessbackupservice,com.android.providers.settings,com.sec.android.app.applinker,com.samsung.android.forest,com.sec.bcservice,com.android.settings,com.android.dynsystem,com.sec.sve,com.android.inputdevices]:
+        dev.eclipse.vdisplay
+      [com.samsung.android.honeyboard,com.samsung.android.keyscafe]:
+        dev.eclipse.vdisplay
+      dev.eclipse.vdisplay:
+        com.android.shell
+    User 150:
+  queryable via uses-library:
+
+Dexopt state:
+  [dev.eclipse.vdisplay]
+    path: /data/app/~~5M9xsdkXKLJ8ZSxHnfxb3Q==/dev.eclipse.vdisplay-9pSi9UW70oAUYS0sm1NLAA==/base.apk
+      arm64: [status=verify] [reason=bg-dexopt] [primary-abi]
+        [location is /data/dalvik-cache/arm64/data@app@~~5M9xsdkXKLJ8ZSxHnfxb3Q==@dev.eclipse.vdisplay-9pSi9UW70oAUYS0sm1NLAA==@base.apk@classes.dex]
+
+SPEG state:
+  Event #3: 21-10-2026 16:00:06.586 Success com.vacode.mylab took 2217 ms
+  Event #2: 14-08-2026 20:35:54.025 Failure com.BillionaireGames.TicketHero took 2286 ms
+  Event #1: 06-07-2026 12:57:56.844 Success org.chromium.webapk.ad3675348553a9605_v2 took 2190 ms
+  Event #0: 20-05-2026 02:23:33.027 Success com.sec.android.app.sbrowser.webapk.w567ceb095af276c4c86a16c28c96ae151 took 2166 ms
+
+Profile utilization state:
+  Current state:
+    Version: 2.1.2
+    Start reason: boot-after-mainline-update
+    Start time: Mon Nov 09 19:53:30 GMT+09:00 2026 ts=1794221610634
+    Finish time: Mon Nov 09 20:03:24 GMT+09:00 2026 ts=1794222204545
+    Took time 593sec
+    PU_StatusWatcher:
+      Initial thermal status: 0
+      Thermal status: 0
+      Screen off: true
+      Low battery: false
+    PU_DexoptTrigger:
+      Dexopt concurrency: 4
+      Dexopting: false
+      Hot apps list:
+        com.openai.chatgpt, w=34, s=OPTIMIZED, optTimeMs=1794221620444, cancelCount=0, dexopt=PERFORMED, [dex2oatTimeMs=8075, filter=speed-profile]
+        com.sec.android.app.sbrowser, w=57, s=OPTIMIZED, optTimeMs=1794221613391, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=1109, filter=speed-profile]
+        com.termux, w=74, s=OPTIMIZED, optTimeMs=1794221612525, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=bg-dexopt, dex2oatTimeMs=259, filter=speed-profile]
+        com.sec.android.app.myfiles, w=76, s=OPTIMIZED, optTimeMs=1794221611342, cancelCount=0, dexopt=SKIPPED, [primaryDex=true, reason=bg-dexopt, dex2oatTimeMs=0, filter=speed-profile]
+        com.nhn.android.search, w=83, s=OPTIMIZED, optTimeMs=1794221696577, cancelCount=0, dexopt=PERFORMED, [dex2oatTimeMs=9332, filter=speed-profile], [dex2oatTimeMs=1316, filter=speed-profile], [dex2oatTimeMs=0, filter=verify]
+        kr.co.lylstudio.httpsguard, w=87, s=OPTIMIZED, optTimeMs=1794221613249, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=bg-dexopt, dex2oatTimeMs=530, filter=speed-profile]
+        com.sec.android.gallery3d, w=94, s=OPTIMIZED, optTimeMs=1794221613274, cancelCount=0, dexopt=SKIPPED, [primaryDex=true, reason=bg-dexopt, dex2oatTimeMs=0, filter=speed-profile]
+        com.kakao.talk, w=109, s=OPTIMIZED, optTimeMs=1794221696772, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=bg-dexopt, dex2oatTimeMs=9891, filter=speed-profile]
+        com.android.settings, w=114, s=OPTIMIZED, optTimeMs=1794221614372, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=bg-dexopt, dex2oatTimeMs=790, filter=speed-profile]
+        com.itall.sapiens, w=115, s=OPTIMIZED, optTimeMs=1794221617292, cancelCount=0, dexopt=PERFORMED, [dex2oatTimeMs=2724, filter=speed-profile]
+        com.google.android.youtube, w=125, s=OPTIMIZED, optTimeMs=1794221698986, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=bg-dexopt, dex2oatTimeMs=7180, filter=speed-profile]
+        com.wrtn.character, w=125, s=OPTIMIZED, optTimeMs=1794221697405, cancelCount=0, dexopt=PERFORMED, [dex2oatTimeMs=3307, filter=speed-profile]
+        com.android.vending, w=127, s=OPTIMIZED, optTimeMs=1794221702317, cancelCount=0, dexopt=PERFORMED, [dex2oatTimeMs=4389, filter=speed-profile]
+        jp.co.ponos.battlecatskr, w=127, s=OPTIMIZED, optTimeMs=1794221698926, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=bg-dexopt, dex2oatTimeMs=1262, filter=speed-profile]
+        viva.republica.toss, w=139, s=OPTIMIZED, optTimeMs=1794221709081, cancelCount=0, dexopt=PERFORMED, [dex2oatTimeMs=7017, filter=speed-profile], [dex2oatTimeMs=0, filter=verify], [dex2oatTimeMs=0, filter=verify]
+        com.google.android.googlequicksearchbox, w=146, s=OPTIMIZED, optTimeMs=1794221709581, cancelCount=0, dexopt=PERFORMED, [dex2oatTimeMs=6764, filter=speed-profile]
+        com.spotify.music, w=162, s=OPTIMIZED, optTimeMs=1794221709277, cancelCount=0, dexopt=PERFORMED, [dex2oatTimeMs=6464, filter=speed-profile]
+        com.sec.android.easyMover, w=167, s=OPTIMIZED, optTimeMs=1794221707392, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=1714, filter=speed-profile]
+        com.instagram.android, w=168, s=OPTIMIZED, optTimeMs=1794222204544, cancelCount=3, dexopt=PERFORMED, [dex2oatTimeMs=7056, filter=speed-profile]
+        com.samsung.android.app.notes, w=170, s=OPTIMIZED, optTimeMs=1794222200342, cancelCount=3, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=3377, filter=speed-profile]
+        com.samsung.android.messaging, w=170, s=OPTIMIZED, optTimeMs=1794221709300, cancelCount=0, dexopt=SKIPPED, [primaryDex=true, reason=boot-after-mainline-update, dex2oatTimeMs=0, filter=speed-profile]
+        com.sec.android.app.clockpackage, w=171, s=OPTIMIZED, optTimeMs=1794222198696, cancelCount=3, dexopt=PERFORMED, [primaryDex=true, reason=bg-dexopt, dex2oatTimeMs=1734, filter=speed-profile]
+        com.sec.android.app.voicenote, w=171, s=OPTIMIZED, optTimeMs=1794222198940, cancelCount=3, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=1967, filter=speed-profile]
+    PU_Storage:
+      Stored apps:
+        com.openai.chatgpt 34
+        com.sec.android.app.sbrowser 57
+        com.termux 74
+        com.sec.android.app.myfiles 76
+        com.nhn.android.search 83
+        kr.co.lylstudio.httpsguard 87
+        com.sec.android.gallery3d 94
+        com.kakao.talk 109
+        com.android.settings 114
+        com.itall.sapiens 115
+        com.google.android.youtube 125
+        com.wrtn.character 125
+        com.android.vending 127
+        jp.co.ponos.battlecatskr 127
+        viva.republica.toss 139
+        com.google.android.googlequicksearchbox 146
+        com.spotify.music 162
+        com.sec.android.easyMover 167
+        com.instagram.android 168
+        com.samsung.android.app.notes 170
+        com.samsung.android.messaging 170
+        com.sec.android.app.clockpackage 171
+        com.sec.android.app.voicenote 171
+        com.google.android.gm 175
+        com.sec.android.app.shealth 175
+        com.samsung.android.calendar 178
+        com.samsung.android.oneconnect 180
+        com.samsung.android.samsungpass 183
+        com.samsung.android.wonderland.wallpaper 185
+        com.samsung.android.app.find 196
+        com.samsung.android.dialer 198
+        com.com2us.futurecpb.android.google.global.normal 205
+        com.samsung.android.app.watchmanager 206
+        com.samsung.android.app.reminder 210
+        com.discord 218
+        com.samsung.android.app.contacts 219
+        com.google.android.apps.photos 224
+        com.samsung.android.voc 226
+        autoclicker.clicker.autoclickerapp.autoclickerforgames 232
+        com.google.android.apps.tachyon 234
+        com.microsoft.office.outlook 235
+        com.samsung.android.bixby.agent 239
+        net.megastudy.integral 258
+    Stored PU state:
+      Service:
+        Version: 2.1.2
+        Start reason: boot-after-mainline-update
+        Start time: Mon Nov 09 19:53:30 GMT+09:00 2026 ts=1794221610634
+        Finish time: Mon Nov 09 20:03:24 GMT+09:00 2026 ts=1794222204545
+        Took time 593sec
+      Watcher:
+        Initial thermal status: 0
+        Thermal status: 0
+        Screen off: true
+        Low battery: false
+      Metrics:
+        Predicted and launched apps: 12
+        Predicted apps: 23
+        Launched apps: 12
+        Best f1Score: 0.78571427, prefixCount: 16, precision: 0.6875, recall: 0.9166667
+      Trigger:
+        Dexopt concurrency: 4
+        Dexopting: false
+        Hot apps list:
+          com.openai.chatgpt, w=34, s=OPTIMIZED, optTimeMs=1794221620444, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=8075, filter=speed-profile]
+          com.sec.android.app.sbrowser, w=57, s=OPTIMIZED, optTimeMs=1794221613391, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=1109, filter=speed-profile]
+          com.termux, w=74, s=OPTIMIZED, optTimeMs=1794221612525, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=259, filter=speed-profile]
+          com.sec.android.app.myfiles, w=76, s=OPTIMIZED, optTimeMs=1794221611342, cancelCount=0, dexopt=SKIPPED, [primaryDex=true, reason=boot-after-mainline-update, dex2oatTimeMs=0, filter=speed-profile]
+          com.nhn.android.search, w=83, s=OPTIMIZED, optTimeMs=1794221696577, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=9332, filter=speed-profile], [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=1316, filter=speed-profile], [primaryDex=true, reason=vdex-dm, dex2oatTimeMs=0, filter=verify]
+          kr.co.lylstudio.httpsguard, w=87, s=OPTIMIZED, optTimeMs=1794221613249, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=530, filter=speed-profile]
+          com.sec.android.gallery3d, w=94, s=OPTIMIZED, optTimeMs=1794221613274, cancelCount=0, dexopt=SKIPPED, [primaryDex=true, reason=boot-after-mainline-update, dex2oatTimeMs=0, filter=speed-profile]
+          com.kakao.talk, w=109, s=OPTIMIZED, optTimeMs=1794221696772, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=9891, filter=speed-profile]
+          com.android.settings, w=114, s=OPTIMIZED, optTimeMs=1794221614372, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=790, filter=speed-profile]
+          com.itall.sapiens, w=115, s=OPTIMIZED, optTimeMs=1794221617292, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=2724, filter=speed-profile]
+          com.google.android.youtube, w=125, s=OPTIMIZED, optTimeMs=1794221698986, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=7180, filter=speed-profile]
+          com.wrtn.character, w=125, s=OPTIMIZED, optTimeMs=1794221697405, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=3307, filter=speed-profile]
+          com.android.vending, w=127, s=OPTIMIZED, optTimeMs=1794221702317, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=4389, filter=speed-profile]
+          jp.co.ponos.battlecatskr, w=127, s=OPTIMIZED, optTimeMs=1794221698926, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=1262, filter=speed-profile]
+          viva.republica.toss, w=139, s=OPTIMIZED, optTimeMs=1794221709081, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=7017, filter=speed-profile], [primaryDex=true, reason=vdex, dex2oatTimeMs=0, filter=verify], [primaryDex=true, reason=vdex, dex2oatTimeMs=0, filter=verify]
+          com.google.android.googlequicksearchbox, w=146, s=OPTIMIZED, optTimeMs=1794221709581, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=6764, filter=speed-profile]
+          com.spotify.music, w=162, s=OPTIMIZED, optTimeMs=1794221709277, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=6464, filter=speed-profile]
+          com.sec.android.easyMover, w=167, s=OPTIMIZED, optTimeMs=1794221707392, cancelCount=0, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=1714, filter=speed-profile]
+          com.instagram.android, w=168, s=OPTIMIZED, optTimeMs=1794222204544, cancelCount=3, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=7056, filter=speed-profile]
+          com.samsung.android.app.notes, w=170, s=OPTIMIZED, optTimeMs=1794222200342, cancelCount=3, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=3377, filter=speed-profile]
+          com.samsung.android.messaging, w=170, s=OPTIMIZED, optTimeMs=1794221709300, cancelCount=0, dexopt=SKIPPED, [primaryDex=true, reason=boot-after-mainline-update, dex2oatTimeMs=0, filter=speed-profile]
+          com.sec.android.app.clockpackage, w=171, s=OPTIMIZED, optTimeMs=1794222198696, cancelCount=3, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=1734, filter=speed-profile]
+          com.sec.android.app.voicenote, w=171, s=OPTIMIZED, optTimeMs=1794222198940, cancelCount=3, dexopt=PERFORMED, [primaryDex=true, reason=profile-utilization, dex2oatTimeMs=1967, filter=speed-profile]
+    Stored SCPM state:
+      packages-9a07:
+        [                                            ]
+      disable-2bb4:
+        [                                            ]
+
+HeimdAllFS state:
+  [dev.eclipse.vdisplay]
+    path: /data/app/~~5M9xsdkXKLJ8ZSxHnfxb3Q==/dev.eclipse.vdisplay-9pSi9UW70oAUYS0sm1NLAA==/base.apk
+    Incremental Delivery APK: SKIP! : /data/app/~~5M9xsdkXKLJ8ZSxHnfxb3Q==/dev.eclipse.vdisplay-9pSi9UW70oAUYS0sm1NLAA==/base.apk
+  [ Summary ]
+    # of packages: 1 / # of packages in DATA: 1 (1)
+    Compressed apks info - sum of orig size: 0 / sum of compr size : 0
+  [Lfo status]
+    packageName: com.samsung.android.offline.languagemodel
+    Path: /data/app/~~IrH-Ihrd3CrP9Y-QkuzdEA==/com.samsung.android.offline.languagemodel-cQkkdf1keSjUnaN08FydGA==/base.apk
+    Fragmented: 1
+    Extent Count: 279
+    Version: 0
+    Flag: 0
+    Level: 0
+    Count: 0
+    

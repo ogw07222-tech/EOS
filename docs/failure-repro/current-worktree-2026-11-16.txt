@@ -1,0 +1,738 @@
+npm notice run terra-eos@0.1.0 test
+npm notice run node --test tests/*.test.mjs
+✔ new world persists its deterministic generation identity and landing origin across restart (1363.912ms)
+✖ generated grass supports edits on both sides of the negative chunk edge; edits survive restart and removal restores generated terrain (568.007692ms)
+✔ server collision blocks horizontal movement through generated underground stone (1436.532307ms)
+✖ generated flat-field agriculture saves till, seed use, watered time, and revision across restart without duplicate planting (1482.166846ms)
+✔ schema-1 saves without chunk metadata remain legacy worlds (1316.406077ms)
+✔ chunk helpers use floor division and normalized negative local coordinates (6.963ms)
+✖ new world terrain is versioned, layered, and leaves legacy worlds ungenerated (3.022077ms)
+✖ safe landing plateau is exactly flat over its inclusive 12 by 12 footprint (2.538462ms)
+✔ seeded global noise is reproducible and independent of chunk generation order (31.826846ms)
+✔ generated chunks contain 256 unique global columns and meet continuously at X/Z borders (23.685769ms)
+✔ saved edits take precedence over generated blocks and air edits remove terrain (2.363615ms)
+✔ height cache stays bounded and eviction preserves deterministic samples (361.966461ms)
+✔ stream plan loads 81 radius-4 chunks center first and unload diff is a 9-tile strip (3.503ms)
+✔ queued chunk work is rejected after movement, unload, or generation replacement (0.564923ms)
+✔ camera-relative WASD is correct in all four cardinal camera rotations (4.619076ms)
+✔ UI mode changes do not reference missing mode element (0.429615ms)
+✔ jump key uses keydown edge; joystick is radial normalized (0.351615ms)
+✔ legacy crop entities without cropType remain wheat (4.312615ms)
+✔ wheat, carrot, and potato use separate matching seed and product IDs with fixed one-plus-one yield (1.626846ms)
+✔ crop growth uses 60,000 game milliseconds per stage and wet duration doubles growth (0.368615ms)
+✔ growth preserves extra progress across stages and never exceeds maturity (0.245615ms)
+✔ unknown crops and invalid growth input fail instead of silently becoming another crop (2.286461ms)
+✔ developer clock applies each allowed multiplier and settles at the previous rate (10.427154ms)
+✔ developer clock rejects unsupported rates, excludes inactive gaps, and restarts at 1× (1.681538ms)
+✔ teleport water safety is modeled only for generation v2; legacy worlds remain unmodeled (2.002231ms)
+✔ development server exposes and validates local time controls, production does not (1903.985308ms)
+✖ developer acceleration combines with watering for crop growth, water duration, and sapling stages (732.534539ms)
+✔ development server without devtools folder boots the base game and has no dev UI or API (1788.221923ms)
+✔ developer teleport uses server coordinates across positive, negative, and Z/X chunk seams (1503.453538ms)
+✔ developer teleport rejects invalid, out-of-world, and solid-interior targets without moving the player (719.917462ms)
+✔ developer teleport exposes modeled water status, and previous location returns and persists (1095.232308ms)
+✔ ordinary movement cannot bypass developer teleport validation or set absolute coordinates (624.684231ms)
+✔ development teleport and time APIs stay hidden on non-loopback clients even when bound publicly (776.799769ms)
+✖ developer teleport supports a validated direct Y landing and returns current player state (1548.001847ms)
+✔ returning to the previous teleport origin clears the one-shot return target (1285.11777ms)
+✔ failed teleport save restores the session player and leaves the persisted save unchanged (1415.273231ms)
+✔ farmer shop quantities use server prices and reject unaffordable or full inventory trades (2.589231ms)
+✔ wheat sells for catalog value and inventory shortage is rejected atomically (0.257846ms)
+✔ carrot and potato seeds remain separately purchasable at fixed catalog prices (0.278384ms)
+✔ workstation visuals create distinct, bounded one-metre models with valid merged buffers (31.209461ms)
+✔ industrial visuals keep shared geometry bounded and expose only meaningful moving parts (17.099692ms)
+✔ game integration preserves existing type IDs, rotation, save contract, and distinct portal model (4.292693ms)
+✔ open-world fixture still exposes the five implemented biome identifiers (2.720693ms)
+✔ tree wood probability boundary is 70 percent for two and 30 percent for three (8.771385ms)
+✔ farm moisture is interpreted as positive remaining game milliseconds (18.478769ms)
+✔ new island has the complete flat starter farm and persists a hand harvest (787.541846ms)
+✖ planting requires a tilled tile, consumes one seed and rejects a duplicate crop (566.733769ms)
+✖ scythe harvest is a block-coordinate 3x3x3 cube and cannot duplicate rewards (696.328615ms)
+✖ scythe covers all 27 XYZ cells at signed/elevated boundaries and preserves immature and all 98 surrounding cells after reload (673.988538ms)
+✖ 114 scythe retry and watering boundary requests preserve single rewards, charges, and saved timers (909.452923ms)
+✖ watering, tree harvest, and planting requests are validated server-side (2048.268923ms)
+✖ water doubles active-session crop progress while restart time is excluded (629.997ms)
+✔ save, guest isolation, and restart preserve crops at every growth stage without offline catch-up (1090.963385ms)
+✖ watering uses are capped, timers do not stack, and an empty can can refill at a source (578.516692ms)
+✖ concurrent repeated planting and harvesting are revision-safe and award once (790.947308ms)
+✖ thirty full farming loops run on an isolated virtual 50x clock with growth, water, and save checks (1157.443693ms)
+✖ 50x watering and growth restore to 1x, retain only game-time water, and exclude restart gaps (1246.51877ms)
+✖ atomic save recovery ignores an orphaned partial temp file and keeps the last committed farm state (1543.46ms)
+✖ watered wheat advances at exactly twice the dry crop rate (1140.854692ms)
+✔ W01 one air water cell falls to the bottom of a vertical shaft (10.428539ms)
+✔ W02 solid floor blocks gravity before supported side flow (2.164616ms)
+✔ W03 candidate refill rules differ only by local full-neighbor count (3.240308ms)
+✔ W04 narrow, wide, U-shaped and dead-end channels stay bounded (14.445846ms)
+✔ W05 gravity-only water cannot climb an uphill passage (2.770462ms)
+✔ W06 mining a barrier reconnects a channel without teleporting water (8.586769ms)
+✔ W07 stepped river beds and waterfall drops remain connected (6.650846ms)
+✔ W08 X=15/16 and X=-1/0 boundaries preserve one canonical state (3.666769ms)
+✔ W09 shuffled chunk activation produces the same final hash (32.036616ms)
+✔ W10 boundary water and pending wake events survive unload and reload (8.192923ms)
+✔ W11 server restart restore resumes identical deterministic state (2.280231ms)
+✔ W12 solid mining wakes water and solids cannot overlap a wet cell (0.676ms)
+✔ W13 open cave floods by flow while disconnected cave stays dry (2.712693ms)
+✔ W14 world boundaries reject outside water and prevent out-of-range flow (4.398461ms)
+✔ W15 generated ocean and river stay outside the protected landing area (459.872923ms)
+✔ W16 water does not block a player collision query (0.279ms)
+✔ W17 player water placement, mining and bucket use are rejected atomically (0.535ms)
+✔ W18 81-chunk sea uses bounded active-cell batches (2866.596308ms)
+✔ W19 duplicate and reordered tick IDs cannot apply one tick twice (2.187462ms)
+✔ W20 adjacent water shares faces and exposes only a real height step (6.969769ms)
+✔ W21 coast and river generation is deterministic but seed dependent (367.759077ms)
+✔ W22 agricultural water records are outside fluid state and remain byte-identical (205.018154ms)
+✔ W23 existing saves stay unchanged and production does not import the prototype (173.889923ms)
+✔ W24 inactive/active boundary has one authoritative cell and no duplicate wake (1.014462ms)
+✔ 100 seeds × 100 mixed world events are deterministic and invariant-safe (10,000 events) (3509.379923ms)
+✔ one isolated voxel emits six correctly oriented exposed quads (4.142769ms)
+✔ adjacent coplanar cells merge while interior faces are removed (5.410692ms)
+✔ cavity walls remain exposed and are meshed (1.239769ms)
+✔ neighbor halo prevents false chunk seam faces (0.942384ms)
+✔ atlas shader repeats UVs within each tile rectangle (1.278462ms)
+✔ hub has real 3D portal and farmer models plus keyboard and touch interaction controls (25.845615ms)
+✔ hub has a private world instance, spawn, interaction points and protected capabilities (4.712923ms)
+✔ shared instance identity can be selected later without changing the private default (0.250769ms)
+✔ industrial factory builds only existing drill, conveyor, and smelter IDs (24.316616ms)
+✔ all industrial silhouettes fit within a one metre X/Z footprint (14.249231ms)
+✔ drill auger is a distinct movable assembly, separated from the static gantry (3.437307ms)
+✔ flat and uphill conveyors expose their own roller motion groups and share geometry (1.210769ms)
+✔ smelter exposes a single state-controlled hot window and shared idle intensity (0.86523ms)
+✔ removing one repeated machine retains factory-shared resources for siblings (0.971385ms)
+✔ browser entry point loads active game module (4.205769ms)
+✔ client uses Three.js WebGL and exposed voxel faces (0.672616ms)
+✔ cube winding is outward on all six normals (2.964231ms)
+✔ movement, interaction and server save are connected (4.526846ms)
+✔ item logistics preserves drops across belts, corners and one-tile uphill links (10.619077ms)
+✔ legacy saves normalize drops; duplicate IDs are discarded (1.118692ms)
+✔ active game renders world entities with cached item models and only offers explicit pickup (1.532923ms)
+✔ drill output is a saved world entity; explicit pickup is atomic and survives restart (7622.518847ms)
+✔ Three.js WebGL module renderer is used (2.532ms)
+✔ exactly four tiles and 1x1 right turn (1.321847ms)
+✔ incline rises by exactly one tile and path remains continuous (0.225538ms)
+✔ manual pickup and one arrow call per belt (1.637154ms)
+✔ ore node is cubic and mining drill uses a round spiral (3.683769ms)
+✔ seed and absolute coordinates produce deterministic veins independent of chunk traversal order (3224.947769ms)
+✔ starter landing pad remains clear and a guaranteed coal vein crosses the X chunk edge (3.685846ms)
+✔ mineral drop IDs and T0/T1 pickaxe gates are stable (1.254461ms)
+✔ core chance is a separate exact one-in-two-hundred mining roll (2.166154ms)
+✔ holding a block requires 1200ms, shows progress, and completes once (3.179ms)
+✔ releasing early cancels and resets mining progress (0.462154ms)
+✔ drag, lost capture, hidden browser and mode change cancel mining (0.404616ms)
+✔ mine uses hold, place remains click, HUD components exist (0.777923ms)
+✖ carrot and potato plant with their own seed and mature to exact one-plus-one rewards across restart (981.415769ms)
+✔ rubber tree harvest gives typed logs, sapling, and sap once; tombstone survives reload (2580.123384ms)
+✔ generated natural tree harvest tombstone prevents rebirth after server restart (2521.680308ms)
+✖ manual pickup accepts registered machine item IDs once and persists the stack (672.43877ms)
+✔ starter coal block rejects T0, mines once with T1, and persists the air edit (3848.180308ms)
+✖ independent guest island edits are validated and persist across restart (1072.772616ms)
+✖ new guest gets the designed island, tools, crops and resource harvesting (3221.881847ms)
+✔ legacy saves keep their island size and existing world state (1297.805462ms)
+✖ private shop hub transitions preserve island state, guard protected actions, and persist atomic farmer trades (2661.104616ms)
+✔ allowlisted render modules cover the complete client dependency graph (1295.792924ms)
+✔ terrain material atlas covers the complete compact 256×192 grid (5.962154ms)
+✔ block faces select distinct grass turf, soil, stone, sand, and ore tiles (0.935153ms)
+✔ atlas UV coordinates stay inset within the requested tile (5.116385ms)
+✔ terrain texture orientation is deterministic from world coordinates (2.522538ms)
+✔ eight persistent quick slots show cached 3D item thumbnails and quantities (4.530846ms)
+✔ legacy remote tool, resource, and node fields migrate without changing IDs (0.511077ms)
+✔ sand placement and shovel mining are server validated and use the selected item (0.466384ms)
+✔ inventory panel assigns owned resources to quick slots and preserves explicit world interactions (1.398385ms)
+✔ legacy save migrates into persistent slots and preserves sand through placement and shovel mining (2164.165231ms)
+✔ biome and tree generation are deterministic across negative coordinates and load order (16.045231ms)
+✔ forest and plains distribution is close to the 40/60 target over a broad seeded field (117.220693ms)
+✔ forest grove ratios target birch 45%, oak 35%, rubber 10%, mixed 10% (585.12277ms)
+✔ natural entities have stable root-owned chunk IDs and no duplicates at adjacent chunk seams (3.611461ms)
+✔ tree sizes meet species height and full crown/trunk width caps without overlap (118.788308ms)
+✔ eight selectable quick slots persist selection and render item model previews (7.077538ms)
+✔ inventory opens, closes, and assigns owned items (0.696615ms)
+✔ place mode only consumes an available dirt or sand stack (0.713538ms)
+✔ held tools and resource models use the shared 3D model generator (0.554847ms)
+✔ mobile quickbar retains all eight compact slots (1.037462ms)
+✔ player arms and legs swing in opposite phase and ease to idle (0.577923ms)
+✔ manual pickup displays a lower-right reward toast after the server confirms it (0.439769ms)
+✔ quickbar keeps eight accessible 3D thumbnail slots with compact quantities (9.942769ms)
+✔ icon controls retain accessible names and default debug stats stay hidden (0.987153ms)
+✔ resource expansion exposes crop and tree selectors, T1 pickaxe, and no emoji substitute (2.262077ms)
+✔ machine placement preview mirrors portal protection and inventory ownership (1.097616ms)
+✔ block placement preview is cached, matches server placement rules, and never commits before a tap (2.027384ms)
+✔ T0 workshops use dedicated cached V2-style part models within the one metre footprint (1.359923ms)
+✔ all existing workstation types have distinct measurable models inside the 1m footprint (74.068308ms)
+✔ repeated instances reuse immutable geometry and safely detach without disposing shared buffers (25.857539ms)
+✔ unsupported facility IDs fail clearly instead of silently rendering a cube (1.307154ms)
+✔ T0 workstation recipes consume mixed species logs and reject stale duplicate revisions (2256.625846ms)
+✔ T0 facility recipes require harvested wheat, ore and coal blocks and preserve inventory on failure (1234.354077ms)
+✔ crafted workstation placement consumes one item and survives server restart (2107.635ms)
+✔ all four confirmed workstation recipes craft from their specified T0 costs (2020.793461ms)
+✔ coal blocks can only be crafted at a real nearby block bench (3028.798462ms)
+✔ one logical voxel is one metre and the avatar uses the same world scale (12.656307ms)
+✔ selection resolves scaled world intersections back into unscaled grid coordinates (1.904923ms)
+✔ follow camera and projection use rendered coordinates and wider distances (0.583308ms)
+✔ simulation grid and player physics remain in original block coordinates (0.533769ms)
+✔ human height and arm span fit one-metre voxel dimensions (7.453847ms)
+✔ world generation v2 reports exactly the five supported biome identifiers (104.205923ms)
+✔ v2 terrain, biome, and natural water are absolute-coordinate deterministic across chunk order (54.263154ms)
+✔ signed X/Z and diagonal chunk seams resolve the same generated surface and liquid cells (25.031923ms)
+✔ v2 natural trees grow only in plains and forest; v1 tree generation stays compatible (73.783384ms)
+✖ natural ocean and river water is full at sea level and does not flood the protected origin (6.879308ms)
+✖ fluid ticks prioritize gravity, move exactly one horizontal unit, and conserve water (3.771ms)
+✔ fluid boundaries reject X/Z overflow and still permit an in-bounds edge transfer (5.22023ms)
+✖ 100 seeds × 100 integrated fluid events conserve units and replay deterministically (2.756923ms)
+✔ natural full water across an 81-chunk ocean window stays implicit and inactive (1351.595154ms)
+ℹ integrated pure-world sample: 81 chunks, 132756 generated full-water cells, 0 persisted cells, 0 active cells, 1330.9ms query, heap delta 6250688 bytes; no rendering included
+✔ the dev biome locator returns reproducible coordinates for all five server-generated biomes (1809.158462ms)
+✖ new v2 world identity and sparse fluid edits persist across server restart (2208.403462ms)
+✔ development tick-rate control accepts only 2, 5, and 10 ticks per second and persists (2070.984923ms)
+✔ server fluid simulation advances vertically at configured 2/5/10 tick rates (11815.349155ms)
+ℹ server fluid rate sample: 2t/s→2 cells/1.08s, 5t/s→5 cells/1.06s, 10t/s→10 cells/1.07s
+✖ server movement detects immersion and allows swimming while solid placement into water is denied (3813.547155ms)
+✔ 81-chunk natural ocean remains generated and developer APIs are hidden in production (3071.137846ms)
+✖ saved worlds with missing generation metadata and islandSize 10 stay legacy (1073.794693ms)
+✔ version 1 and legacy saves remain unmodified by v2 generation helpers (1.811077ms)
+ℹ tests 186
+ℹ suites 0
+ℹ pass 157
+ℹ fail 29
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 39190.905849
+
+✖ failing tests:
+
+test at tests/chunk-server.test.mjs:55:1
+✖ generated grass supports edits on both sides of the negative chunk edge; edits survive restart and removal restores generated terrain (568.007692ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'stone' !== 'grass'
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/chunk-server.test.mjs:57:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'stone',
+    expected: 'grass',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/chunk-server.test.mjs:91:1
+✖ generated flat-field agriculture saves till, seed use, watered time, and revision across restart without duplicate planting (1482.166846ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'stone' !== 'grass'
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/chunk-server.test.mjs:100:54)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'stone',
+    expected: 'grass',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/chunk-world.test.mjs:20:1
+✖ new world terrain is versioned, layered, and leaves legacy worlds ungenerated (3.022077ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/chunk-world.test.mjs:23:9)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/chunk-world.test.mjs:32:1
+✖ safe landing plateau is exactly flat over its inclusive 12 by 12 footprint (2.538462ms)
+  AssertionError [ERR_ASSERTION]: -6,-6
+  
+  5 !== 0
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/chunk-world.test.mjs:33:53)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 5,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/devtools.test.mjs:81:1
+✖ developer acceleration combines with watering for crop growth, water duration, and sapling stages (732.534539ms)
+  AssertionError [ERR_ASSERTION]: Target out of reach
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/devtools.test.mjs:92:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/devtools.test.mjs:213:1
+✖ developer teleport supports a validated direct Y landing and returns current player state (1548.001847ms)
+  AssertionError [ERR_ASSERTION]: 플레이어 충돌체가 고체와 겹칩니다.
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/devtools.test.mjs:219:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/farming.test.mjs:54:1
+✖ planting requires a tilled tile, consumes one seed and rejects a duplicate crop (566.733769ms)
+  AssertionError [ERR_ASSERTION]: Target out of reach
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/farming.test.mjs:60:78)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/farming.test.mjs:66:1
+✖ scythe harvest is a block-coordinate 3x3x3 cube and cannot duplicate rewards (696.328615ms)
+  AssertionError [ERR_ASSERTION]: Target out of reach
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/farming.test.mjs:71:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/farming.test.mjs:79:1
+✖ scythe covers all 27 XYZ cells at signed/elevated boundaries and preserves immature and all 98 surrounding cells after reload (673.988538ms)
+  AssertionError [ERR_ASSERTION]: Target out of reach
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/farming.test.mjs:95:59)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/farming.test.mjs:110:1
+✖ 114 scythe retry and watering boundary requests preserve single rewards, charges, and saved timers (909.452923ms)
+  AssertionError [ERR_ASSERTION]: No mature crop in range
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/farming.test.mjs:117:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/farming.test.mjs:145:1
+✖ watering, tree harvest, and planting requests are validated server-side (2048.268923ms)
+  AssertionError [ERR_ASSERTION]: Target out of reach
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/farming.test.mjs:156:98)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/farming.test.mjs:162:1
+✖ water doubles active-session crop progress while restart time is excluded (629.997ms)
+  AssertionError [ERR_ASSERTION]: Target out of reach
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/farming.test.mjs:165:91)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/farming.test.mjs:186:1
+✖ watering uses are capped, timers do not stack, and an empty can can refill at a source (578.516692ms)
+  AssertionError [ERR_ASSERTION]: Target out of reach
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/farming.test.mjs:188:75)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/farming.test.mjs:197:1
+✖ concurrent repeated planting and harvesting are revision-safe and award once (790.947308ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/farming.test.mjs:201:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/farming.test.mjs:210:1
+✖ thirty full farming loops run on an isolated virtual 50x clock with growth, water, and save checks (1157.443693ms)
+  AssertionError [ERR_ASSERTION]: loop 1 plant: Target out of reach
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/farming.test.mjs:218:72)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/farming.test.mjs:234:1
+✖ 50x watering and growth restore to 1x, retain only game-time water, and exclude restart gaps (1246.51877ms)
+  AssertionError [ERR_ASSERTION]: Target out of reach
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/farming.test.mjs:238:80)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/farming.test.mjs:252:1
+✖ atomic save recovery ignores an orphaned partial temp file and keeps the last committed farm state (1543.46ms)
+  AssertionError [ERR_ASSERTION]: Target out of reach
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/farming.test.mjs:256:85)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/farming.test.mjs:262:1
+✖ watered wheat advances at exactly twice the dry crop rate (1140.854692ms)
+  AssertionError [ERR_ASSERTION]: Target out of reach
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/farming.test.mjs:265:91)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/resource-expansion-server.test.mjs:21:1
+✖ carrot and potato plant with their own seed and mature to exact one-plus-one rewards across restart (981.415769ms)
+  AssertionError [ERR_ASSERTION]: Target out of reach
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/resource-expansion-server.test.mjs:24:212)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/resource-expansion-server.test.mjs:47:1
+✖ manual pickup accepts registered machine item IDs once and persists the stack (672.43877ms)
+  AssertionError [ERR_ASSERTION]: Move closer to the item
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/resource-expansion-server.test.mjs:49:250)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/server.test.mjs:26:1
+✖ independent guest island edits are validated and persist across restart (1072.772616ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/server.test.mjs:36:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/server.test.mjs:58:1
+✖ new guest gets the designed island, tools, crops and resource harvesting (3221.881847ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/server.test.mjs:84:223)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/server.test.mjs:105:1
+✖ private shop hub transitions preserve island state, guard protected actions, and persist atomic farmer trades (2661.104616ms)
+  AssertionError [ERR_ASSERTION]: Move closer to the shop portal
+  
+  400 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/server.test.mjs:114:132)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/world-v2-generation.test.mjs:97:1
+✖ natural ocean and river water is full at sea level and does not flood the protected origin (6.879308ms)
+  AssertionError [ERR_ASSERTION]: starter landing biome is preserved
+  
+  'forest' !== 'plains'
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/world-v2-generation.test.mjs:99:9)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'forest',
+    expected: 'plains',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/world-v2-generation.test.mjs:111:1
+✖ fluid ticks prioritize gravity, move exactly one horizontal unit, and conserve water (3.771ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 2
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/world-v2-generation.test.mjs:114:40)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/world-v2-generation.test.mjs:143:1
+✖ 100 seeds × 100 integrated fluid events conserve units and replay deterministically (2.756923ms)
+  AssertionError [ERR_ASSERTION]: seed=0 event=0 water/solid overlap -4,0,0
+  
+  'stone' !== null
+  
+      at runFluidEvents (file:///data/data/com.termux/files/home/EOS/tests/world-v2-generation.test.mjs:34:62)
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/world-v2-generation.test.mjs:146:15)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'stone',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/world-v2-generation.test.mjs:203:1
+✖ new v2 world identity and sparse fluid edits persist across server restart (2208.403462ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 6
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/world-v2-generation.test.mjs:215:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 6,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/world-v2-generation.test.mjs:252:1
+✖ server movement detects immersion and allows swimming while solid placement into water is denied (3813.547155ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/world-v2-generation.test.mjs:257:71)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/world-v2-generation.test.mjs:278:1
+✖ saved worlds with missing generation metadata and islandSize 10 stay legacy (1073.794693ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  500 !== 200
+  
+      at TestContext.<anonymous> (file:///data/data/com.termux/files/home/EOS/tests/world-v2-generation.test.mjs:284:65)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 500,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

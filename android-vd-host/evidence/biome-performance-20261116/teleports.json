@@ -1,0 +1,52 @@
+[
+  {
+    "biome": "plains",
+    "x": -303.5,
+    "y": 5,
+    "z": -2047.5,
+    "grounded": true,
+    "serverBiome": "plains",
+    "waterSafety": "modeled",
+    "pngBytes": 376227
+  },
+  {
+    "biome": "forest",
+    "x": -175.5,
+    "y": 4,
+    "z": -2047.5,
+    "grounded": true,
+    "serverBiome": "forest",
+    "waterSafety": "modeled",
+    "pngBytes": 252733
+  },
+  {
+    "biome": "beach",
+    "x": -335.5,
+    "y": 1,
+    "z": -2047.5,
+    "grounded": false,
+    "serverBiome": "beach",
+    "waterSafety": "modeled",
+    "pngBytes": 482319
+  },
+  {
+    "biome": "ocean",
+    "x": -2047.5,
+    "y": 1,
+    "z": -2047.5,
+    "grounded": false,
+    "serverBiome": "ocean",
+    "waterSafety": "modeled",
+    "pngBytes": 416267
+  },
+  {
+    "biome": "river",
+    "x": 368.5,
+    "y": 1,
+    "z": 32.5,
+    "grounded": false,
+    "serverBiome": "river",
+    "waterSafety": "modeled",
+    "pngBytes": 460359
+  }
+]

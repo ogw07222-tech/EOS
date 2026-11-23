@@ -1,0 +1,516 @@
+WINDOW MANAGER DISPLAY CONTENTS (dumpsys window displays)
+  Display: mDisplayId=0 (organized)
+    init=1752x2800 320dpi mMinSizeOfResizeableTaskDp=220 mMinSizeOfDesktopTaskDp=304 base=1752x2800 288dpi cur=2800x1752 app=2800x1752 rng=1752x1752-2800x2800
+    deferred=false mLayoutNeeded=false
+    initCutout=null
+    baseCutout=null
+
+    initRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=26, center=Point(26, 26)}, RoundedCorner{position=TopRight, radius=26, center=Point(1726, 26)}, RoundedCorner{position=BottomRight, radius=26, center=Point(1726, 2774)}, RoundedCorner{position=BottomLeft, radius=26, center=Point(26, 2774)}]}
+    baseRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=23, center=Point(23, 23)}, RoundedCorner{position=TopRight, radius=23, center=Point(1729, 23)}, RoundedCorner{position=BottomRight, radius=23, center=Point(1729, 2777)}, RoundedCorner{position=BottomLeft, radius=23, center=Point(23, 2777)}]}
+
+  mLastOrientationSource=WindowedMagnification:0:31@113895389
+  deepestLastOrientationSource=ActivityRecord{265406206 u0 com.sec.android.app.launcher/.activities.LauncherActivity t7666}
+  overrideConfig={0.9 ?mcc0mnc [ko_KR] ldltr sw973dp w1556dp h973dp 288dpi xlrg compactNeeded hdr widecg land night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 2800, 1752) mAppBounds=Rect(0, 0 - 2800, 1752) mMaxBounds=Rect(0, 0 - 2800, 1752) mDisplayRotation=ROTATION_90 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_90 mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=undefined mOverlappingWithCutout=false} as.24 s.44573 fontWeightAdjustment=0 ff=0 bf=-1 bts=0 cst=1.0 nightDim=0 themeSeq=0}
+  mHasSetIgnoreOrientationRequest=false ignoreOrientationRequest=true
+  mLayoutSeq=1507267
+  mImeLayeringTarget=Window{5c54d05 u0 com.itall.sapiens/com.itall.MainActivity}
+  mImeInputTarget=Window{5c54d05 u0 com.itall.sapiens/com.itall.MainActivity}
+  mImeControlTarget=RemoteInsetsControlTarget{8b9158b displayId=0 requestedVisibleTypes=503 animatingTypes=0}
+  mRemoteInsetsControlTarget=RemoteInsetsControlTarget{8b9158b displayId=0 requestedVisibleTypes=503 animatingTypes=0}
+  mCurrentFocus=Window{5c54d05 u0 com.itall.sapiens/com.itall.MainActivity}
+  mFocusedApp=ActivityRecord{93123232 u0 com.itall.sapiens/com.itall.MainActivity t8480}
+  mFixedRotationLaunchingApp=null
+
+  mHoldScreenWindow=null
+  mObscuringWindow=Window{1bcff9b u0 com.android.systemui.wallpapers.ImageWallpaper}
+  mLastWakeLockHoldingWindow=null
+  mLastWakeLockObscuringWindow=Window{1bcff9b u0 com.android.systemui.wallpapers.ImageWallpaper}
+
+  displayId=0
+  mWallpaperTarget=Window{f8e9ff7 u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity}
+  mLastWallpaperZoomOut=0.0
+  mFindResults
+    mTopHideWhenLockedWallpaper=null
+    mTopShowWhenLockedWallpaper=Window{1bcff9b u0 com.android.systemui.wallpapers.ImageWallpaper}
+      mTopShowWhenLockedWallpaper.Token=WallpaperWindowToken{7a28cdd showWhenLocked=true}_<lock>
+  token WallpaperWindowToken{7a28cdd showWhenLocked=true}_<lock>:
+    isClientVisible=true
+    isVisibleRequested=true
+    mWallpaperX=0.5
+    mWallpaperY=0.5
+    mWallpaperXStep=NA
+    mWallpaperYStep=NA
+    mWallpaperDisplayOffsetX=NA
+    mWallpaperDisplayOffsetY=NA
+
+  mSystemGestureExclusion=SkRegion((2753,402,2800,563))
+
+  Display areas in top down Z order:
+    * Leaf:36:36
+    * HideDisplayCutout:32:35
+      * OneHanded:34:35
+        * Leaf:34:35
+      * Leaf:33:33
+      * OneHanded:32:32
+        * Leaf:32:32
+    * WindowedMagnification:0:31 (organized)
+      * HideDisplayCutout:26:31
+        * OneHanded:26:31
+          * Leaf:26:31
+      * Leaf:24:25
+      * HideDisplayCutout:18:23
+        * OneHanded:18:23
+          * Leaf:23:23
+          * AppZoomOut:20:22 (organized)
+            * Leaf:20:22
+          * Leaf:18:19
+      * OneHanded:17:17
+        * Leaf:17:17
+      * HideDisplayCutout:16:16
+        * OneHanded:16:16
+          * AppZoomOut:16:16 (organized)
+            * Leaf:16:16
+      * OneHanded:15:15
+        * Leaf:15:15
+      * HideDisplayCutout:0:14
+        * OneHanded:0:14
+          * AppZoomOut:2:14 (organized)
+            * ImePlaceholder:13:14
+              * ImeContainer
+            * Leaf:3:12
+            * DefaultTaskDisplayArea_d0 (organized)
+          * RemoteWallpaperAnim:1:1
+            * Leaf:1:1
+          * AppZoomOut:0:0 (organized)
+            * Leaf:0:0
+
+  Task display areas in top down Z order:
+    TaskDisplayArea DefaultTaskDisplayArea_d0
+      overrideConfig={0.0 ?mcc0mnc ?localeList ?layoutDir ?swdp ?wdp ?hdp ?density ?lsize ?long ?round ?ldr ?wideColorGamut ?orien ?uimode ?night ?touch ?keyb/?/? ?nav/? winConfig={ mBounds=Rect(0, 0 - 0, 0) mAppBounds=null mMaxBounds=Rect(0, 0 - 0, 0) mDisplayRotation=undefined mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=undefined mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=undefined mOverlappingWithCutout=false} ?fontWeightAdjustment ff=0 bf=-1 bts=-1 cst=0.0 nightDim=-1 themeSeq=0}
+      mPreferredTopFocusableRootTask=Task{ea77626 #7 name=Desk type=undefined}
+      mLastFocusedRootTask=Task{ea77626 #7 name=Desk type=undefined}
+      mLaunchRootTasks:
+        [0, 1] [5, 0]  task=Task{ea77626 #7 name=Desk type=undefined}
+      Application tokens in top down Z order:
+      * Task{ea77626 #7 name=Desk type=undefined U=0 visible=true visibleRequested=true mode=freeform translucent=true sz=3}
+        TaskMoveAllowed
+        bounds=[0,0][2800,1752]
+        * Task{6b03e59 #8480 type=standard A=10449:com.itall.sapiens U=0 rootTaskId=7 visible=true visibleRequested=true mode=freeform translucent=false sz=1}
+          2 LocalInsetsSources
+            InsetsSource id=44fb0002 type=captionBar attachedInsets=Insets{left=0, top=72, right=0, bottom=0} visible=true flags=FORCE_CONSUMING|FORCE_CONSUMING_OPAQUE_CAPTION_BAR|FLAG_CONSUMING_CAPTION_INSET_BAR sideHint=TOP boundingRects=[Rect(0, 0 - 148, 72), Rect(2365, 0 - 2800, 72)]
+            InsetsSource id=44fb0005 type=mandatorySystemGestures attachedInsets=Insets{left=0, top=72, right=0, bottom=0} visible=true flags= sideHint=TOP boundingRects=[Rect(0, 0 - 148, 72), Rect(2365, 0 - 2800, 72)]
+          bounds=[0,54][2800,1666]
+          * ActivityRecord{93123232 u0 com.itall.sapiens/com.itall.MainActivity t8480}
+        * Task{ac45a28 #8472 type=standard A=10547:com.termux U=0 rootTaskId=7 visible=true visibleRequested=true mode=freeform translucent=false sz=1}
+          2 LocalInsetsSources
+            InsetsSource id=12bc0002 type=captionBar attachedInsets=Insets{left=0, top=72, right=0, bottom=0} visible=true flags=FORCE_CONSUMING|FORCE_CONSUMING_OPAQUE_CAPTION_BAR|FLAG_CONSUMING_CAPTION_INSET_BAR sideHint=TOP boundingRects=[Rect(0, 0 - 148, 72), Rect(958, 0 - 1393, 72)]
+            InsetsSource id=12bc0005 type=mandatorySystemGestures attachedInsets=Insets{left=0, top=72, right=0, bottom=0} visible=true flags= sideHint=TOP boundingRects=[Rect(0, 0 - 148, 72), Rect(958, 0 - 1393, 72)]
+          bounds=[0,54][1393,1666]
+          * ActivityRecord{26865739 u0 com.termux/.app.TermuxActivity t8472}
+        * Task{61d35bc #8483 type=standard A=10526:com.openai.chatgpt U=0 rootTaskId=7 visible=true visibleRequested=true mode=freeform translucent=false sz=1}
+          2 LocalInsetsSources
+            InsetsSource id=54750002 type=captionBar attachedInsets=Insets{left=0, top=72, right=0, bottom=0} visible=true flags=FORCE_CONSUMING|FORCE_CONSUMING_OPAQUE_CAPTION_BAR|FLAG_CONSUMING_CAPTION_INSET_BAR sideHint=TOP boundingRects=[Rect(0, 0 - 148, 72), Rect(958, 0 - 1393, 72)]
+            InsetsSource id=54750005 type=mandatorySystemGestures attachedInsets=Insets{left=0, top=72, right=0, bottom=0} visible=true flags= sideHint=TOP boundingRects=[Rect(0, 0 - 148, 72), Rect(958, 0 - 1393, 72)]
+          bounds=[1407,54][2800,1666]
+          * ActivityRecord{53308847 u0 com.openai.chatgpt/.MainActivity t8483}
+      * Task{1612c21 #1 type=home U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=1}
+        bounds=[0,0][2800,1752]
+        * Task{2527c16 #7666 type=home I=com.sec.android.app.launcher/.activities.LauncherActivity U=0 rootTaskId=1 visible=true visibleRequested=true mode=fullscreen translucent=false sz=1}
+          bounds=[0,0][2800,1752]
+          * ActivityRecord{265406206 u0 com.sec.android.app.launcher/.activities.LauncherActivity t7666}
+      * Task{f6313ab #8 name=MinimizedDesk_7 type=undefined U=0 visible=false visibleRequested=false mode=freeform translucent=true sz=5}
+        bounds=[0,0][2800,1752]
+        * Task{91ca7b6 #8496 type=standard A=10377:flar2.devcheck U=0 rootTaskId=8 visible=false visibleRequested=false mode=freeform translucent=true sz=2}
+          bounds=[0,54][2800,1666]
+          * ActivityRecord{214584275 u0 flar2.devcheck/.temperature.TemperatureActivity t8496}
+          * ActivityRecord{154016478 u0 flar2.devcheck/.MainActivity t8496}
+        * Task{879f600 #8491 type=standard A=10340:com.nhn.android.search U=0 rootTaskId=8 visible=false visibleRequested=false mode=freeform translucent=true sz=2}
+          bounds=[1200,122][2668,1666]
+          * ActivityRecord{49614270 u0 com.nhn.android.search/.browser.InAppBrowserActivity t8491}
+          * ActivityRecord{258454659 u0 com.nhn.android.search/.ui.pages.SearchHomePage t8491}
+        * Task{52ce464 #8488 type=standard A=10468:kr.co.lylstudio.httpsguard U=0 rootTaskId=8 visible=false visibleRequested=false mode=freeform translucent=true sz=4}
+          bounds=[74,54][1664,1650]
+          * ActivityRecord{75003765 u0 kr.co.lylstudio.httpsguard/.AppDetailActivity t8488}
+          * ActivityRecord{118477487 u0 kr.co.lylstudio.httpsguard/.AppManagementActivity t8488}
+          * ActivityRecord{56344340 u0 kr.co.lylstudio.httpsguard/.MenuActivity t8488}
+          * ActivityRecord{18451959 u0 kr.co.lylstudio.httpsguard/.main.MainActivity t8488}
+        * Task{e107d85 #8481 type=standard A=10479:kr.co.ebs.ebook U=0 rootTaskId=8 visible=false visibleRequested=false mode=freeform translucent=true sz=1}
+          bounds=[0,54][2800,1666]
+          * ActivityRecord{203923499 u0 kr.co.ebs.ebook/.ui.MainActivity t8481}
+        * Task{db8ed1d #8373 type=standard I=com.google.android.apps.youtube.music/.activities.MusicActivity U=0 rootTaskId=8 visible=false visibleRequested=false mode=freeform translucent=true sz=1}
+          bounds=[1154,277][2586,1604]
+          * ActivityRecord{39425286 u0 com.google.android.apps.youtube.music/.activities.MusicActivity t8373}
+      * Task{8e816b0 #7667 type=recents A=10142:com.sec.android.app.launcher.task.recents U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=1}
+        bounds=[0,0][2800,1752]
+        * ActivityRecord{244248790 u0 com.sec.android.app.launcher/com.android.quickstep.RecentsActivity t7667}
+      * Task{dd8bc03 #3 name=SplitRoot type=undefined U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=3}
+        bounds=[0,0][2800,1752]
+        * Task{60f5444 #6 type=undefined U=0 rootTaskId=3 visible=false visibleRequested=false mode=multi-window stage=cell/ translucent=true sz=0}
+          bounds=[0,0][2800,1752]
+        * Task{2c101b9 #5 type=undefined U=0 rootTaskId=3 visible=false visibleRequested=false mode=multi-window stage=side/right translucent=true sz=0}
+          bounds=[1404,0][2800,1666]
+        * Task{e133bac #4 type=undefined U=0 rootTaskId=3 visible=false visibleRequested=false mode=multi-window stage=main/left translucent=true sz=0}
+          bounds=[0,0][1390,1666]
+      * Task{fd5233a #8236 name=MinimizedDesk_8234 type=undefined U=0 visible=false visibleRequested=false mode=freeform translucent=true sz=0}
+        bounds=[0,0][2800,1752]
+      * Task{9545142 #8234 name=Desk type=undefined U=0 visible=false visibleRequested=false mode=freeform translucent=true sz=0}
+        bounds=[0,0][2800,1752]
+      * Task{4c54d01 #8243 name=MinimizedDesk_8242 type=undefined U=0 visible=false visibleRequested=false mode=freeform translucent=true sz=0}
+        bounds=[0,0][2800,1752]
+      * Task{d4d76d7 #8242 name=Desk type=undefined U=0 visible=false visibleRequested=false mode=freeform translucent=true sz=0}
+        bounds=[0,0][2800,1752]
+      * Task{b11a71f #8241 name=MinimizedDesk_8240 type=undefined U=0 visible=false visibleRequested=false mode=freeform translucent=true sz=0}
+        bounds=[0,0][2800,1752]
+      * Task{c7a035f #8240 name=Desk type=undefined U=0 visible=false visibleRequested=false mode=freeform translucent=true sz=0}
+        bounds=[0,0][2800,1752]
+
+  rootHomeTask=Task=1
+  rootRecentsTask=Task=7667
+
+  PinnedTaskController
+    mIsImeShowing=false
+    mImeHeight=0
+    mMinAspectRatio=0.41841003
+    mMaxAspectRatio=2.39
+  rootMainStageTask=Task=4
+  rootSideStageTask=Task=5
+  rootCellStageTask=Task=6
+
+  DisplayFrames w=2800 h=1752 r=1
+
+  DisplayPolicy
+    mCarDockEnablesAccelerometer=true mDeskDockEnablesAccelerometer=true
+    mDockMode=EXTRA_DOCK_STATE_UNDOCKED mLidState=LID_ABSENT
+    mAwake=true mScreenOnEarly=true mScreenOnFully=true
+    mKeyguardDrawComplete=true mWindowManagerDrawComplete=true
+    mHdmiPlugged=false
+    mLastAppearance=LIGHT_STATUS_BARS
+    mLastBehavior=DEFAULT
+    mShowingDream=false mDreamingLockscreen=false
+    mStatusBar=Window{1807052 u0 StatusBar}
+    mExpandedPanel=Window{f4d05bc u0 NotificationShade}
+    isKeyguardShowing=false
+    mTopGestureHost=Window{1807052 u0 StatusBar}
+    mBottomGestureHost=Window{35dcf33 u0 TaskbarWindow}
+    mFocusedWindow=Window{5c54d05 u0 com.itall.sapiens/com.itall.MainActivity}
+    mTopFullscreenOpaqueWindowState=Window{f8e9ff7 u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity}
+    mSystemUiControllingWindow=Window{5c54d05 u0 com.itall.sapiens/com.itall.MainActivity}
+    mSystemBarColorApps={ActivityRecord{265406206 u0 com.sec.android.app.launcher/.activities.LauncherActivity t7666}}
+    mNavBarColorWindowCandidate=Window{f8e9ff7 u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity}
+    mNavBarBackgroundWindowCandidate=Window{f8e9ff7 u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity}
+    mLastStatusBarAppearanceRegions=
+      AppearanceRegion{ bounds=[0,0][2800,1752]}
+    mLastLetterboxDetails=
+    mStatusBarBackgroundWindows=
+      Window{f8e9ff7 u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity}
+    mTopIsFullscreen=false
+    mImeInsetsConsumed=false
+    mForceShowNavigationBarEnabled=false mAllowLockscreenWhenOn=false
+    mRemoteInsetsControllerControlsSystemBars=false
+    mDecorInsetsInfo:
+      ROTATION_0={nonDecorInsets=[0,0][0,0], overrideNonDecorInsets=[0,0][0,86], configInsets=[0,0][0,0], overrideConfigInsets=[0,54][0,86], overrideNonDecorFrame=[0,0][1752,2714], overrideConfigFrame=[0,54][1752,2714]}
+      ROTATION_90={nonDecorInsets=[0,0][0,0], overrideNonDecorInsets=[0,0][0,86], configInsets=[0,0][0,0], overrideConfigInsets=[0,54][0,86], overrideNonDecorFrame=[0,0][2800,1666], overrideConfigFrame=[0,54][2800,1666]}
+      ROTATION_180={nonDecorInsets=[0,0][0,0], overrideNonDecorInsets=[0,0][0,86], configInsets=[0,0][0,0], overrideConfigInsets=[0,54][0,86], overrideNonDecorFrame=[0,0][1752,2714], overrideConfigFrame=[0,54][1752,2714]}
+      ROTATION_270={nonDecorInsets=[0,0][0,0], overrideNonDecorInsets=[0,0][0,86], configInsets=[0,0][0,0], overrideConfigInsets=[0,54][0,86], overrideNonDecorFrame=[0,0][2800,1666], overrideConfigFrame=[0,54][2800,1666]}
+    SystemGestures:
+      mDisplayCutoutTouchableRegionSize=0
+      mSwipeStartThreshold=Rect(43, 43 - 43, 43)
+      mSwipeDistanceThreshold=43
+    UiContextResourcesConfig=
+    {0.9 ?mcc0mnc [ko_KR] ldltr sw973dp w1556dp h973dp 288dpi xlrg compactNeeded hdr widecg land night finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 2800, 1752) mAppBounds=Rect(0, 0 - 2800, 1752) mMaxBounds=Rect(0, 0 - 2800, 1752) mDisplayRotation=ROTATION_90 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_90 mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=undefined mOverlappingWithCutout=false} as.24 s.44573 fontWeightAdjustment=0 ff=0 bf=-1 bts=0 cst=1.0 nightDim=0 themeSeq=0}
+    UiContextResourcesMetrics=
+    DisplayMetrics{density=1.8000001, width=2800, height=1752, scaledDensity=1.62, xdpi=266.471, ydpi=266.367}
+
+    DisplayPolicyExt
+      CoverPolicy
+        mLastCoverAppCovered=false
+
+    RefreshRatePolicy
+      mLowRefreshRateMode={id=1, parentModeId=-1, flags=, width=1752, height=2800, fps=60.0, vsync=60.0, alternativeRefreshRates=[30.000002, 120.00001], supportedHdrTypes=[2, 3, 4]}
+      mNonHighRefreshRatePackages:
+      RefreshRatePolicy History
+      << PreferredModeHistory_ModeId >>
+      #15 11-16 18:29:56.330  Requested ( modeId=2 w=Window{f9b3dde u0 com.nhn.android.search/com.nhn.android.search.browser.InAppBrowserActivity})
+      #14 11-16 18:29:50.079  Requested ( modeId=2 w=Window{188f547 u0 com.nhn.android.search/com.nhn.android.search.browser.control.searchwindow.suggest.SearchWindowSuggestListActivity})
+      #13 11-16 18:29:49.310  Requested ( modeId=2 w=Window{3028bb3 u0 com.nhn.android.search/com.nhn.android.search.ui.pages.SearchHomePage})
+      #12 11-16 17:44:48.272  Requested ( modeId=2 w=Window{d605212 u0 com.nhn.android.search/com.nhn.android.search.browser.InAppBrowserActivity})
+      #11 11-16 17:26:31.882  Requested ( modeId=1 w=Window{bb11af2 u0 com.supercell.brawlstars/com.supercell.brawlstars.GameApp})
+      #10 11-16 17:20:07.256  Requested ( modeId=2 w=Window{bb11af2 u0 com.supercell.brawlstars/com.supercell.brawlstars.GameApp})
+      #9 11-16 17:19:11.860  Requested ( modeId=1 w=Window{bb11af2 u0 com.supercell.brawlstars/com.supercell.brawlstars.GameApp})
+      #8 11-16 17:16:57.433  Requested ( modeId=2 w=Window{bb11af2 u0 com.supercell.brawlstars/com.supercell.brawlstars.GameApp})
+      #7 11-16 17:16:02.934  Requested ( modeId=1 w=Window{bb11af2 u0 com.supercell.brawlstars/com.supercell.brawlstars.GameApp})
+      #6 11-16 17:13:49.382  Requested ( modeId=2 w=Window{bb11af2 u0 com.supercell.brawlstars/com.supercell.brawlstars.GameApp})
+      #5 11-16 17:12:38.681  Requested ( modeId=1 w=Window{bb11af2 u0 com.supercell.brawlstars/com.supercell.brawlstars.GameApp})
+      #4 11-16 17:10:51.891  Requested ( modeId=2 w=Window{bb11af2 u0 com.supercell.brawlstars/com.supercell.brawlstars.GameApp})
+      #3 11-16 17:08:33.281  Requested ( modeId=1 w=Window{bb11af2 u0 com.supercell.brawlstars/com.supercell.brawlstars.GameApp})
+      #2 11-16 17:06:05.982  Requested ( modeId=2 w=Window{bb11af2 u0 com.supercell.brawlstars/com.supercell.brawlstars.GameApp})
+      #1 11-16 17:06:05.021  Requested ( modeId=1 w=Window{bb11af2 u0 com.supercell.brawlstars/com.supercell.brawlstars.GameApp})
+      << PreferredModeHistory_Min >>
+      #15 11-16 18:51:11.082  Requested ( refreshRate=60.0 w=Window{899b6d8 u0 InputMethod})
+      #14 11-16 03:06:49.202  Requested ( refreshRate=60.0 w=Window{df1b39c u0 InputMethod})
+      #13 11-16 02:40:36.398  Requested ( refreshRate=30.000002 w=Window{78cb14 u0 com.sec.android.app.camera/com.sec.android.app.camera.Camera})
+      #12 11-15 19:10:44.223  Requested ( refreshRate=60.0 w=Window{df1b39c u0 InputMethod})
+      #11 11-15 19:10:28.783  Requested ( refreshRate=30.000002 w=Window{ab8680c u0 com.android.settings/com.android.settings.homepage.SettingsHomepageActivity})
+      #10 11-15 19:10:26.736  Requested ( refreshRate=30.000002 w=Window{31ec38 u0 com.android.settings/com.android.settings.development.AdbQrCodeActivity})
+      #9 11-15 02:24:11.650  Requested ( refreshRate=60.0 w=Window{df1b39c u0 InputMethod})
+      #8 11-15 02:22:47.258  Requested ( refreshRate=30.000002 w=Window{3334167 u0 com.instagram.android/com.instagram.android.activity.MainTabActivity})
+      #7 11-14 19:30:54.418  Requested ( refreshRate=60.0 w=Window{df1b39c u0 InputMethod})
+      #6 11-14 19:30:07.060  Requested ( refreshRate=60.0 w=Window{7e745b1 u0 com.sec.android.mimage.photoretouching/com.sec.android.mimage.photoretouching.SPEActivity})
+      #5 11-14 19:29:43.043  Requested ( refreshRate=60.0 w=Window{df1b39c u0 InputMethod})
+      #4 11-14 19:29:41.943  Requested ( refreshRate=30.000002 w=Window{4fe4d8 u0 com.sec.android.app.camera/com.sec.android.app.camera.Camera})
+      #3 11-14 11:38:16.011  Requested ( refreshRate=60.0 w=Window{df1b39c u0 InputMethod})
+      #2 11-14 11:36:46.755  Requested ( refreshRate=60.0 w=Window{8f0d71e u0 InputMethod})
+      #1 11-14 11:35:38.942  Requested ( refreshRate=60.0 w=Window{b0468cb u0 InputMethod})
+      << PreferredModeHistory_Max >>
+      #15 11-16 02:40:36.398  Requested ( refreshRate=60.0 w=Window{78cb14 u0 com.sec.android.app.camera/com.sec.android.app.camera.Camera})
+      #14 11-15 19:10:28.783  Requested ( refreshRate=60.0 w=Window{ab8680c u0 com.android.settings/com.android.settings.homepage.SettingsHomepageActivity})
+      #13 11-15 19:10:26.736  Requested ( refreshRate=60.0 w=Window{31ec38 u0 com.android.settings/com.android.settings.development.AdbQrCodeActivity})
+      #12 11-15 02:22:47.258  Requested ( refreshRate=60.0 w=Window{3334167 u0 com.instagram.android/com.instagram.android.activity.MainTabActivity})
+      #11 11-14 19:30:07.016  Requested ( refreshRate=60.0 w=Window{7e745b1 u0 com.sec.android.mimage.photoretouching/com.sec.android.mimage.photoretouching.SPEActivity})
+      #10 11-14 19:29:41.943  Requested ( refreshRate=60.0 w=Window{4fe4d8 u0 com.sec.android.app.camera/com.sec.android.app.camera.Camera})
+      #9 11-14 10:04:56.780  Requested ( refreshRate=60.0 w=Window{12e8e86 u0 co.kr.yigam.yigamapp2023/co.kr.yigam.yigamapp2023.MainActivity})
+      #8 11-13 18:24:43.087  Requested ( refreshRate=60.0 w=Window{3ec77e6 u0 com.sec.android.app.camera/com.sec.android.app.camera.Camera})
+      #7 11-13 00:14:53.263  Requested ( refreshRate=60.0 w=Window{d61f051 u0 com.instagram.android/com.instagram.android.activity.MainTabActivity})
+      #6 11-12 19:48:20.514  Requested ( refreshRate=60.0 w=Window{598ff78 u0 com.sec.android.app.camera/com.sec.android.app.camera.Camera})
+      #5 11-12 19:47:50.011  Requested ( refreshRate=60.0 w=Window{d234b7f u0 com.sec.android.app.camera/com.sec.android.app.camera.Camcorder})
+      #4 11-11 18:13:06.703  Requested ( refreshRate=60.0 w=Window{6c47d53 u0 com.instagram.android/com.instagram.mainactivity.InstagramMainActivity})
+      #3 11-11 00:44:39.815  Requested ( refreshRate=60.0 w=Window{6915715 u0 com.instagram.android/com.instagram.android.activity.MainTabActivity})
+      #2 11-11 00:19:57.063  Requested ( refreshRate=60.0 w=Window{2819d7c u0 com.instagram.android/com.instagram.android.activity.MainTabActivity})
+      #1 11-10 01:28:42.763  Requested ( refreshRate=60.0 w=Window{9a639dc u0 com.instagram.android/com.instagram.mainactivity.InstagramMainActivity})
+
+  DisplayRotation
+    mCurrentAppOrientation=SCREEN_ORIENTATION_UNSPECIFIED
+    mLastOrientation=-1
+    mRotation=1 mDeferredRotationPauseCount=0
+    mLandscapeRotation=ROTATION_90 mSeascapeRotation=ROTATION_270
+    mPortraitRotation=ROTATION_0 mUpsideDownRotation=ROTATION_180
+    mSupportAutoRotation=true
+    WindowOrientationListener
+      mEnabled=true
+      mCurrentRotation=ROTATION_90
+      mSensorType=null
+      mSensor={Sensor name="Device Orientataion", vendor="Samsung Inc.", version=16, type=27, maxRange=3.0, resolution=1.0, power=0.16, minDelay=0}
+      mRate=1
+      OrientationSensorJudge
+        mDesiredRotation=ROTATION_90
+        mProposedRotation=ROTATION_90
+        mTouching=false
+        mTouchEndedTimestampNanos=602669947517449
+        mLastRotationResolution=-1
+
+    mCarDockRotation=-1 mDeskDockRotation=-1
+    mUserRotationMode=USER_ROTATION_FREE mUserRotation=ROTATION_90 mCameraRotationMode=0 mAllowAllRotations=true
+    mDemoHdmiRotation=ROTATION_90 mDemoHdmiRotationLock=false mUndockedHdmiRotation=-1
+    mLidOpenRotation=-1
+    mFixedToUserRotation=false
+
+    RotationHistory
+      11-16 15:44:48.944 ROTATION_0 to ROTATION_90
+        source=ActivityRecord{265406206 u0 com.sec.android.app.launcher/.activities.LauncherActivity t7666} SCREEN_ORIENTATION_UNSPECIFIED
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_90
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=com.sec.android.app.launcher/.activities.LauncherActivity isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 15:44:51.548 ROTATION_90 to ROTATION_0
+        source=ActivityRecord{265406206 u0 com.sec.android.app.launcher/.activities.LauncherActivity t7666} SCREEN_ORIENTATION_UNSPECIFIED
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_0
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=com.sec.android.app.launcher/.activities.LauncherActivity isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 15:46:50.234 ROTATION_0 to ROTATION_270
+        source=Window{f4d05bc u0 NotificationShade} SCREEN_ORIENTATION_USER
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_270
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=null isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 15:46:53.352 ROTATION_270 to ROTATION_90
+        source=ActivityRecord{265406206 u0 com.sec.android.app.launcher/.activities.LauncherActivity t7666} SCREEN_ORIENTATION_UNSPECIFIED
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_90
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=com.sec.android.app.launcher/.activities.LauncherActivity isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 16:11:39.009 ROTATION_90 to ROTATION_270
+        source=Window{f4d05bc u0 NotificationShade} SCREEN_ORIENTATION_USER
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_270
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=null isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 16:12:27.385 ROTATION_270 to ROTATION_90
+        source=DefaultTaskDisplayArea_d0@225626859 SCREEN_ORIENTATION_UNSET
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_90
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=com.supercell.brawlstars/.GameApp isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 17:08:28.759 ROTATION_90 to ROTATION_180
+        source=DefaultTaskDisplayArea_d0@225626859 SCREEN_ORIENTATION_UNSET
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_180
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=com.supercell.brawlstars/.GameApp isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 17:08:30.759 ROTATION_180 to ROTATION_90
+        source=ActivityRecord{265406206 u0 com.sec.android.app.launcher/.activities.LauncherActivity t7666} SCREEN_ORIENTATION_UNSPECIFIED
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_90
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=com.supercell.brawlstars/.GameApp isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 17:10:36.731 ROTATION_90 to ROTATION_0
+        source=ActivityRecord{265406206 u0 com.sec.android.app.launcher/.activities.LauncherActivity t7666} SCREEN_ORIENTATION_UNSPECIFIED
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_0
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=com.supercell.brawlstars/.GameApp isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 17:10:38.789 ROTATION_0 to ROTATION_90
+        source=ActivityRecord{265406206 u0 com.sec.android.app.launcher/.activities.LauncherActivity t7666} SCREEN_ORIENTATION_UNSPECIFIED
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_90
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=com.supercell.brawlstars/.GameApp isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 17:19:29.875 ROTATION_90 to ROTATION_0
+        source=DefaultTaskDisplayArea_d0@225626859 SCREEN_ORIENTATION_UNSET
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_0
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=com.supercell.brawlstars/.GameApp isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 17:19:31.324 ROTATION_0 to ROTATION_90
+        source=ActivityRecord{265406206 u0 com.sec.android.app.launcher/.activities.LauncherActivity t7666} SCREEN_ORIENTATION_UNSPECIFIED
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_90
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=com.supercell.brawlstars/.GameApp isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 17:29:57.347 ROTATION_90 to ROTATION_0
+        source=Window{f4d05bc u0 NotificationShade} SCREEN_ORIENTATION_USER
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_0
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=null isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 17:38:54.208 ROTATION_0 to ROTATION_180
+        source=ActivityRecord{265406206 u0 com.sec.android.app.launcher/.activities.LauncherActivity t7666} SCREEN_ORIENTATION_UNSPECIFIED
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_180
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=com.itall.sapiens/com.itall.MainActivity isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 17:38:56.199 ROTATION_180 to ROTATION_0
+        source=ActivityRecord{265406206 u0 com.sec.android.app.launcher/.activities.LauncherActivity t7666} SCREEN_ORIENTATION_UNSPECIFIED
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_0
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=com.itall.sapiens/com.itall.MainActivity isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+      11-16 17:45:01.922 ROTATION_0 to ROTATION_90
+        source=DefaultTaskDisplayArea_d0@225626859 SCREEN_ORIENTATION_UNSET
+        mode=USER_ROTATION_FREE user=ROTATION_90 sensor=ROTATION_90
+        ignoreRequest=true
+      DisplayRotationCompatPolicy{ isTreatmentEnabledForDisplay=true mLastReportedOrientation=SCREEN_ORIENTATION_UNSPECIFIED topActivity=com.termux/.app.TermuxActivity isTreatmentEnabledForActivity=falsemCameraStateMonitor= mCameraAppInfoSet={ mCameraAppInfoSet={{mCameraId=1, mPid=22731, mTaskId=8352, mPackageName=com.instagram.android}} } }
+       reversionSlots= NOSENSOR false, CAMERA false HALF_FOLD false
+
+        RotationLockHistory
+          11-10 03:17:25.768: mode=USER_ROTATION_LOCKED, rotation=ROTATION_90, caller=RotationLockTile#handleClick
+          11-10 03:49:45.671: mode=USER_ROTATION_FREE, rotation=ROTATION_90, caller=RotationLockTile#handleClick
+          11-11 01:44:45.030: mode=USER_ROTATION_LOCKED, rotation=ROTATION_90, caller=RotationLockTile#handleClick
+          11-11 02:51:16.495: mode=USER_ROTATION_FREE, rotation=ROTATION_90, caller=RotationLockTile#handleClick
+          11-12 03:29:33.786: mode=USER_ROTATION_LOCKED, rotation=ROTATION_90, caller=RotationLockTile#handleClick
+          11-12 03:41:33.381: mode=USER_ROTATION_FREE, rotation=ROTATION_90, caller=RotationLockTile#handleClick
+          11-13 04:55:47.229: mode=USER_ROTATION_LOCKED, rotation=ROTATION_0, caller=RotationLockTile#handleClick
+          11-13 04:55:47.799: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=RotationLockTile#handleClick
+          11-14 03:42:17.463: mode=USER_ROTATION_LOCKED, rotation=ROTATION_90, caller=RotationLockTile#handleClick
+          11-14 04:15:08.767: mode=USER_ROTATION_FREE, rotation=ROTATION_90, caller=RotationLockTile#handleClick
+          11-14 11:27:17.274: mode=USER_ROTATION_FREE, rotation=ROTATION_90, caller=UiAutomationConnection#restoreRotationStateLocked
+          11-15 00:40:51.798: mode=USER_ROTATION_LOCKED, rotation=ROTATION_90, caller=RotationLockTile#handleClick
+          11-15 01:11:58.437: mode=USER_ROTATION_FREE, rotation=ROTATION_90, caller=RotationLockTile#handleClick
+          11-16 01:26:20.061: mode=USER_ROTATION_LOCKED, rotation=ROTATION_90, caller=RotationLockTile#handleClick
+          11-16 02:19:33.145: mode=USER_ROTATION_FREE, rotation=ROTATION_90, caller=RotationLockTile#handleClick
+
+  InputConsumers:
+    name=recents_animation_input_consumer pid=3840 user=UserHandle{0}
+
+  WindowInsetsStateController
+    InsetsState
+      mDisplayFrame=Rect(0, 0 - 2800, 1752)
+      mDisplayCutout=DisplayCutout{insets=Rect(0, 0 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=0 displayHeight=0 physicalDisplayWidth=0 physicalDisplayHeight=0 density={0.0} cutoutSpec={} rotation={0} scale={0.0} physicalPixelDisplaySizeRatio={0.0}}} sideOverrides=null}
+      mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=23, center=Point(23, 23)}, RoundedCorner{position=TopRight, radius=23, center=Point(2777, 23)}, RoundedCorner{position=BottomRight, radius=23, center=Point(2777, 1729)}, RoundedCorner{position=BottomLeft, radius=23, center=Point(23, 1729)}]}
+      mRoundedCornerFrame=Rect(0, 0 - 0, 0)
+      mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(2721, 0 - 2800, 54) rotation=1}
+      mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1752 displayHeight=2800 physicalPixelDisplaySizeRatio=1.0 rotation=1 offsetX=0 offsetY=0 scale=1.0}
+        InsetsSource id=a1630000 type=statusBars frame=[0,0][2800,54] visible=true flags= sideHint=TOP boundingRects=null
+        InsetsSource id=a1630005 type=mandatorySystemGestures frame=[0,0][2800,54] visible=true flags= sideHint=TOP boundingRects=null
+        InsetsSource id=a1630006 type=tappableElement frame=[0,0][2800,54] visible=true flags= sideHint=TOP boundingRects=null
+        InsetsSource id=ba550001 type=navigationBars frame=[0,1666][2800,1752] visible=true flags= sideHint=BOTTOM boundingRects=null
+        InsetsSource id=ba550004 type=systemGestures frame=[0,0][0,0] visible=true flags= sideHint=NONE boundingRects=null
+        InsetsSource id=ba550005 type=mandatorySystemGestures frame=[0,1666][2800,1752] visible=true flags= sideHint=BOTTOM boundingRects=null
+        InsetsSource id=ba550006 type=tappableElement frame=[0,1666][2800,1752] visible=true flags= sideHint=BOTTOM boundingRects=null
+        InsetsSource id=ba550024 type=systemGestures frame=[0,0][0,0] visible=true flags= sideHint=NONE boundingRects=null
+        InsetsSource id=3 type=ime frame=[0,0][0,0] visibleFrame=[0,1752][2800,1752] visible=false flags=INVALID sideHint=NONE boundingRects=null
+    Control map:
+      Window{f8e9ff7 u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity}:
+        InsetsSourceControl: {a1630000 mType=statusBars initiallyVisible mSurfacePosition=Point(0, 0) mInsetsHint=Insets{left=0, top=54, right=0, bottom=0}}
+      RemoteInsetsControlTarget{8b9158b displayId=0 requestedVisibleTypes=503 animatingTypes=0}:
+        InsetsSourceControl: {3 mType=ime mSurfacePosition=Point(0, 54) mInsetsHint=Insets{left=0, top=0, right=0, bottom=0}}
+      ShowingPermanentControlTarget:
+        InsetsSourceControl: {ba550001 mType=navigationBars initiallyVisible mSurfacePosition=Point(0, 1666) mInsetsHint=Insets{left=0, top=0, right=0, bottom=86}}
+    InsetsSourceProviders:
+      ImeInsetsSourceProvider
+        mSource=InsetsSource id=3 type=ime frame=[0,0][0,0] visibleFrame=[0,1752][2800,1752] visible=false flags=INVALID sideHint=NONE boundingRects=null
+        mSourceFrame=Rect(0, 1752 - 2800, 1752)
+        mControl=InsetsSourceControl mId=3 mType=ime mLeash=Surface(name=Surface(name=899b6d8 InputMethod#1093276)/@0x7960516 - animation-leash of insets_animation#1093494)/@0xcd5c797 mInitiallyVisible=false mSurfacePosition=Point(0, 54) mInsetsHint=Insets{left=0, top=0, right=0, bottom=0} mSkipAnimationOnce=false mImeStatsToken=null mControlledByPolicy=false
+        mInsetsHint=Insets{left=0, top=0, right=0, bottom=0}
+        mIsLeashInitialized=true mHasPendingPosition=false
+        mWin=Window{899b6d8 u0 InputMethod}
+        mAdapter=ControlAdapter mCapturedLeash=Surface(name=Surface(name=899b6d8 InputMethod#1093276)/@0x7960516 - animation-leash of insets_animation#1093494)/@0xcd5c797
+        mControlTarget=RemoteInsetsControlTarget{8b9158b displayId=0 requestedVisibleTypes=503 animatingTypes=0}
+        mImeShowing=false mLastDrawn=false
+      InsetsSourceProvider
+        mSource=InsetsSource id=ba550024 type=systemGestures frame=[0,0][0,0] visible=true flags= sideHint=NONE boundingRects=null
+        mSourceFrame=Rect(0, 0 - 0, 0)
+        mIsLeashInitialized=false mHasPendingPosition=false
+        mWin=Window{35dcf33 u0 TaskbarWindow}
+      InsetsSourceProvider
+        mSource=InsetsSource id=ba550006 type=tappableElement frame=[0,1666][2800,1752] visible=true flags= sideHint=BOTTOM boundingRects=null
+        mSourceFrame=Rect(0, 1666 - 2800, 1752)
+        mOverrideFrames={2011=Rect(0, 1666 - 2800, 1752)}
+        mIsLeashInitialized=false mHasPendingPosition=false
+        mWin=Window{35dcf33 u0 TaskbarWindow}
+      InsetsSourceProvider
+        mSource=InsetsSource id=ba550005 type=mandatorySystemGestures frame=[0,1666][2800,1752] visible=true flags= sideHint=BOTTOM boundingRects=null
+        mSourceFrame=Rect(0, 1666 - 2800, 1752)
+        mIsLeashInitialized=false mHasPendingPosition=false
+        mWin=Window{35dcf33 u0 TaskbarWindow}
+      InsetsSourceProvider
+        mSource=InsetsSource id=ba550004 type=systemGestures frame=[0,0][0,0] visible=true flags= sideHint=NONE boundingRects=null
+        mSourceFrame=Rect(0, 0 - 0, 0)
+        mIsLeashInitialized=false mHasPendingPosition=false
+        mWin=Window{35dcf33 u0 TaskbarWindow}
+      InsetsSourceProvider
+        mSource=InsetsSource id=ba550001 type=navigationBars frame=[0,1666][2800,1752] visible=true flags= sideHint=BOTTOM boundingRects=null
+        mSourceFrame=Rect(0, 1666 - 2800, 1752)
+        mOverrideFrames={2011=Rect(0, 1666 - 2800, 1752)}
+        mControl=InsetsSourceControl mId=ba550001 mType=navigationBars mLeash=Surface(name=Surface(name=35dcf33 TaskbarWindow#902802)/@0xe9c2b8f - animation-leash of insets_animation#1093503)/@0x738ce4e mInitiallyVisible=true mSurfacePosition=Point(0, 1666) mInsetsHint=Insets{left=0, top=0, right=0, bottom=86} mSkipAnimationOnce=false mImeStatsToken=null mControlledByPolicy=false
+        mInsetsHint=Insets{left=0, top=0, right=0, bottom=86}
+        mIsLeashInitialized=true mHasPendingPosition=false
+        mWin=Window{35dcf33 u0 TaskbarWindow}
+        mAdapter=ControlAdapter mCapturedLeash=Surface(name=Surface(name=35dcf33 TaskbarWindow#902802)/@0xe9c2b8f - animation-leash of insets_animation#1093503)/@0x738ce4e
+        mControlTarget=ShowingPermanentControlTarget
+      InsetsSourceProvider
+        mSource=InsetsSource id=a1630006 type=tappableElement frame=[0,0][2800,54] visible=true flags= sideHint=TOP boundingRects=null
+        mSourceFrame=Rect(0, 0 - 2800, 54)
+        mIsLeashInitialized=false mHasPendingPosition=false
+        mWin=Window{1807052 u0 StatusBar}
+      InsetsSourceProvider
+        mSource=InsetsSource id=a1630005 type=mandatorySystemGestures frame=[0,0][2800,54] visible=true flags= sideHint=TOP boundingRects=null
+        mSourceFrame=Rect(0, 0 - 2800, 54)
+        mIsLeashInitialized=false mHasPendingPosition=false
+        mWin=Window{1807052 u0 StatusBar}
+      InsetsSourceProvider
+        mSource=InsetsSource id=a1630000 type=statusBars frame=[0,0][2800,54] visible=true flags= sideHint=TOP boundingRects=null
+        mSourceFrame=Rect(0, 0 - 2800, 54)
+        mControl=InsetsSourceControl mId=a1630000 mType=statusBars mLeash=Surface(name=Surface(name=1807052 StatusBar#93)/@0x5665668 - animation-leash of insets_animation#1093476)/@0x47b0391 mInitiallyVisible=true mSurfacePosition=Point(0, 0) mInsetsHint=Insets{left=0, top=54, right=0, bottom=0} mSkipAnimationOnce=false mImeStatsToken=null mControlledByPolicy=false
+        mInsetsHint=Insets{left=0, top=54, right=0, bottom=0}
+        mIsLeashInitialized=true mHasPendingPosition=false
+        mWin=Window{1807052 u0 StatusBar}
+        mAdapter=ControlAdapter mCapturedLeash=Surface(name=Surface(name=1807052 StatusBar#93)/@0x5665668 - animation-leash of insets_animation#1093476)/@0x47b0391
+        mControlTarget=Window{f8e9ff7 u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity}
+  InsetsPolicy
+    status: WINDOW_STATE_SHOWING
+    nav: WINDOW_STATE_SHOWING
+
+  DisplayWindowSettingsProvider
+    SettingsEntry{mWindowingMode=0, mUserRotationMode=null, mUserRotation=null, mForcedWidth=0, mForcedHeight=0, mForcedDensity=288, mForcedDensityRatio=0.0, mForcedScalingMode=null, mRemoveContentMode=0, mShouldShowWithInsecureKeyguard=null, mShouldShowSystemDecors=null, mIsHomeSupported=null, mShouldShowIme=null, mFixedToUserRotation=null, mIgnoreOrientationRequest=null, mIgnoreDisplayCutout=null, mDontMoveToTop=null, mForceAppsUniversalResizable=null}
+

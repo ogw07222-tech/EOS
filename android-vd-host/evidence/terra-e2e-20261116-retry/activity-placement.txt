@@ -1,0 +1,29 @@
+Display #0 (activities from top to bottom):
+Display #27 (activities from top to bottom):
+  * Task{68b42e8 #8504 type=standard A=10326:dev.terra.vdtest U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=1}
+    topResumedActivity=ActivityRecord{24904715 u0 dev.terra.vdtest/.BrowserActivity t8504}
+    * Hist  #0: ActivityRecord{24904715 u0 dev.terra.vdtest/.BrowserActivity t8504}
+      packageName=dev.terra.vdtest processName=dev.terra.vdtest
+      app=ProcessRecord{99a05fb 7127:dev.terra.vdtest/u0a326}
+      Intent { act=android.intent.action.VIEW dat=http://127.0.0.1:38173/?terraDebug=1 flg=0x10000000 xflg=0x4 cmp=dev.terra.vdtest/.BrowserActivity }
+      rootOfTask=true task=Task{68b42e8 #8504 type=standard A=10326:dev.terra.vdtest}
+      taskAffinity=10326:dev.terra.vdtest
+      mActivityComponent=dev.terra.vdtest/.BrowserActivity
+      baseDir=/data/app/~~qthdsHVfPZ8FLmCiDwel6g==/dev.terra.vdtest-f6FI_wv3vBgLsDkjtD1POw==/base.apk
+      dataDir=/data/user/0/dev.terra.vdtest
+      windows=[Window{6080128 u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}]
+    Resumed: ActivityRecord{24904715 u0 dev.terra.vdtest/.BrowserActivity t8504}
+  Display: mDisplayId=0 (organized)
+  Display: mDisplayId=27
+  mFocusedApp=ActivityRecord{24904715 u0 dev.terra.vdtest/.BrowserActivity t8504}
+  mHoldScreenWindow=Window{6080128 u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}
+  mObscuringWindow=Window{6080128 u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}
+  mLastWakeLockHoldingWindow=Window{6080128 u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}
+      mPreferredTopFocusableRootTask=Task{68b42e8 #8504 type=standard A=10326:dev.terra.vdtest}
+      mLastFocusedRootTask=Task{68b42e8 #8504 type=standard A=10326:dev.terra.vdtest}
+      * Task{68b42e8 #8504 type=standard A=10326:dev.terra.vdtest U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=1}
+        * ActivityRecord{24904715 u0 dev.terra.vdtest/.BrowserActivity t8504}
+    mTopFullscreenOpaqueWindowState=Window{6080128 u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}
+    mSystemUiControllingWindow=Window{6080128 u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}
+        (fullscreen) Task{68b42e8 #8504 type=standard A=10326:dev.terra.vdtest}
+  VisibleActivityProcess:[ ProcessRecord{99a05fb 7127:dev.terra.vdtest/u0a326} ProcessRecord{a31de83 3840:com.sec.android.app.launcher/u0a142} ProcessRecord{739ba5b 979:com.termux/u0a547} ProcessRecord{c6874d 30588:com.openai.chatgpt/u0a526}]

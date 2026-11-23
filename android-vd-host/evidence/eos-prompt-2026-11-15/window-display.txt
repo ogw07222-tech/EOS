@@ -1,0 +1,14 @@
+    mHiddenWhileProfileLockedState=false
+  Window #26 Window{7cd8ce u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}:
+    mDisplayId=16 taskId=8381 mSession=Session{4841764 9683:u0a10326} mClient=android.os.BinderProxy@99c49c9
+    mOwnerUid=10326 showForAllUsers=false package=dev.terra.vdtest appop=NONE
+    mAttrs={(0,0)(fillxfill) sim={adjust=resize forwardNavigation} layoutInDisplayCutoutMode=always ty=BASE_APPLICATION wanim=0x1030318
+      fl=81810180
+--
+     surface=[0,0][0,0]
+    WindowStateAnimator{557ec1 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}:
+      mSurface=Surface(name=dev.terra.vdtest/dev.terra.vdtest.BrowserActivity$_9683#1003466)/@0xb4bf666
+      Surface: shown=true      mDrawState=HAS_DRAWN       mLastHidden=false
+      mEnterAnimationPending=false
+    isOnScreen=true
+    isVisible=true

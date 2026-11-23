@@ -1,0 +1,9 @@
+  DisplayDeviceInfo{"ECLIPSE-Offscreen": uniqueId="virtual:dev.eclipse.vdisplay,10303,ECLIPSE-Offscreen,6", 1280 x 720, modeId 14, renderFrameRate 60.0, hasArrSupport false, frameRateCategoryRate null, supportedRefreshRates [], defaultModeId 14, userPreferredModeId -1, supportedModes [{id=14, parentModeId=-1, flags=, width=1280, height=720, fps=60.0, vsync=60.0, alternativeRefreshRates=[], supportedHdrTypes=[]}], colorMode 0, supportedColorModes [0], hdrCapabilities null, isForceSdr false, allmSupported false, gameContentTypeSupported false, density 160, 160.0 x 160.0 dpi, appVsyncOff 0, presDeadline 16666666, touch NONE, rotation 0, type VIRTUAL, deviceProductInfo null, state ON, committedState UNKNOWN, owner dev.eclipse.vdisplay (uid 10303), frameRateOverride , brightnessMinimum 0.0, brightnessMaximum 1.0, brightnessDefault 0.0, brightnessDim -1.0, hdrSdrRatio NaN, FLAG_OWN_CONTENT_ONLY, FLAG_DESTROY_CONTENT_ON_REMOVAL, installOrientation 0, displayShape DisplayShape{ spec=-1507169495 displayWidth=1280 displayHeight=720 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}}
+    mWindowManagerMirroring=false
+    mDisplayId=16
+  mDisplayId=16
+  mDisplayId=16
+  mDisplayId=16
+  mDisplayId=16
+  mDisplayId=16
+  mDisplayId=16

@@ -54,10 +54,13 @@ export function buildGreedyChunkMesh({ getBlock, min = [0,0,0], size, tileForBlo
       }
       for (let j = 0; j < vSize; j++) for (let i = 0; i < uSize;) {
         const entry = mask[j * uSize + i]; if (!entry) { i++; continue; }
+        // Break expansive grass carpets into small deterministic patches so
+        // atlas repeats do not turn whole hillsides into one obvious stamp.
+        const maxSpan = entry.tile === 'grass_top' ? 4 : Infinity;
         let w = 1;
-        while (i + w < uSize && sameFace(entry, mask[j * uSize + i + w])) w++;
+        while (w < maxSpan && i + w < uSize && sameFace(entry, mask[j * uSize + i + w])) w++;
         let h = 1, canGrow = true;
-        while (j + h < vSize && canGrow) {
+        while (h < maxSpan && j + h < vSize && canGrow) {
           for (let x = 0; x < w; x++) if (!sameFace(entry, mask[(j + h) * uSize + i + x])) { canGrow = false; break; }
           if (canGrow) h++;
         }

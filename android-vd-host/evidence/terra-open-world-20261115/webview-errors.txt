@@ -1,0 +1,25 @@
+--------- beginning of main
+11-15 21:27:27.817 21444 21444 I TERRAVD : CREATE display=17
+11-15 21:27:27.899 21444 21475 E chromium: [1115/212727.898719:ERROR:android_webview/browser/variations/variations_seed_loader.cc:36] Seed missing signature.
+11-15 21:27:28.195 21444 21444 I TERRAVD : QA fixture cookie installed=true
+11-15 21:27:28.793 21444 21444 I TERRAVD : PAGE_FINISHED display=17 url=http://127.0.0.1:38173/ title=TERRA — My Island
+11-15 21:27:29.999 21444 21444 I TERRAVD : WEBGL display=17 probe=1 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:31.000 21444 21444 I TERRAVD : WEBGL display=17 probe=2 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:32.003 21444 21444 I TERRAVD : WEBGL display=17 probe=3 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:33.006 21444 21444 I TERRAVD : WEBGL display=17 probe=4 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:34.009 21444 21444 I TERRAVD : WEBGL display=17 probe=5 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:35.011 21444 21444 I TERRAVD : WEBGL display=17 probe=6 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:36.014 21444 21444 I TERRAVD : WEBGL display=17 probe=7 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:37.018 21444 21444 I TERRAVD : WEBGL display=17 probe=8 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:38.020 21444 21444 I TERRAVD : WEBGL display=17 probe=9 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:39.023 21444 21444 I TERRAVD : WEBGL display=17 probe=10 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:40.027 21444 21444 I TERRAVD : WEBGL display=17 probe=11 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:41.028 21444 21444 I TERRAVD : WEBGL display=17 probe=12 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:42.032 21444 21444 I TERRAVD : WEBGL display=17 probe=13 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:43.035 21444 21444 I TERRAVD : WEBGL display=17 probe=14 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:44.038 21444 21444 I TERRAVD : WEBGL display=17 probe=15 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:45.043 21444 21444 I TERRAVD : WEBGL display=17 probe=16 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:46.047 21444 21444 I TERRAVD : WEBGL display=17 probe=17 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:47.051 21444 21444 I TERRAVD : WEBGL display=17 probe=18 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:48.054 21444 21444 I TERRAVD : WEBGL display=17 probe=19 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:49.058 21444 21444 I TERRAVD : WEBGL display=17 probe=20 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}

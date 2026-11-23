@@ -1,0 +1,8 @@
+    topResumedActivity=ActivityRecord{16750800 u0 dev.terra.vdtest/.BrowserActivity t8518}
+    * Hist  #0: ActivityRecord{16750800 u0 dev.terra.vdtest/.BrowserActivity t8518}
+      Intent { act=android.intent.action.VIEW dat=http://127.0.0.1:38173/?terraDebug=1 flg=0x10000000 xflg=0x4 cmp=dev.terra.vdtest/.BrowserActivity (has extras) }
+      mActivityComponent=dev.terra.vdtest/.BrowserActivity
+    Resumed: ActivityRecord{16750800 u0 dev.terra.vdtest/.BrowserActivity t8518}
+  Display: mDisplayId=31
+  mFocusedApp=ActivityRecord{16750800 u0 dev.terra.vdtest/.BrowserActivity t8518}
+        * ActivityRecord{16750800 u0 dev.terra.vdtest/.BrowserActivity t8518}

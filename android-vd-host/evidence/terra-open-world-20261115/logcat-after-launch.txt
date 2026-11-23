@@ -1,0 +1,8 @@
+--------- beginning of main
+11-15 21:25:02.217 24621 18261 I EclipseVD: CREATED id=17 uid=10303
+11-15 21:25:02.219 24621 18261 I EclipseVD: DONE f8bf502e92234bd59bbd5dd53735d26c
+11-15 21:27:27.817 21444 21444 I TERRAVD : CREATE display=17
+11-15 21:27:28.195 21444 21444 I TERRAVD : QA fixture cookie installed=true
+11-15 21:27:28.793 21444 21444 I TERRAVD : PAGE_FINISHED display=17 url=http://127.0.0.1:38173/ title=TERRA — My Island
+11-15 21:27:29.999 21444 21444 I TERRAVD : WEBGL display=17 probe=1 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}
+11-15 21:27:31.000 21444 21444 I TERRAVD : WEBGL display=17 probe=2 result={"canvases":0,"height":0,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":false,"width":0}

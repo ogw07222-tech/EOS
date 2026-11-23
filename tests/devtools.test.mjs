@@ -9,6 +9,7 @@ import net from 'node:net';
 import {createHmac} from 'node:crypto';
 import {createTimeControl,DEV_TIME_MULTIPLIERS,BASE_GAME_MINUTES_PER_REAL_MINUTE} from '../devtools/time-control-server.mjs';
 import {createTeleportService} from '../devtools/teleport-server.mjs';
+import {heightAt} from '../src/chunk-world.mjs';
 
 const root=resolve(import.meta.dirname,'..');
 const secret='testing_secret_for_terra_game_1234567890';
@@ -215,8 +216,8 @@ test('developer teleport supports a validated direct Y landing and returns curre
  t.after(async()=>{await stop(proc);await rm(saveDir,{recursive:true,force:true});});
  proc=await boot(root,port,saveDir,'development');
  const initial=await request(port,'/api/world'),cookie=initial.cookie.split(';')[0];
- const moved=await request(port,'/api/dev/teleport',{cookie,body:{x:1.5,y:0,z:.5,autoY:false}});
- assert.equal(moved.status,200,moved.body?.error);assert.equal(moved.body.player.x,1.5);assert.equal(moved.body.player.y,0);assert.equal(moved.body.player.z,.5);
+ const surface=heightAt(initial.body.worldSeed,1,0,initial.body.worldGenVersion),moved=await request(port,'/api/dev/teleport',{cookie,body:{x:1.5,y:surface,z:.5,autoY:false}});
+ assert.equal(moved.status,200,moved.body?.error);assert.equal(moved.body.player.x,1.5);assert.equal(moved.body.player.y,surface);assert.equal(moved.body.player.z,.5);
  assert.equal(moved.body.player.grounded,true);
  assert.deepEqual({x:moved.body.world.player.x,y:moved.body.world.player.y,z:moved.body.world.player.z,grounded:moved.body.world.player.grounded},{x:moved.body.player.x,y:moved.body.player.y,z:moved.body.player.z,grounded:moved.body.player.grounded});
  const current=await request(port,'/api/world',{cookie});assert.deepEqual({x:current.body.player.x,y:current.body.player.y,z:current.body.player.z,grounded:current.body.player.grounded},{x:moved.body.player.x,y:moved.body.player.y,z:moved.body.player.z,grounded:moved.body.player.grounded});

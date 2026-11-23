@@ -49,10 +49,10 @@ async function stop(proc){if(!proc||proc.exitCode!==null)return;proc.kill('SIGTE
 async function request(port,path,{cookie,method='GET',body}={}){const headers={};if(cookie)headers.Cookie=cookie;if(body!==undefined)headers['Content-Type']='application/json';const response=await fetch(`http://127.0.0.1:${port}${path}`,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});return {status:response.status,cookie:response.headers.get('set-cookie'),body:await response.json()};}
 async function isolatedServer(t){const saveDir=await mkdtemp(join(tmpdir(),'terra-world-v2-')),port=await randomPort();let proc=await boot(port,saveDir);t.after(async()=>{await stop(proc);await rm(saveDir,{recursive:true,force:true});});return {saveDir,port,restart:async()=>{await stop(proc);proc=await boot(port,saveDir);}};}
 
-test('world generation v2 reports exactly the five supported biome identifiers',()=>{
- assert.equal(WORLD_GEN_VERSION,2);
+test('current world generation preserves the five supported biome identifiers',()=>{
+ assert.equal(WORLD_GEN_VERSION,3);
  const actual=new Set();
- for(let z=-2048;z<=2048;z+=16)for(let x=-2048;x<=2048;x+=16)actual.add(biomeAt(0x51a7,x,z,2));
+ for(let z=-2048;z<=2048;z+=16)for(let x=-2048;x<=2048;x+=16)actual.add(biomeAt(0x51a7,x,z,WORLD_GEN_VERSION));
  assert.deepEqual(actual,biomeIds);
 });
 
@@ -171,16 +171,16 @@ test('natural full water across an 81-chunk ocean window stays implicit and inac
 
 test('the dev biome locator returns reproducible coordinates for all five server-generated biomes',async t=>{
  const server=await isolatedServer(t),created=await request(server.port,'/api/world');assert.equal(created.status,200);
- const cookie=created.cookie.split(';')[0];assert.equal(created.body.worldGenVersion,2);
+ const cookie=created.cookie.split(';')[0];assert.equal(created.body.worldGenVersion,WORLD_GEN_VERSION);
  const first=await request(server.port,'/api/dev/biomes',{cookie}),second=await request(server.port,'/api/dev/biomes',{cookie});
  assert.equal(first.status,200,first.body.error);assert.deepEqual(first.body,second.body);
- assert.equal(first.body.seed,created.body.worldSeed);assert.equal(first.body.genVersion,2);
+ assert.equal(first.body.seed,created.body.worldSeed);assert.equal(first.body.genVersion,WORLD_GEN_VERSION);
  assert.deepEqual(new Set(Object.keys(first.body.biomes)),biomeIds);
  for(const [id,point]of Object.entries(first.body.biomes)){
   assert.ok(Number.isFinite(point.x)&&Number.isFinite(point.z)&&Number.isFinite(point.y));
-  assert.equal(biomeAt(first.body.seed,point.x,point.z,2),id,`locator returned wrong biome for ${id}`);
-  assert.equal(point.y,heightAt(first.body.seed,point.x,point.z,2),`locator returned wrong surface for ${id}`);
-  if(id==='ocean'||id==='river')assert.equal(generatedWaterLevel({worldGenVersion:2,worldSeed:first.body.seed,seaLevel:0},point.x,0,point.z),8);
+  assert.equal(biomeAt(first.body.seed,point.x,point.z,WORLD_GEN_VERSION),id,`locator returned wrong biome for ${id}`);
+  assert.equal(point.y,heightAt(first.body.seed,point.x,point.z,WORLD_GEN_VERSION),`locator returned wrong surface for ${id}`);
+  if(id==='ocean'||id==='river')assert.equal(generatedWaterLevel({worldGenVersion:WORLD_GEN_VERSION,worldSeed:first.body.seed,seaLevel:0},point.x,0,point.z),8);
  }
  const ocean=first.body.biomes.ocean,before=first.body.biomes.plains;
  const unsafe=await request(server.port,'/api/dev/teleport',{cookie,method:'POST',body:{x:ocean.x+.5,y:0,z:ocean.z+.5}});
@@ -200,23 +200,23 @@ test('the dev biome locator returns reproducible coordinates for all five server
  assert.equal(returned.status,200,returned.body.error);assert.equal(returned.body.player.x,toRiver.body.player.x);assert.equal(returned.body.player.z,toRiver.body.player.z);
 });
 
-test('new v2 world identity and sparse fluid edits persist across server restart',async t=>{
+test('new v3 world identity and sparse fluid edits persist across server restart',async t=>{
  const server=await isolatedServer(t),created=await request(server.port,'/api/world');assert.equal(created.status,200);
  const cookie=created.cookie.split(';')[0],id=cookie.match(/^terra_session=([a-f0-9]{32})\./)?.[1];assert.ok(id);
- assert.equal(created.body.worldGenVersion,2);assert.equal(created.body.seaLevel,0);
+ assert.equal(created.body.worldGenVersion,WORLD_GEN_VERSION);assert.equal(created.body.seaLevel,0);
  const savePath=join(server.saveDir,id+'.json'),saved=JSON.parse(await readFile(savePath,'utf8'));
- assert.equal(saved.worldSeed,created.body.worldSeed);assert.equal(saved.worldGenVersion,2);
- // Inject one isolated developer fixture override adjacent to the protected spawn.
- saved.fluidEdits={'2,3,2':6};await writeFile(savePath,JSON.stringify(saved));
+ assert.equal(saved.worldSeed,created.body.worldSeed);assert.equal(saved.worldGenVersion,WORLD_GEN_VERSION);
+ // Inject one isolated developer fixture above the full generated terrain range.
+ saved.fluidEdits={'2,25,2':6};await writeFile(savePath,JSON.stringify(saved));
  await server.restart();const loaded=await request(server.port,'/api/world',{cookie});
- assert.equal(loaded.status,200);assert.equal(loaded.body.worldGenVersion,2);assert.equal(loaded.body.worldSeed,created.body.worldSeed);
+ assert.equal(loaded.status,200);assert.equal(loaded.body.worldGenVersion,WORLD_GEN_VERSION);assert.equal(loaded.body.worldSeed,created.body.worldSeed);
  assert.equal(loaded.body.fluidRevision,saved.fluidRevision||0);
- assert.equal(loaded.body.fluidCells['2,3,2'],6);
- assert.equal(waterLevelAt(loaded.body,2,3,2),6);
+ assert.equal(loaded.body.fluidCells['2,25,2'],6);
+ assert.equal(waterLevelAt(loaded.body,2,25,2),6);
 });
 
 test('development tick-rate control accepts only 2, 5, and 10 ticks per second and persists',async t=>{
- const server=await isolatedServer(t),created=await request(server.port,'/api/world');assert.equal(created.body.worldGenVersion,2);
+ const server=await isolatedServer(t),created=await request(server.port,'/api/world');assert.equal(created.body.worldGenVersion,WORLD_GEN_VERSION);
  const cookie=created.cookie.split(';')[0],id=cookie.match(/^terra_session=([a-f0-9]{32})\./)?.[1],savePath=join(server.saveDir,id+'.json');
  for(const tickRate of [2,5,10]){
   const changed=await request(server.port,'/api/dev/fluid-rate',{cookie,method:'POST',body:{tickRate}});
@@ -249,27 +249,27 @@ test('server fluid simulation advances vertically at configured 2/5/10 tick rate
  t.diagnostic(`server fluid rate sample: ${measurements.map(m=>`${m.tickRate}t/s→${m.moved} cells/${m.elapsed}s`).join(', ')}`);
 });
 
-test('server movement detects immersion and allows swimming while solid placement into water is denied',async t=>{
+test('server movement detects immersion, supports swim strokes, and allows solid placement into water',async t=>{
  const server=await isolatedServer(t),created=await request(server.port,'/api/world');
  const cookie=created.cookie.split(';')[0],id=cookie.match(/^terra_session=([a-f0-9]{32})\./)?.[1],savePath=join(server.saveDir,id+'.json');
- const saved=JSON.parse(await readFile(savePath,'utf8'));saved.fluidEdits={'0,0,0':8,'4,0,0':8};saved.fluidActive=[];
+ const saved=JSON.parse(await readFile(savePath,'utf8'));saved.player={...saved.player,y:26,grounded:false};saved.fluidEdits={'0,26,0':8,'4,26,0':8};saved.fluidActive=[];
  await writeFile(savePath,JSON.stringify(saved));await server.restart();
  const loaded=await request(server.port,'/api/world',{cookie});assert.equal(loaded.body.player.immersed,true);
  const move=await request(server.port,'/api/move',{cookie,method:'POST',body:{x:0,z:0,swim:true}});
  assert.equal(move.status,200,move.body.error);assert.equal(move.body.player.immersed,true);assert.equal(move.body.player.swimming,true);assert.ok(move.body.player.y>0);
- const place=await request(server.port,'/api/action',{cookie,method:'POST',body:{type:'place',x:4,y:0,z:0,item:'dirt',revision:loaded.body.revision}});
- assert.equal(place.status,400);assert.match(place.body.error,/water/i);
- const after=await request(server.port,'/api/world',{cookie});assert.equal(after.body.fluidCells['0,0,0'],8);
+ const place=await request(server.port,'/api/action',{cookie,method:'POST',body:{type:'place',x:4,y:26,z:0,item:'dirt',revision:loaded.body.revision}});
+ assert.equal(place.status,200,place.body.error);assert.equal(place.body.world.edits['4,26,0'],'dirt');assert.equal(place.body.world.inventory.dirt,47);
+ const after=await request(server.port,'/api/world',{cookie});assert.equal(after.body.fluidCells['0,26,0'],8);
 });
 
 test('81-chunk natural ocean remains generated and developer APIs are hidden in production',async t=>{
  const server=await isolatedServer(t),created=await request(server.port,'/api/world');
- assert.equal(created.body.worldGenVersion,2);assert.equal(created.body.fluidCells&&Object.keys(created.body.fluidCells).length,0);
+ assert.equal(created.body.worldGenVersion,WORLD_GEN_VERSION);assert.equal(created.body.fluidCells&&Object.keys(created.body.fluidCells).length,0);
  const ocean=await request(server.port,'/api/dev/biomes',{cookie:created.cookie.split(';')[0]});assert.equal(ocean.status,200);
  const productionDir=await mkdtemp(join(tmpdir(),'terra-world-v2-prod-save-')),port=await randomPort();let prod;
  t.after(async()=>{await stop(prod);await rm(productionDir,{recursive:true,force:true});});
  prod=await boot(port,productionDir,'production');const publicWorld=await request(port,'/api/world');
- assert.equal(publicWorld.status,200);assert.equal(publicWorld.body.worldGenVersion,2);assert.notEqual(publicWorld.body.devtoolsEnabled,true);
+ assert.equal(publicWorld.status,200);assert.equal(publicWorld.body.worldGenVersion,WORLD_GEN_VERSION);assert.notEqual(publicWorld.body.devtoolsEnabled,true);
  assert.equal((await request(port,'/api/dev/biomes')).status,404);
  assert.equal((await request(port,'/api/dev/fluid-rate',{method:'POST',body:{tickRate:5}})).status,404);
  assert.equal((await request(port,'/api/dev/teleport',{method:'POST',body:{x:0,z:0,autoY:true}})).status,404);
@@ -281,14 +281,14 @@ test('versionless 10×10 saves migrate once to open-world generation while prese
  await writeFile(join(server.saveDir,id+'.json'),JSON.stringify(legacy));
  const signature=createHmac('sha256',secret).update(id).digest('hex'),cookie=`terra_session=${id}.${signature}`;
  const loaded=await request(server.port,'/api/world',{cookie});assert.equal(loaded.status,200,loaded.body.error);
- assert.equal(loaded.body.islandSize,10);assert.equal(loaded.body.worldGenVersion,2);
+ assert.equal(loaded.body.islandSize,10);assert.equal(loaded.body.worldGenVersion,WORLD_GEN_VERSION);
  assert.ok(Number.isSafeInteger(loaded.body.worldSeed));assert.equal(loaded.body.seaLevel,0);assert.deepEqual(loaded.body.fluidCells,{});
  assert.equal(loaded.body.revision,7);assert.equal(loaded.body.inventory.dirt,21);assert.equal(loaded.body.edits['2,0,2'],'dirt');
- assert.equal(blockAt(loaded.body,1,-1,1),'grass','the migrated world gets terrain under the starter clearing');
+ const groundY=heightAt(loaded.body.worldSeed,1,1,WORLD_GEN_VERSION);assert.equal(blockAt(loaded.body,1,groundY-1,1),'grass','the migrated world gets terrain at the seeded plains surface');
  const seed=loaded.body.worldSeed,saved=JSON.parse(await readFile(join(server.saveDir,id+'.json'),'utf8'));
- assert.equal(saved.worldGenVersion,2);assert.equal(saved.worldSeed,seed);assert.equal(saved.revision,7);assert.equal(saved.inventory.dirt,21);assert.equal(saved.edits['2,0,2'],'dirt');
+ assert.equal(saved.worldGenVersion,WORLD_GEN_VERSION);assert.equal(saved.worldSeed,seed);assert.equal(saved.revision,7);assert.equal(saved.inventory.dirt,21);assert.equal(saved.edits['2,0,2'],'dirt');
  await server.restart();const reloaded=await request(server.port,'/api/world',{cookie});assert.equal(reloaded.status,200);
- assert.equal(reloaded.body.worldGenVersion,2);assert.equal(reloaded.body.worldSeed,seed);assert.equal(reloaded.body.revision,7);assert.equal(reloaded.body.inventory.dirt,21);assert.equal(reloaded.body.edits['2,0,2'],'dirt');
+ assert.equal(reloaded.body.worldGenVersion,WORLD_GEN_VERSION);assert.equal(reloaded.body.worldSeed,seed);assert.equal(reloaded.body.revision,7);assert.equal(reloaded.body.inventory.dirt,21);assert.equal(reloaded.body.edits['2,0,2'],'dirt');
 });
 
 test('version 1 and legacy saves remain unmodified by v2 generation helpers',()=>{

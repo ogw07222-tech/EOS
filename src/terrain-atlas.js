@@ -79,6 +79,7 @@ export function terrainTileForBlock(block, faceIndex = 2) {
 export function terrainTileVariation(block, faceIndex, x, y, z) {
   const h = coordHash(x, y, z, faceIndex * 31);
   if (terrainTileForBlock(block, faceIndex) === 'grass_side') return { rotation: 0, mirrorX: !!(h & 1), mirrorY: false };
+  if (terrainTileForBlock(block, faceIndex) === 'grass_top') return { rotation: (h >>> 1) & 3, mirrorX: !!(h & 1), mirrorY: !!(h & 4) };
   return { rotation: (h >>> 1) & 3, mirrorX: false, mirrorY: false };
 }
 
@@ -104,13 +105,14 @@ function seededRandom(seed) {
 function drawTile(ctx, name, x0, y0, seed) {
   const size = TERRAIN_ATLAS_TILE_SIZE, rand = seededRandom(seed), { kind, face } = tileParts(name), colors = paletteFor(name);
   ctx.fillStyle = baseFor(name); ctx.fillRect(x0, y0, size, size);
-  for (let y = 0; y < size; y += 4) for (let x = 0; x < size; x += 4) if (rand() < .28) { ctx.fillStyle = colors[Math.floor(rand() * colors.length)]; ctx.fillRect(x0 + x, y0 + y, 4, 4); }
-  for (let i = 0, n = kind === 'sand' || kind === 'grass' && face === 'top' ? 62 : 44; i < n; i++) {
+  const grassSurface=kind==='grass'&&face==='top';
+  for (let y = 0; y < size; y += 4) for (let x = 0; x < size; x += 4) if (rand() < (grassSurface ? 0.09 : 0.28)) { ctx.fillStyle = colors[Math.floor(rand() * colors.length)]; ctx.fillRect(x0 + x, y0 + y, 4, 4); }
+  for (let i = 0, n = grassSurface ? 20 : kind === 'sand' ? 48 : 44; i < n; i++) {
     const x = Math.floor(rand() * 16) * 2, y = Math.floor(rand() * 16) * 2;
     ctx.fillStyle = colors[Math.floor(rand() * colors.length)]; ctx.fillRect(x0 + x, y0 + y, 2, 2);
   }
   if (kind === 'grass' && face === 'top') {
-    for (let i = 0; i < 5; i++) { const x = 3 + Math.floor(rand() * 26), y = 3 + Math.floor(rand() * 26); ctx.fillStyle = i % 2 ? '#405f43' : '#9bac67'; ctx.fillRect(x0 + x, y0 + y, 2, 2); ctx.fillRect(x0 + x + (i % 2 ? 2 : -2), y0 + y - 2, 2, 2); }
+    for (let i = 0; i < 7; i++) { const x = 2 + Math.floor(rand() * 27), y = 2 + Math.floor(rand() * 27),tone=i%3;ctx.fillStyle=tone===0?'#55784d':tone===1?'#82995e':'#6b8953';ctx.fillRect(x0+x,y0+y,3,3);ctx.fillRect(x0+x+2,y0+y-2,2,2);if(tone===1)ctx.fillRect(x0+x-2,y0+y+2,2,2); }
   } else if (kind === 'grass' && face === 'side') {
     ctx.fillStyle = '#658451'; ctx.fillRect(x0, y0, size, 5);
     for (let x = 0; x < size; x += 2) { ctx.fillStyle = rand() > .3 ? '#78965c' : '#4c7048'; ctx.fillRect(x0 + x, y0 + 5, 2, 1 + Math.floor(rand() * 3)); }

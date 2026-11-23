@@ -7,7 +7,7 @@ import {join,resolve} from 'node:path';
 import {once} from 'node:events';
 import net from 'node:net';
 import {createHmac} from 'node:crypto';
-import {blockAt} from '../src/chunk-world.mjs';
+import {blockAt,heightAt} from '../src/chunk-world.mjs';
 
 const root=resolve(import.meta.dirname,'..');
 const secret='testing_secret_for_terra_chunk_world_1234567890';
@@ -52,71 +52,73 @@ test('new world persists its deterministic generation identity and landing origi
  assert.equal(loaded.status,200);assert.equal(loaded.body.worldSeed,world.worldSeed);assert.equal(loaded.body.worldGenVersion,world.worldGenVersion);assert.deepEqual(loaded.body.worldAnchor,world.worldAnchor);
 });
 
-test('generated grass supports edits on both sides of the negative chunk edge; edits survive restart and removal restores generated terrain',async t=>{
+test('generated grass supports edits at irregular plains heights across the negative chunk edge',async t=>{
  const server=await isolatedServer(t),created=await request(server.port,'/api/world'),cookie=created.cookie.split(';')[0];let world=created.body;
- assert.equal(blockAt(world,1,-1,0),'grass');assert.equal(blockAt(world,-1,-1,0),'grass');
- assert.equal(blockAt(world,1,-6,0),'stone','the safe pad has a generated underground stone layer');
+ const surface=(x,z)=>heightAt(world.worldSeed,x,z,world.worldGenVersion);
+ assert.equal(blockAt(world,1,surface(1,0)-1,0),'grass');assert.equal(blockAt(world,-1,surface(-1,0)-1,0),'grass');
+ assert.equal(blockAt(world,1,surface(1,0)-6,0),'stone','the generated terrain has underground stone layers');
  const standing=await request(server.port,'/api/move',{cookie,method:'POST',body:{x:0,z:0}});
- assert.equal(standing.status,200);assert.equal(standing.body.player.y,0);assert.equal(standing.body.player.grounded,true,'the server collision step stands on generated grass');
- const place=async x=>request(server.port,'/api/action',{cookie,method:'POST',body:{type:'place',x,y:0,z:0,revision:world.revision}});
- let response=await place(1);assert.equal(response.status,200,response.body.error);world=response.body.world;assert.equal(world.inventory.dirt,47);assert.equal(world.edits['1,0,0'],'dirt');
- response=await request(server.port,'/api/action',{cookie,method:'POST',body:{type:'place',x:-1,y:0,z:1,revision:world.revision}});
- assert.equal(response.status,200,response.body.error);world=response.body.world;assert.equal(world.inventory.dirt,46);assert.equal(world.edits['-1,0,1'],'dirt');
+ assert.equal(standing.status,200);assert.equal(standing.body.player.y,surface(0,0));assert.equal(standing.body.player.grounded,true,'the server collision step stands on the generated plain surface');
+ const place=async(x,z)=>request(server.port,'/api/action',{cookie,method:'POST',body:{type:'place',x,y:surface(x,z),z,revision:world.revision}});
+ let response=await place(1,0);assert.equal(response.status,200,response.body.error);world=response.body.world;assert.equal(world.inventory.dirt,47);assert.equal(world.edits[`1,${surface(1,0)},0`],'dirt');
+ response=await place(-1,1);
+ assert.equal(response.status,200,response.body.error);world=response.body.world;assert.equal(world.inventory.dirt,46);assert.equal(world.edits[`-1,${surface(-1,1)},1`],'dirt');
 
  await server.restart();world=(await request(server.port,'/api/world',{cookie})).body;
- assert.equal(world.inventory.dirt,46);assert.equal(world.edits['1,0,0'],'dirt');assert.equal(world.edits['-1,0,1'],'dirt');
- assert.equal(world.worldSeed,created.body.worldSeed);assert.equal(blockAt(world,1,-1,0),'grass');assert.equal(blockAt(world,-1,-1,1),'grass');
+ assert.equal(world.inventory.dirt,46);assert.equal(world.edits[`1,${surface(1,0)},0`],'dirt');assert.equal(world.edits[`-1,${surface(-1,1)},1`],'dirt');
+ assert.equal(world.worldSeed,created.body.worldSeed);assert.equal(blockAt(world,1,surface(1,0)-1,0),'grass');assert.equal(blockAt(world,-1,surface(-1,1)-1,1),'grass');
  const selected=await request(server.port,'/api/slot',{cookie,method:'POST',body:{selectedSlot:2}});assert.equal(selected.status,200);world=selected.body.world;
- const mining=await request(server.port,'/api/mine',{cookie,method:'POST',body:{type:'start',targetType:'block',x:-1,y:0,z:1,tool:'wood_shovel',revision:world.revision}});assert.equal(mining.status,200,mining.body.error);
+ const minedY=surface(-1,1),mining=await request(server.port,'/api/mine',{cookie,method:'POST',body:{type:'start',targetType:'block',x:-1,y:minedY,z:1,tool:'wood_shovel',revision:world.revision}});assert.equal(mining.status,200,mining.body.error);
  await new Promise(resolve=>setTimeout(resolve,1250));
- const mined=await request(server.port,'/api/action',{cookie,method:'POST',body:{type:'mine',targetType:'block',x:-1,y:0,z:1,tool:'wood_shovel',revision:world.revision}});
- assert.equal(mined.status,200,mined.body.error);assert.equal(mined.body.world.inventory.dirt,47);assert.equal(mined.body.world.edits['-1,0,1'],null,'an explicit air patch masks regenerated terrain');
+ const mined=await request(server.port,'/api/action',{cookie,method:'POST',body:{type:'mine',targetType:'block',x:-1,y:minedY,z:1,tool:'wood_shovel',revision:world.revision}});
+ assert.equal(mined.status,200,mined.body.error);assert.equal(mined.body.world.inventory.dirt,47);assert.equal(mined.body.world.edits[`-1,${minedY},1`],null,'an explicit air patch masks regenerated terrain');
  await server.restart();world=(await request(server.port,'/api/world',{cookie})).body;
- assert.equal(world.inventory.dirt,47);assert.equal(world.edits['-1,0,1'],null);assert.equal(world.edits['1,0,0'],'dirt');
- assert.equal(blockAt(world,-1,0,1),null,'mining the placed block restores generated air above the surface');assert.equal(blockAt(world,-1,-1,1),'grass');
+ assert.equal(world.inventory.dirt,47);assert.equal(world.edits[`-1,${minedY},1`],null);assert.equal(world.edits[`1,${surface(1,0)},0`],'dirt');
+ assert.equal(blockAt(world,-1,minedY,1),null,'mining the placed block restores generated air above the surface');assert.equal(blockAt(world,-1,minedY-1,1),'grass');
 });
 
 test('server collision blocks horizontal movement through generated underground stone',async t=>{
  const server=await isolatedServer(t),created=await request(server.port,'/api/world');
  const id=created.cookie.split(';')[0].match(/^terra_session=([a-f0-9]{32})\./)?.[1];assert.ok(id);
  const savePath=join(server.saveDir,id+'.json'),saved=JSON.parse(await readFile(savePath,'utf8'));
- assert.equal(blockAt(saved,1,-6,0),'stone');
- // Isolated fixture places the avatar inside the safe pad's stone stratum;
+ const underground=heightAt(saved.worldSeed,1,0,saved.worldGenVersion)-6;
+ assert.equal(blockAt(saved,1,underground,0),'stone');
+ // Isolated fixture places the avatar inside the generated stone stratum;
  // a horizontal move must collide with the authoritative generated block.
- saved.player={x:1.5,y:-6,z:.5,grounded:true};await writeFile(savePath,JSON.stringify(saved));await server.restart();
+ saved.player={x:1.5,y:underground,z:.5,grounded:true};await writeFile(savePath,JSON.stringify(saved));await server.restart();
  const moved=await request(server.port,'/api/move',{cookie:created.cookie.split(';')[0],method:'POST',body:{x:1,z:0}});
- assert.equal(moved.status,200);assert.equal(moved.body.player.x,1.5);assert.equal(moved.body.player.y,-6);assert.equal(moved.body.player.grounded,true);
+ assert.equal(moved.status,200);assert.equal(moved.body.player.x,1.5);assert.equal(moved.body.player.y,underground);assert.equal(moved.body.player.grounded,true);
 });
 
-test('generated flat-field agriculture saves till, seed use, watered time, and revision across restart without duplicate planting',async t=>{
+test('generated plains agriculture saves till, seed use, watered time, and revision across restart without duplicate planting',async t=>{
  const server=await isolatedServer(t),created=await request(server.port,'/api/world'),cookie=created.cookie.split(';')[0];
  const id=cookie.match(/^terra_session=([a-f0-9]{32})\./)?.[1];assert.ok(id);
  const savePath=join(server.saveDir,id+'.json'),fixture=JSON.parse(await readFile(savePath,'utf8'));
  // Seed tools only in this disposable per-test save; terrain and farm plot are generated.
  fixture.inventory.tools.hoe=1;fixture.inventory.tools.watering_can=1;fixture.inventory.quickSlots[3]='hoe';fixture.inventory.quickSlots[4]='watering_can';fixture.inventory.wheat_seed=2;fixture.inventory.wateringCanUses=10;
  await writeFile(savePath,JSON.stringify(fixture));await server.restart();
- const loaded=await request(server.port,'/api/world',{cookie});let world=loaded.body;
+ const loaded=await request(server.port,'/api/world',{cookie});let world=loaded.body;const plotY=heightAt(world.worldSeed,1,1,world.worldGenVersion);
  assert.equal(world.worldSeed,created.body.worldSeed);assert.equal(world.worldGenVersion,created.body.worldGenVersion);
- assert.equal(world.edits['1,0,1'],undefined);assert.equal(blockAt(world,1,-1,1),'grass');
- const action=async(name,tool,revision=world.revision)=>request(server.port,'/api/farm',{cookie,method:'POST',body:{action:name,x:1,y:0,z:1,tool,revision}});
+ assert.equal(world.edits[`1,${plotY},1`],undefined);assert.equal(blockAt(world,1,plotY-1,1),'grass');
+ const action=async(name,tool,revision=world.revision)=>request(server.port,'/api/farm',{cookie,method:'POST',body:{action:name,x:1,y:plotY,z:1,tool,revision}});
  let response=await request(server.port,'/api/slot',{cookie,method:'POST',body:{selectedSlot:3}});assert.equal(response.status,200);world=response.body.world;
  const beforeTillRevision=world.revision;response=await action('till','hoe');assert.equal(response.status,200,response.body.error);world=response.body.world;
- assert.equal(world.revision,beforeTillRevision+1);assert.ok(world.tilled.some(([x,y,z])=>x===1&&y===0&&z===1));assert.equal(world.inventory.wheat_seed,2);
+ assert.equal(world.revision,beforeTillRevision+1);assert.ok(world.tilled.some(([x,y,z])=>x===1&&y===plotY&&z===1));assert.equal(world.inventory.wheat_seed,2);
  response=await action('plant','hoe');assert.equal(response.status,200,response.body.error);world=response.body.world;
- assert.equal(world.revision,beforeTillRevision+2);assert.equal(world.inventory.wheat_seed,1);assert.equal(world.crops.filter(c=>c.x===1&&c.y===0&&c.z===1).length,1);
+ assert.equal(world.revision,beforeTillRevision+2);assert.equal(world.inventory.wheat_seed,1);assert.equal(world.crops.filter(c=>c.x===1&&c.y===plotY&&c.z===1).length,1);
  const duplicate=await action('plant','hoe');assert.equal(duplicate.status,400);assert.equal(duplicate.body.world.inventory.wheat_seed,1);assert.equal(duplicate.body.world.revision,world.revision);
  response=await request(server.port,'/api/slot',{cookie,method:'POST',body:{selectedSlot:4}});assert.equal(response.status,200);world=response.body.world;
  response=await action('water','watering_can');assert.equal(response.status,200,response.body.error);world=response.body.world;
  assert.equal(world.revision,beforeTillRevision+4);assert.equal(world.inventory.wateringCanUses,9);
- const waterKey='1,0,1',waterRemaining=world.watered[waterKey],crop=world.crops.find(c=>c.x===1&&c.y===0&&c.z===1);
+ const waterKey=`1,${plotY},1`,waterRemaining=world.watered[waterKey],crop=world.crops.find(c=>c.x===1&&c.y===plotY&&c.z===1);
  assert.ok(waterRemaining>0);assert.equal(crop.stage,1);assert.equal(world.inventory.wheat_seed,1);
 
  await server.restart();const reloaded=await request(server.port,'/api/world',{cookie});world=reloaded.body;
  assert.equal(world.worldSeed,created.body.worldSeed);assert.equal(world.worldGenVersion,created.body.worldGenVersion);
  assert.equal(world.revision,beforeTillRevision+4);assert.equal(world.inventory.wheat_seed,1);assert.equal(world.inventory.wateringCanUses,9);
- assert.ok(world.tilled.some(([x,y,z])=>x===1&&y===0&&z===1));assert.equal(world.crops.filter(c=>c.x===1&&c.y===0&&c.z===1).length,1);
- assert.equal(world.crops.find(c=>c.x===1&&c.y===0&&c.z===1).stage,1);assert.ok(world.watered[waterKey]>0&&world.watered[waterKey]<=waterRemaining);
- const afterRestartDuplicate=await request(server.port,'/api/farm',{cookie,method:'POST',body:{action:'plant',x:1,y:0,z:1,tool:'hoe',revision:world.revision}});
+ assert.ok(world.tilled.some(([x,y,z])=>x===1&&y===plotY&&z===1));assert.equal(world.crops.filter(c=>c.x===1&&c.y===plotY&&c.z===1).length,1);
+ assert.equal(world.crops.find(c=>c.x===1&&c.y===plotY&&c.z===1).stage,1);assert.ok(world.watered[waterKey]>0&&world.watered[waterKey]<=waterRemaining);
+ const afterRestartDuplicate=await request(server.port,'/api/farm',{cookie,method:'POST',body:{action:'plant',x:1,y:plotY,z:1,tool:'hoe',revision:world.revision}});
  assert.equal(afterRestartDuplicate.status,400);assert.equal(afterRestartDuplicate.body.world.inventory.wheat_seed,1);assert.equal(afterRestartDuplicate.body.world.crops.length,world.crops.length);
 });
 

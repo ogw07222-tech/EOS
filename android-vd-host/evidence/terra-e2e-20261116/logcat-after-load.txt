@@ -1,0 +1,5 @@
+--------- beginning of main
+11-16 19:21:55.869 16096 16096 I TERRAVD : CREATE display=21
+11-16 19:21:56.033 16096 16096 I TERRAVD : QA fixture cookie installed=true
+11-16 19:21:56.359 16096 16096 I TERRAVD : PAGE_FINISHED display=21 url=http://127.0.0.1:38173/ title=TERRA — Open World
+11-16 19:21:57.588 16096 16096 I TERRAVD : WEBGL display=21 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — Open World","webgl":true,"width":1280}

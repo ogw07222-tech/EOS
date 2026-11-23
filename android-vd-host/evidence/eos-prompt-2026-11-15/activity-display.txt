@@ -1,0 +1,81 @@
+833:Display #16 (activities from top to bottom):
+834-
+835:  * Task{e4055f0 #8381 type=standard A=10326:dev.terra.vdtest U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=1}
+836-    mIsKeepScreenOn=true
+837-    mLastNonFullscreenBounds=Rect(448, 101 - 832, 619)
+838-    isSleeping=false
+839:    topResumedActivity=ActivityRecord{86826547 u0 dev.terra.vdtest/.BrowserActivity t8381}
+840:    * Hist  #0: ActivityRecord{86826547 u0 dev.terra.vdtest/.BrowserActivity t8381}
+841:      packageName=dev.terra.vdtest processName=dev.terra.vdtest
+842-      launchedFromUid=2000 launchedFromPackage=com.android.shell launchedFromFeature=null userId=0
+843:      app=ProcessRecord{e9bee11 9683:dev.terra.vdtest/u0a326}
+844:      Intent { act=android.intent.action.VIEW dat=http://127.0.0.1:38173/ flg=0x10000000 xflg=0x4 cmp=dev.terra.vdtest/.BrowserActivity }
+845:      rootOfTask=true task=Task{e4055f0 #8381 type=standard A=10326:dev.terra.vdtest}
+846:      taskAffinity=10326:dev.terra.vdtest
+847:      mActivityComponent=dev.terra.vdtest/.BrowserActivity
+848:      baseDir=/data/app/~~qthdsHVfPZ8FLmCiDwel6g==/dev.terra.vdtest-f6FI_wv3vBgLsDkjtD1POw==/base.apk
+849:      dataDir=/data/user/0/dev.terra.vdtest
+850-      stateNotNeeded=false componentSpecified=true mActivityType=standard
+851-      compat={288dpi always-compat} theme=0x103022e
+852-      mLastReportedConfigurations:
+853-        mGlobalConfig={0.9 ?mcc0mnc [ko_KR] ldltr sw720dp w1280dp h720dp 160dpi xlrg long compactNeeded land night -touch -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mMaxBounds=Rect(0, 0 - 1280, 720) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0 mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=off mOverlappingWithCutout=false} s.32120 fontWeightAdjustment=0 ff=0 bf=-1 bts=0 cst=1.0 nightDim=0 themeSeq=0}
+854-        mOverrideConfig={0.0 ?mcc0mnc ?localeList ?layoutDir sw720dp w1280dp h720dp 160dpi xlrg long compactNeeded land ?uimode ?night -touch -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1280, 720) mAppBounds=Rect(0, 0 - 1280, 720) mMaxBounds=Rect(0, 0 - 1280, 720) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=off mOverlappingWithCutout=false} s.4 ?fontWeightAdjustment ff=0 bf=-1 bts=0 cst=1.0 nightDim=-1 themeSeq=0}
+--
+868:      windows=[Window{7cd8ce u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}]
+869-      windowType=2
+870-      mOccludesParent=true
+871-      mStyleFillsParent=true
+872-      overrideOrientation=SCREEN_ORIENTATION_LANDSCAPE
+873-      requestedOrientation=SCREEN_ORIENTATION_LANDSCAPE
+--
+889:    Resumed: ActivityRecord{86826547 u0 dev.terra.vdtest/.BrowserActivity t8381}
+890-
+891-  ResumedActivity: ActivityRecord{267421882 u0 com.openai.chatgpt/.MainActivity t8367}
+892-
+893-ActivityTaskSupervisor state:
+894-  topDisplayFocusedRootTask=Task{ea77626 #7 name=Desk type=undefined}
+--
+1423:  mImeInputTarget=Window{7cd8ce u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}
+1424:  mImeControlTarget=Window{7cd8ce u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}
+1425-  mRemoteInsetsControlTarget=RemoteInsetsControlTarget{88e3944 displayId=16 requestedVisibleTypes=503 animatingTypes=0}
+1426-  mCurrentFocus=null
+1427:  mFocusedApp=ActivityRecord{86826547 u0 dev.terra.vdtest/.BrowserActivity t8381}
+1428-  mFixedRotationLaunchingApp=null
+1429-
+1430:  mHoldScreenWindow=Window{7cd8ce u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}
+1431:  mObscuringWindow=Window{7cd8ce u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}
+1432:  mLastWakeLockHoldingWindow=Window{7cd8ce u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}
+1433-  mLastWakeLockObscuringWindow=null
+1434-
+1435-  displayId=16
+1436-  mWallpaperTarget=null
+1437-  mLastWallpaperZoomOut=0.0
+--
+1455:      mPreferredTopFocusableRootTask=Task{e4055f0 #8381 type=standard A=10326:dev.terra.vdtest}
+1456:      mLastFocusedRootTask=Task{e4055f0 #8381 type=standard A=10326:dev.terra.vdtest}
+1457-      Application tokens in top down Z order:
+1458:      * Task{e4055f0 #8381 type=standard A=10326:dev.terra.vdtest U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=1}
+1459-        bounds=[0,0][1280,720]
+1460:        * ActivityRecord{86826547 u0 dev.terra.vdtest/.BrowserActivity t8381}
+1461-
+1462-
+1463-  PinnedTaskController
+1464-    mIsImeShowing=false
+1465-    mImeHeight=0
+--
+1480:    mTopFullscreenOpaqueWindowState=Window{7cd8ce u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}
+1481:    mSystemUiControllingWindow=Window{7cd8ce u0 dev.terra.vdtest/dev.terra.vdtest.BrowserActivity}
+1482-    mLastStatusBarAppearanceRegions=
+1483-    mLastLetterboxDetails=
+1484-    mTopIsFullscreen=false
+1485-    mImeInsetsConsumed=false
+1486-    mForceShowNavigationBarEnabled=false mAllowLockscreenWhenOn=false
+--
+1594:        (fullscreen) Task{e4055f0 #8381 type=standard A=10326:dev.terra.vdtest}
+1595-
+1596:  VisibleActivityProcess:[ ProcessRecord{e9bee11 9683:dev.terra.vdtest/u0a326} ProcessRecord{1150e49 23810:com.termux/u0a547} ProcessRecord{6000c15 25148:com.openai.chatgpt/u0a526} ProcessRecord{a31de83 3840:com.sec.android.app.launcher/u0a142}]
+1597-  NumNonAppVisibleWindowUidMap:[ 10465:1 10179:1 10142:2 10065:1]
+1598-
+1599-  PACKAGE SETTINGS MANAGER
+1600-    AdaptiveAppByDefaultPolicy
+1601-      PolicyEnabled=true

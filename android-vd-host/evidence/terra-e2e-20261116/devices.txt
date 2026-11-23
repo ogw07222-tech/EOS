@@ -1,0 +1,4 @@
+List of devices attached
+172.20.6.114:46213     device product:gts10pwifixx model:SM_X820 device:gts10pwifi transport_id:2
+emulator-5554          device product:gts10pwifixx model:SM_X820 device:gts10pwifi transport_id:1
+

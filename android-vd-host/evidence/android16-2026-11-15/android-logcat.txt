@@ -1,0 +1,18 @@
+--------- beginning of main
+         1794707162.908 26248 26248 I TERRAVD : CREATE display=16
+         1794707163.039 26248 26248 I TERRAVD : QA fixture cookie installed=true
+         1794707163.304 26248 26248 I TERRAVD : PAGE_FINISHED display=16 url=http://127.0.0.1:38173/ title=TERRA — My Island
+         1794707164.509 26248 26248 I TERRAVD : WEBGL display=16 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":true,"width":1280}
+         1794707324.243 27115 27115 I TERRAVD : CREATE display=16
+         1794707324.379 27115 27115 I TERRAVD : QA fixture cookie installed=true
+         1794707324.618 27115 27115 I TERRAVD : PAGE_FINISHED display=16 url=http://127.0.0.1:38173/ title=TERRA — My Island
+         1794707324.698 27115 27115 I TERRAVD : CONSOLE WARNING Optional developer panel unavailable: ReferenceError: is is not defined
+         1794707325.824 27115 27115 I TERRAVD : WEBGL display=16 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":true,"width":1280}
+         1794707350.001 27349 27349 I TERRAVD : CREATE display=16
+         1794707350.125 27349 27349 I TERRAVD : QA fixture cookie installed=true
+         1794707350.348 27349 27349 I TERRAVD : PAGE_FINISHED display=16 url=http://127.0.0.1:38173/ title=TERRA — My Island
+         1794707351.551 27349 27349 I TERRAVD : WEBGL display=16 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":true,"width":1280}
+         1794707400.086 27882 27882 I TERRAVD : CREATE display=16
+         1794707400.213 27882 27882 I TERRAVD : QA fixture cookie installed=true
+         1794707400.424 27882 27882 I TERRAVD : PAGE_FINISHED display=16 url=http://127.0.0.1:38173/ title=TERRA — My Island
+         1794707401.634 27882 27882 I TERRAVD : WEBGL display=16 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/","ready":"complete","title":"TERRA — My Island","webgl":true,"width":1280}

@@ -1,0 +1,30 @@
+11-16 19:30:12.290 19219 19219 I TERRAVD : CREATE display=22
+11-16 19:30:12.812 19219 19219 I TERRAVD : PAGE_FINISHED display=22 url=http://127.0.0.1:38173/?terraDebug=1 title=TERRA — Open World
+11-16 19:30:14.052 19219 19219 I TERRAVD : WEBGL display=22 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":true,"width":1280}
+11-16 19:30:31.467 19440 19440 I TERRAVD : CREATE display=22
+11-16 19:30:31.629 19440 19440 I TERRAVD : QA fixture cookie installed=true
+11-16 19:30:31.910 19440 19440 I TERRAVD : PAGE_FINISHED display=22 url=http://127.0.0.1:38173/?terraDebug=1&terraFps=30 title=TERRA — Open World
+11-16 19:30:33.170 19440 19440 I TERRAVD : WEBGL display=22 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/?terraDebug=1&terraFps=30","ready":"complete","title":"TERRA — Open World","webgl":true,"width":1280}
+11-16 19:35:41.532 22720 22720 I TERRAVD : CREATE display=23
+11-16 19:35:41.673 22720 22720 I TERRAVD : QA fixture cookie installed=true
+11-16 19:35:41.980 22720 22720 I TERRAVD : PAGE_FINISHED display=23 url=http://127.0.0.1:38173/?terraDebug=1&terraFps=30 title=TERRA — Open World
+11-16 19:35:43.211 22720 22720 I TERRAVD : WEBGL display=23 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/?terraDebug=1&terraFps=30","ready":"complete","title":"TERRA — Open World","webgl":true,"width":1280}
+11-16 19:40:17.726 25645 25645 I TERRAVD : CREATE display=24
+11-16 19:40:17.890 25645 25645 I TERRAVD : QA fixture cookie installed=true
+11-16 19:40:18.219 25645 25645 I TERRAVD : PAGE_FINISHED display=24 url=http://127.0.0.1:38173/?terraDebug=1&terraFps=30 title=TERRA — Open World
+11-16 19:40:19.427 25645 25645 I TERRAVD : WEBGL display=24 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/?terraDebug=1&terraFps=30","ready":"complete","title":"TERRA — Open World","webgl":true,"width":1280}
+11-16 19:42:43.731 28708 28708 I TERRAVD : CREATE display=25
+11-16 19:42:43.852 28708 28708 I TERRAVD : QA fixture cookie installed=true
+11-16 19:42:44.130 28708 28708 I TERRAVD : PAGE_FINISHED display=25 url=http://127.0.0.1:38173/?terraDebug=1&terraFps=30 title=TERRA — Open World
+11-16 19:42:45.483 28708 28708 I TERRAVD : WEBGL display=25 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/?terraDebug=1&terraFps=30","ready":"complete","title":"TERRA — Open World","webgl":true,"width":1280}
+11-16 19:44:45.595 31169 31169 I TERRAVD : CREATE display=26
+11-16 19:44:45.727 31169 31169 I TERRAVD : QA fixture cookie installed=true
+11-16 19:44:46.007 31169 31169 I TERRAVD : PAGE_FINISHED display=26 url=http://127.0.0.1:38173/?terraDebug=1&terraFps=30 title=TERRA — Open World
+11-16 19:44:47.255 31169 31169 I TERRAVD : WEBGL display=26 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/?terraDebug=1&terraFps=30","ready":"complete","title":"TERRA — Open World","webgl":true,"width":1280}
+11-16 20:03:20.576  7127  7127 I TERRAVD : CREATE display=27
+11-16 20:03:20.961  7127  7127 I TERRAVD : PAGE_FINISHED display=27 url=http://127.0.0.1:38173/?terraDebug=1 title=TERRA — Open World
+11-16 20:03:22.283  7127  7127 I TERRAVD : WEBGL display=27 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/?terraDebug=1","ready":"complete","title":"TERRA — Open World","webgl":true,"width":1280}
+11-16 20:03:49.313  7437  7437 I TERRAVD : CREATE display=27
+11-16 20:03:49.435  7437  7437 I TERRAVD : QA fixture cookie installed=true
+11-16 20:03:49.686  7437  7437 I TERRAVD : PAGE_FINISHED display=27 url=http://127.0.0.1:38173/?terraDebug=1&terraFps=30 title=TERRA — Open World
+11-16 20:03:50.989  7437  7437 I TERRAVD : WEBGL display=27 probe=1 result={"canvases":1,"height":720,"href":"http://127.0.0.1:38173/?terraDebug=1&terraFps=30","ready":"complete","title":"TERRA — Open World","webgl":true,"width":1280}

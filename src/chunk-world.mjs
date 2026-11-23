@@ -7,7 +7,8 @@ export const DEFAULT_CHUNK_RADIUS=4;
 export const MIN_CHUNK_RADIUS=2;
 export const MAX_CHUNK_RADIUS=6;
 export const LEGACY_WORLD_GEN_VERSION=1;
-export const WORLD_GEN_VERSION=2;
+export const PREVIOUS_WORLD_GEN_VERSION=2;
+export const WORLD_GEN_VERSION=3;
 export const WORLD_MIN_Y=-32;
 export const WORLD_MAX_Y=32;
 export const HEIGHT_CACHE_MAX_ENTRIES=131072;
@@ -74,7 +75,7 @@ function valueNoise(seed,x,z,scale){
 
 function validateGeneration(seed,x,z,genVersion){
  finiteCoordinate(x,'x');finiteCoordinate(z,'z');
- if(genVersion!==LEGACY_WORLD_GEN_VERSION&&genVersion!==WORLD_GEN_VERSION)throw new RangeError(`Unsupported world generation version: ${genVersion}`);
+ if(![LEGACY_WORLD_GEN_VERSION,PREVIOUS_WORLD_GEN_VERSION,WORLD_GEN_VERSION].includes(genVersion))throw new RangeError(`Unsupported world generation version: ${genVersion}`);
  // String conversion is intentional: numeric and textual seeds have distinct,
  // stable worlds, while all JS JSON-compatible seed values remain usable.
  return String(seed);
@@ -104,7 +105,7 @@ export function biomeAt(seed,x,z,genVersion=WORLD_GEN_VERSION){
 function heightV2(seed,x,z){
  // A compact, flat landing/farm clearing sits inside the continuous open world.
  if(x>=-6&&x<=5&&z>=-6&&z<=5)return 0;
- const biome=biomeAt(seed,x,z,WORLD_GEN_VERSION);
+ const biome=biomeAt(seed,x,z,PREVIOUS_WORLD_GEN_VERSION);
  const broad=valueNoise(seed,x,z,160)*2.8;
  const detail=valueNoise(seed,x+7919,z-104729,36)*.65;
  if(biome==='ocean')return -5+Math.round(valueNoise(seed,x,z,72)*1.25);
@@ -116,6 +117,26 @@ function heightV2(seed,x,z){
  return 6+Math.round(broad+detail);
 }
 
+// Version 3 keeps the connected continents and gives inland regions a broader,
+// more legible landform hierarchy. The starter area uses this same terrain field.
+function heightV3(seed,x,z){
+ const biome=biomeAt(seed,x,z,WORLD_GEN_VERSION);
+ const region=valueNoise(seed,x+173,z-941,256);
+ const hills=valueNoise(seed,x-2711,z+817,112);
+ const foothills=valueNoise(seed,x+1319,z+4001,48);
+ const detail=valueNoise(seed,x-7919,z+104729,18);
+ const ridges=1-Math.abs(valueNoise(seed,x+5003,z-2003,176));
+ if(biome==='ocean')return -6+Math.round(valueNoise(seed,x,z,88)*1.8+valueNoise(seed,x+901,z-1301,28)*.45);
+ if(biome==='river')return -2+Math.max(-1,Math.min(0,Math.round(valueNoise(seed,x,z,48)*.35)));
+ if(biome==='beach'){
+  const coast=coastAt(seed,z),shore=clamp((x-(coast-8))/26,0,1);
+  return Math.round(-4+6*shore+region*.16+detail*.08);
+ }
+ const forest=biome==='forest';
+ const elevation=6+region*(forest?9:6.2)+hills*(forest?5:3.4)+foothills*(forest?2.2:1.35)+(ridges-.5)*(forest?3.5:2)+detail*(forest?1:.75);
+ return clamp(Math.round(elevation),-8,24);
+}
+
 /** Deterministic, globally sampled terrain with no island-sized starter plateau. */
 export function heightAt(seed,x,z,genVersion=WORLD_GEN_VERSION){
  const worldSeed=validateGeneration(seed,x,z,genVersion);
@@ -124,7 +145,8 @@ export function heightAt(seed,x,z,genVersion=WORLD_GEN_VERSION){
   const cached=heightCache.get(cacheKey);heightCache.delete(cacheKey);heightCache.set(cacheKey,cached);return cached;
  }
  let height;
- if(genVersion===WORLD_GEN_VERSION)height=heightV2(worldSeed,x,z);
+ if(genVersion===WORLD_GEN_VERSION)height=heightV3(worldSeed,x,z);
+ else if(genVersion===PREVIOUS_WORLD_GEN_VERSION)height=heightV2(worldSeed,x,z);
  else if(x>=-6&&x<=5&&z>=-6&&z<=5)height=0;
  else{
   // Broad, low-amplitude value noise makes an open field. Both octaves sample
@@ -151,7 +173,7 @@ function editAt(world,x,y,z){
 export function blockAt(world,x,y,z){
  if(!Number.isInteger(x)||!Number.isInteger(y)||!Number.isInteger(z))return null;
  const edit=editAt(world,x,y,z);if(edit.found)return edit.value;
- if(y<WORLD_MIN_Y||y>WORLD_MAX_Y||!world||![LEGACY_WORLD_GEN_VERSION,WORLD_GEN_VERSION].includes(world.worldGenVersion))return null;
+ if(y<WORLD_MIN_Y||y>WORLD_MAX_Y||!world||![LEGACY_WORLD_GEN_VERSION,PREVIOUS_WORLD_GEN_VERSION,WORLD_GEN_VERSION].includes(world.worldGenVersion))return null;
  const surfaceY=heightAt(world.worldSeed,x,z,world.worldGenVersion);
  if(y>=surfaceY)return null;
  if(y===surfaceY-1){const biome=biomeAt(world.worldSeed,x,z,world.worldGenVersion);return biome==='beach'||biome==='ocean'||biome==='river'?'sand':'grass';}
@@ -163,7 +185,7 @@ export function blockAt(world,x,y,z){
 const parseCellKey=value=>value.split(',').map(Number);
 /** Static generated liquid, compactly derived from the biome and terrain. */
 export function generatedWaterLevel(world,x,y,z){
- if(!world||world.worldGenVersion!==WORLD_GEN_VERSION||!Number.isInteger(x)||!Number.isInteger(y)||!Number.isInteger(z)||x< -4096||x>=4096||z< -4096||z>=4096||y<WORLD_MIN_Y||y>WORLD_MAX_Y)return 0;
+ if(!world||!(world.worldGenVersion>=PREVIOUS_WORLD_GEN_VERSION)||!Number.isInteger(x)||!Number.isInteger(y)||!Number.isInteger(z)||x< -4096||x>=4096||z< -4096||z>=4096||y<WORLD_MIN_Y||y>WORLD_MAX_Y)return 0;
  if(blockAt(world,x,y,z)!==null)return 0;
  const biome=biomeAt(world.worldSeed,x,z,world.worldGenVersion),seaLevel=Number.isInteger(world.seaLevel)?world.seaLevel:0;
  if((biome!=='ocean'&&biome!=='beach'&&biome!=='river')||y<heightAt(world.worldSeed,x,z,world.worldGenVersion)||y>seaLevel)return 0;
@@ -198,7 +220,7 @@ export function findBiomeSamples(seed,{min=-2048,max=2048,step=16}={}){
  * overrides are persisted in fluidEdits; generated sea cells stay implicit.
  */
 export function stepFluid(world,activeKeys,{budget=2048}={}){
- if(!world||world.worldGenVersion!==WORLD_GEN_VERSION)throw new TypeError('Version 2 world required');
+ if(!world||!(world.worldGenVersion>=PREVIOUS_WORLD_GEN_VERSION))throw new TypeError('Version 2 or later world required');
  if(!Array.isArray(activeKeys)||!Number.isSafeInteger(budget)||budget<1)throw new TypeError('active keys and positive budget required');
  if(!world.fluidEdits||typeof world.fluidEdits!=='object')world.fluidEdits={};
  const edits=world.fluidEdits,selected=[...new Set(activeKeys)].slice(0,budget),before=new Map(),next=new Map(),changedKeys=new Set();
