@@ -7,50 +7,89 @@ import { createIndustrialVisuals } from './industrial-visuals.js';
 import { createWorkstationVisuals } from './workstation-visuals.js';
 const treeTrunk=new THREE.MeshLambertMaterial({color:0x74533a}),birchTrunk=new THREE.MeshLambertMaterial({color:0xd9d0ae}),rubberTrunk=new THREE.MeshLambertMaterial({color:0x533d32});
 const treeCanopy=new THREE.MeshLambertMaterial({color:0x488469}),treeTop=new THREE.MeshLambertMaterial({color:0x66a17a}),birchCanopy=new THREE.MeshLambertMaterial({color:0x78a858}),rubberCanopy=new THREE.MeshLambertMaterial({color:0x315e4c});
-const veinRock=new THREE.MeshStandardMaterial({color:0x606c72,roughness:.95}),veinRockLight=new THREE.MeshStandardMaterial({color:0x879196,roughness:.9}),veinCrystal=new THREE.MeshStandardMaterial({color:0x69b5cf,emissive:0x14566c,emissiveIntensity:.48,roughness:.4});
+const veinRock=new THREE.MeshStandardMaterial({color:0x606c72,roughness:.95}),veinRockLight=new THREE.MeshStandardMaterial({color:0x879196,roughness:.9});
 
-// A split, floating geode cradles a persistent ember. Harvestable shards
-// orbit outside the shell so depletion leaves the source clearly visible.
-const veinShell=new THREE.MeshStandardMaterial({color:0x392653,roughness:.57,flatShading:true});
-const veinSeam=new THREE.MeshStandardMaterial({color:0xcb8dff,emissive:0x842cd2,emissiveIntensity:1.1});
-const veinEmber=new THREE.MeshBasicMaterial({color:0xffedac});
+// Fracture the outcrop into interlocking mineral plates. Each plate touches
+// the bed below it. Its exposed side shows the same lode as the cut face.
+export const VEIN_MINERALS={
+ stone:{name:'돌',face:0x9693ad,light:0xc6bed1,band:0x716586,bed:0x413d50},
+ iron_ore:{name:'철',face:0x928580,light:0xbfc8c5,band:0xab6750,bed:0x513e39},
+ copper_ore:{name:'구리',face:0xcd7047,light:0xffb66e,band:0x6d9988,bed:0x65423c},
+ coal:{name:'석탄',face:0x282935,light:0x565969,band:0x39384c,bed:0x242028}
+};
+const lodeMaterial = new THREE.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:.62,metalness:.20});
+const faultSites=[[-.30,-.23],[-.03,-.28],[.27,-.21],[-.34,.04],[-.12,-.02],[.09,.04],[.34,.03],[-.23,.26],[.0,.28],[.24,.25]];
+const rim=[[-.46,-.19],[-.31,-.40],[.16,-.43],[.43,-.24],[.47,.12],[.28,.38],[-.18,.43],[-.44,.25]];
+
+function fractureCell(site){
+ let ring=rim;
+ for(const other of faultSites){
+  if(other===site)continue;
+  const dx=other[0]-site[0],dz=other[1]-site[1];
+  const mid=(other[0]**2+other[1]**2-site[0]**2-site[1]**2)/2;
+  const clipped=[];
+  for(let i=0;i<ring.length;i++){
+   const a=ring[i],b=ring[(i+1)%ring.length];
+   const da=a[0]*dx+a[1]*dz-mid,db=b[0]*dx+b[1]*dz-mid;
+   if(da<=0)clipped.push(a);
+   if((da<0)!==(db<0)){const t=da/(da-db);clipped.push([a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])]);}
+  }
+  ring=clipped;
+ }
+ return ring;
+}
+const plates=faultSites.map(fractureCell);
 
 function createOreNode(node){
- const root=new THREE.Group();
- root.position.set(node.x+.5,node.y,node.z+.5);
- root.userData.resourceId=node.id;
- function part(geometry,material,x,y,z){
-  const mesh=new THREE.Mesh(geometry,material);
-  mesh.position.set(x,y,z);root.add(mesh);return mesh;
+ const root=new THREE.Group();root.position.set(node.x+.5,node.y,node.z+.5);root.userData.resourceId=node.id;
+ const kind=node.dropItem==='coal_ore'?'coal':node.dropItem;
+ const palette=VEIN_MINERALS[kind]||VEIN_MINERALS.stone;
+ function solid(patches){
+  const positions=[],colors=[];
+  for(const [verts,hex] of patches){
+   const color=new THREE.Color(hex);
+   for(let i=1;i<verts.length-1;i++)for(const p of [verts[0],verts[i],verts[i+1]]){
+    positions.push(...p);colors.push(color.r,color.g,color.b);
+   }
+  }
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+  geometry.computeVertexNormals();
+  const mesh=new THREE.Mesh(geometry,lodeMaterial);mesh.castShadow=mesh.receiveShadow=true;
+  root.add(mesh);return mesh;
  }
- const base=part(new THREE.CylinderGeometry(.31,.42,.12,6),veinShell,0,.06,0);
- base.rotation.y=.26;
- for(let i=0;i<3;i++){
-  const angle=i*2*Math.PI/3;
-  const petal=part(new THREE.OctahedronGeometry(1),veinShell,.235*Math.cos(angle),.37,.235*Math.sin(angle));
-  petal.scale.set(.155,.32,.12);petal.rotation.y=-angle;petal.rotation.z=-.22;
+ const bed=[],ore=[];
+ for(const [i,cell] of plates.entries()){
+  const [cx,cz]=faultSites[i],outer=Math.hypot(cx,cz);
+  // The depleted centre lies below its rim. Full plates rise above it.
+  const floor=.036+outer*.22;
+  const crown=.39-outer*.46+.035*Math.sin(i*5);
+  const ring=(scale,y,tilt=0)=>cell.map(([x,z])=>[cx+(x-cx)*scale,y+tilt*(x-cx),cz+(z-cz)*scale]);
+  function wall(target,lower,upper,color){
+   for(let j=0;j<cell.length;j++){const k=(j+1)%cell.length;target.push([[lower[j],upper[j],upper[k],lower[k]],color]);}
+  }
+  const floorRing=ring(1,floor);
+  wall(bed,ring(1,0),floorRing,palette.bed);
+  bed.push([[...floorRing].reverse(),i%3?palette.bed:palette.band]);
+  const foot=ring(.99,0),stripe=ring(.98,crown*.36,.14),lip=ring(.96,crown*.52,.14),top=ring(.83,crown,.28*Math.cos(i*3));
+  wall(ore,foot,stripe,palette.face);wall(ore,stripe,lip,palette.band);wall(ore,lip,top,i%3?palette.face:palette.light);
+  // Off-centre cleavage ridge produces mineral facets across the cut surface.
+  const ridge=[cx+.024,crown+.034+.017*(i%3),cz-.018];
+  for(let j=0;j<top.length;j++){
+   const k=(j+1)%top.length;
+   ore.push([[top[k],top[j],ridge],(j+i)%5===0?palette.light:palette.face]);
+  }
  }
- const halo=part(new THREE.TorusGeometry(.26,.014,4,8),veinSeam,0,.58,0);
- halo.rotation.set(.83,.21,-.43);
- const ember=part(new THREE.OctahedronGeometry(.14),veinEmber,0,.59,0);
- ember.scale.y=1.42;
- root.userData.crystals=[];
- for(let i=0;i<4;i++){
-  const angle=i*Math.PI/2+.35;
-  const shard=part(new THREE.OctahedronGeometry(.105),i%2?veinCrystal:veinSeam,
-   .32*Math.cos(angle),.71+.07*(i%2),.32*Math.sin(angle));
-  shard.scale.set(.6,1.4,.75);shard.rotation.z=Math.cos(angle)*.46;
-  root.userData.crystals.push(shard);
- }
- updateOreVisual(root,node);
- return root;
+ solid(bed);
+ root.userData.lode=solid(ore);
+ updateOreVisual(root,node);return root;
 }
 function updateOreVisual(root,node){
  root.userData.remaining=node.remaining;
- const shards=root.userData.crystals;
  const fraction=Math.min(1,Math.max(0,node.remaining/Math.max(1,node.max||node.remaining||1)));
- const visible=Math.ceil(fraction*shards.length);
- shards.forEach((shard,index)=>{shard.visible=index<visible;});
+ root.userData.lode.visible=fraction>0;
+ root.userData.lode.scale.y=.28+.72*fraction;
 }
 function createWaterSource(source){
  const g=new THREE.Group();g.position.set(source.x+.5,source.y,source.z+.5);g.userData.waterSource=true;

@@ -4,7 +4,7 @@ import { CROP_TYPES, MAX_CROP_STAGE } from './crop-rules.mjs';
 import { SHOP_HUB_LAYOUT } from './hub-world.mjs';
 import { createCropVisual, createTreeVisual } from './nature-visuals.js';
 import { createFarmerNpc } from './farmer-npc.js';
-import { blockIds, createPlayerModel, createOreNode, createWaterSource, makeMachineModel, makeItemModel, portalModel, starshipPortalModel, stationKiosk, stationLamp, createStationStructure, recipeCards } from './model-assets.js';
+import { VEIN_MINERALS, blockIds, createPlayerModel, createOreNode, createWaterSource, makeMachineModel, makeItemModel, portalModel, starshipPortalModel, stationKiosk, stationLamp, createStationStructure, recipeCards } from './model-assets.js';
 
 const $=id=>document.getElementById(id);
 const canvas=document.querySelector('canvas');
@@ -23,8 +23,11 @@ for(const {id,name} of [...recipeCards.filter(r=>!r.tool&&!r.output),{id:'t1_ben
 add('설비','conveyor_uphill','경사 컨베이어',()=>makeMachineModel('conveyor',{uphill:true}));
 for(const species of TREE_SPECIES)for(let stage=0;stage<=3;stage++)add('자연물',species+'_'+stage,({oak:'참나무',birch:'자작나무',rubber:'고무나무'}[species]||species)+' · '+(stage+1)+'단계',()=>createTreeVisual(THREE,{...origin,species,stage}));
 for(const cropType of CROP_TYPES)for(let stage=1;stage<=MAX_CROP_STAGE;stage++)add('자연물',cropType+'_'+stage,RESOURCE_LABELS[cropType]+' · '+stage+'단계',()=>createCropVisual(THREE,{...origin,cropType,stage}));
-add('광맥','ore_node','별씨 광맥 · 결정 성숙',()=>createOreNode({...origin,max:3,remaining:3}));
-add('광맥','ore_node_depleted','별씨 광맥 · 결정 소진',()=>createOreNode({...origin,max:3,remaining:0}));
+for(const [dropItem,{name}] of Object.entries(VEIN_MINERALS)){
+ for(const [remaining,state] of [[3,'농축층'],[0,'채굴 후']]){
+  add('광맥',dropItem+'_vein_'+remaining,name+' 광맥 · '+state,()=>createOreNode({...origin,dropItem,max:3,remaining}));
+ }
+}
 add('자연물','well','급수원',()=>createWaterSource(origin));
 add('인물','player','탐사 대원',()=>createPlayerModel().humanoid);
 add('인물','farmer','농부',()=>createFarmerNpc(THREE).group);
