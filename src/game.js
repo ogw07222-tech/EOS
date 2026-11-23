@@ -108,6 +108,7 @@ function updateWaterStreaming(nextChunks=desiredTerrainChunks,force=false){
  desiredWaterChunks.clear();for(const chunk of next)desiredWaterChunks.add(chunk);queueWaterBuilds();
 }
 function clearStreamedTerrain(){
+ clearGeneratedTrees();
  terrainGeneration++;terrainWorkQueue=[];queuedTerrainChunks.clear();for(const entry of streamedTerrain.values())disposeTerrainChunk(entry);streamedTerrain.clear();desiredTerrainChunks.clear();dirtyTerrainChunks.clear();terrainEditedChunks.clear();chunkWorldActive=false;activeChunkWorldKey='';terrainRequestSignature='';
  waterGeneration++;waterWorkQueue=[];for(const entry of streamedWater.values())disposeWaterChunk(entry);streamedWater.clear();desiredWaterChunks.clear();dirtyWaterChunks.clear();waterWorldKey='';waterEditSnapshot=new Map();waterEditWindowKey='';indexedFluidCells=null;fluidCellsByChunk=new Map();
 }
@@ -235,7 +236,7 @@ function updateTerrainStreaming(force=false){
  if(!force&&signature===terrainRequestSignature)return;terrainRequestSignature=signature;terrainGeneration++;
  const nextPlan=planChunkWindow(pcx,pcz,radius),next=new Set(nextPlan.map(chunk=>chunk.key));
  for(const [key,entry]of streamedTerrain)if(!next.has(key)){disposeTerrainChunk(entry);streamedTerrain.delete(key);dirtyTerrainChunks.delete(key);}
- desiredTerrainChunks.clear();for(const chunk of nextPlan)desiredTerrainChunks.add(chunk.key);queueDesiredTerrain();updateWaterStreaming(desiredTerrainChunks);if($('stats'))$('stats').textContent=`청크 ${streamedTerrain.size}/${desiredTerrainChunks.size} · 반경 ${radius}`;if(world)rebuildResources();
+ desiredTerrainChunks.clear();for(const chunk of nextPlan)desiredTerrainChunks.add(chunk.key);queueDesiredTerrain();updateWaterStreaming(desiredTerrainChunks);if($('stats'))$('stats').textContent=`청크 ${streamedTerrain.size}/${desiredTerrainChunks.size} · 반경 ${radius}`;syncGeneratedTrees();
 }
 function invalidateEditedTerrain(){
  const current=new Map(Object.entries(world.edits||{})),changed=[];
@@ -310,17 +311,49 @@ function makeWaterSource(source){
  const g=createWaterSource(source);worldRoot.add(g);resourceRoots.push(g);
 }
 function updateOreVisual(group,node){group.userData.remaining=node.remaining;group.traverse(o=>{if(o.material===veinCrystal)o.visible=node.remaining>0;});group.visible=true;}
+// Procedural trees depend on their chunk and seed. Keep overlapping chunks alive
+// across movement and farm updates, including trees currently hidden by a harvest.
+const generatedTreeChunks=new Map();
+function removeTreeChunk(groups){
+ for(const group of groups){
+  worldRoot.remove(group);
+  group.traverse(o=>o.geometry?.dispose());
+ }
+}
+function clearGeneratedTrees(){
+ for(const groups of generatedTreeChunks.values())removeTreeChunk(groups);
+ generatedTreeChunks.clear();
+}
+function syncGeneratedTrees(){
+ if(!world?.worldGenVersion||world.worldKind==='shopHub'){clearGeneratedTrees();return;}
+ for(const [key,groups] of generatedTreeChunks){
+  if(desiredTerrainChunks.has(key))continue;
+  removeTreeChunk(groups);generatedTreeChunks.delete(key);
+ }
+ const harvested=new Set(world.harvestedTrees||[]);
+ for(const key of desiredTerrainChunks){
+  if(generatedTreeChunks.has(key))continue;
+  const [cx,cz]=key.split(',').map(Number);
+  const groups=generateTreesForChunk(world.worldSeed,cx,cz,surfaceHeightAt,world.worldGenVersion).map(tree=>{
+   const group=createTreeVisual(THREE,tree,natureMaterials);
+   group.visible=!harvested.has(tree.id);worldRoot.add(group);return group;
+  });
+  generatedTreeChunks.set(key,groups);
+ }
+}
 function rebuildResources(){
  for(const root of resourceRoots){worldRoot.remove(root);root.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
  resourceRoots=[];treeGroups=[];cropGroups=[];oreGroups=[];
  for(const tree of world.trees||[]){makeTree(tree);}
- if(world?.worldGenVersion){const harvested=new Set(world.harvestedTrees||[]);for(const key of desiredTerrainChunks){const [cx,cz]=key.split(',').map(Number);for(const tree of generateTreesForChunk(world.worldSeed,cx,cz,surfaceHeightAt,world.worldGenVersion))if(!harvested.has(tree.id))makeTree(tree);}}
+ syncGeneratedTrees();
  for(const crop of world.crops||[]){makeCrop(crop);}
  for(const node of world.oreNodes||[]){makeOreNode(node);}
  for(const source of world.waterSources||(world.worldVersion>=3?[{x:4,y:0,z:4}]:[])){makeWaterSource(source);}
  rebuildFarmVisuals();updateResources();
 }
 function updateResources(){
+ const harvested=new Set(world.harvestedTrees||[]);
+ for(const groups of generatedTreeChunks.values())for(const g of groups)g.visible=!harvested.has(g.userData.resourceId);
  for(const g of treeGroups){const tree=g.userData.resourceTree||world.trees.find(t=>t.id===g.userData.resourceId);g.visible=!(world.harvestedTrees||[]).includes(g.userData.resourceId)&&tree?.harvested!==true;}
  for(const g of cropGroups)g.visible=!(world.harvestedCrops||[]).includes(g.userData.resourceId);
  for(const g of oreGroups){const node=(world.oreNodes||[]).find(n=>n.id===g.userData.resourceId);if(node)updateOreVisual(g,node);}
@@ -440,8 +473,10 @@ function sendMovement(now){
   const previousWorld=world;if(data.world)world=data.world;else if(data.fluidCells)world={...world,fluidCells:data.fluidCells,fluidRevision:data.fluidRevision,player:{...world.player,...data.player}};syncWaterEdits(previousWorld,world);
   player.pos.set(data.player.x,data.player.y,data.player.z);player.grounded=data.player.grounded;humanoid.position.copy(player.pos);
   setAuthoritativeWaterState(data.player);
+  if(!$('craftPanel').hidden){
   const stationState=(world?.machines||[]).filter(m=>['t1_bench','tool_bench','agriculture_bench','farming_bench','block_bench','basic_assembler','workbench','drill'].includes(m.type)).map(m=>m.type+':'+(Math.hypot(m.x+.5-player.pos.x,m.y+.6-(player.pos.y+1),m.z+.5-player.pos.z)<=4.5)).join('|');
-  if(!$('craftPanel').hidden&&stationState!==lastCraftStationState){lastCraftStationState=stationState;updateCrafting();}
+  if(stationState!==lastCraftStationState){lastCraftStationState=stationState;updateCrafting();}
+  }
  }).catch(err=>{if(teleportVersion!==devTeleportVersion)return;if(jump)jumpQueued=true;if(swim)swimQueued=true;if(!movementBusy)return;notice('이동 동기화 실패: '+err.message);}).finally(()=>{if(teleportVersion===devTeleportVersion)movementBusy=false;});
 }
 const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
@@ -505,7 +540,10 @@ function targetHarvestable(sx,sy){
   if(!inReach(point))return;const hit=ray.intersectObject(group,true)[0];if(hit&&hit.distance<=75&&(!groundHit||hit.distance<groundHit.distance)&&(!best||hit.distance<best.distance))best={id,type,distance:hit.distance};
  };
  for(const group of cropGroups)consider(group,'crop');
- if(selectedTool==='wood_axe')for(const group of treeGroups)consider(group,'tree');
+ if(selectedTool==='wood_axe'){
+  for(const group of treeGroups)consider(group,'tree');
+  for(const groups of generatedTreeChunks.values())for(const group of groups)consider(group,'tree');
+ }
  if(selectedTool==='wood_pickaxe')for(const group of oreGroups)consider(group,'ore');
  return best;
 }

@@ -35,16 +35,24 @@ add('허브','lamp','정거장 조명',()=>stationLamp(origin));
 
 const pivot=new THREE.Group();scene.add(pivot);
 let selected=null,radius=1,yaw=.72,pitch=.32,zoom=1;
+let renderPending=false,lastWidth=0,lastHeight=0;
+function requestDraw(){
+ if(renderPending)return;
+ renderPending=true;
+ requestAnimationFrame(()=>{renderPending=false;draw();});
+}
 function draw(){
  const w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;
- renderer.setSize(w,h,false);camera.aspect=w/h;
+ if(w!==lastWidth||h!==lastHeight){
+  renderer.setSize(w,h,false);camera.aspect=w/h;lastWidth=w;lastHeight=h;
+ }
  const halfFov=Math.atan(Math.tan(camera.fov*Math.PI/360)*Math.min(1,camera.aspect));
  const distance=radius*1.13/Math.sin(halfFov)/zoom;
  camera.near=radius*.007;camera.far=distance+radius*6;camera.updateProjectionMatrix();
  camera.position.set(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch)).multiplyScalar(distance);
  camera.lookAt(0,0,0);renderer.render(scene,camera);
 }
-function reset(){yaw=.72;pitch=.32;zoom=1;draw();}
+function reset(){yaw=.72;pitch=.32;zoom=1;requestDraw();}
 function select(entry){
  // Release instance buffers. Facility batches are owned by their factories.
  for(const root of [...pivot.children]){
@@ -54,7 +62,7 @@ function select(entry){
   });
  }
  selected=entry;
- if(!entry){$('kind').textContent=$('title').textContent=$('modelId').textContent='';$('status').textContent='검색 결과가 없습니다.';draw();return;}
+ if(!entry){$('kind').textContent=$('title').textContent=$('modelId').textContent='';$('status').textContent='검색 결과가 없습니다.';requestDraw();return;}
  const model=entry.build();
  const bounds=new THREE.Box3().setFromObject(model);
  const center=bounds.getCenter(new THREE.Vector3());
@@ -78,9 +86,9 @@ canvas.onpointerdown=e=>{canvas.setPointerCapture(e.pointerId);fingers.set(e.poi
 canvas.onpointermove=e=>{const p=fingers.get(e.pointerId);if(!p)return;
  const before=fingers.size===2?spread():0;fingers.set(e.pointerId,{x:e.clientX,y:e.clientY});
  if(fingers.size===1){yaw-=(e.clientX-p.x)*.009;pitch=THREE.MathUtils.clamp(pitch+(e.clientY-p.y)*.009,-1.52,1.52);}
- else if(before>0)scale(spread()/before);draw();
+ else if(before>0)scale(spread()/before);requestDraw();
 };
 canvas.onlostpointercapture=e=>fingers.delete(e.pointerId);
-canvas.addEventListener('wheel',e=>{e.preventDefault();scale(Math.exp(-.001*e.deltaY));draw();},{passive:false});
+canvas.addEventListener('wheel',e=>{e.preventDefault();scale(Math.exp(-.001*e.deltaY));requestDraw();},{passive:false});
 $('search').oninput=$('category').onchange=filter;$('reset').onclick=reset;
-new ResizeObserver(draw).observe(canvas);filter();
+new ResizeObserver(requestDraw).observe(canvas);filter();
