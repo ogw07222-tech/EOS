@@ -9,12 +9,48 @@ const treeTrunk=new THREE.MeshLambertMaterial({color:0x74533a}),birchTrunk=new T
 const treeCanopy=new THREE.MeshLambertMaterial({color:0x488469}),treeTop=new THREE.MeshLambertMaterial({color:0x66a17a}),birchCanopy=new THREE.MeshLambertMaterial({color:0x78a858}),rubberCanopy=new THREE.MeshLambertMaterial({color:0x315e4c});
 const veinRock=new THREE.MeshStandardMaterial({color:0x606c72,roughness:.95}),veinRockLight=new THREE.MeshStandardMaterial({color:0x879196,roughness:.9}),veinCrystal=new THREE.MeshStandardMaterial({color:0x69b5cf,emissive:0x14566c,emissiveIntensity:.48,roughness:.4});
 
+// A split, floating geode cradles a persistent ember. Harvestable shards
+// orbit outside the shell so depletion leaves the source clearly visible.
+const veinShell=new THREE.MeshStandardMaterial({color:0x392653,roughness:.57,flatShading:true});
+const veinSeam=new THREE.MeshStandardMaterial({color:0xcb8dff,emissive:0x842cd2,emissiveIntensity:1.1});
+const veinEmber=new THREE.MeshBasicMaterial({color:0xffedac});
+
 function createOreNode(node){
- const g=new THREE.Group();g.position.set(node.x+.5,node.y,node.z+.5);g.userData.resourceId=node.id;
- const stones=[[-.20,.31,0,.42,.58,.42], [.18,.25,.15,.40,.48,.38], [.03,.23,-.22,.46,.43,.37],[-.01,.48,.06,.38,.35,.39]];
- for(let i=0;i<stones.length;i++){const [x,y,z,sx,sy,sz]=stones[i];const rock=new THREE.Mesh(new THREE.IcosahedronGeometry(.5,0),i%2?veinRockLight:veinRock);rock.scale.set(sx*1.45,sy*1.45,sz*1.45);rock.position.set(x,y,z);rock.rotation.set(i*.31,i*.67,i*.19);rock.castShadow=true;rock.receiveShadow=true;g.add(rock);}
- for(const [x,y,z,w,h] of [[-.18,.38,.335,.16,.29],[.08,.26,.318,.13,.22],[.23,.40,.12,.1,.18]]){const crystal=new THREE.Mesh(new THREE.CylinderGeometry(w*.18,w*.52,h,5),veinCrystal);crystal.position.set(x,y,z);crystal.rotation.z=-.28;crystal.castShadow=true;g.add(crystal);}
- g.userData.crystals=g.children.filter(o=>o.material===veinCrystal);return g;
+ const root=new THREE.Group();
+ root.position.set(node.x+.5,node.y,node.z+.5);
+ root.userData.resourceId=node.id;
+ function part(geometry,material,x,y,z){
+  const mesh=new THREE.Mesh(geometry,material);
+  mesh.position.set(x,y,z);root.add(mesh);return mesh;
+ }
+ const base=part(new THREE.CylinderGeometry(.31,.42,.12,6),veinShell,0,.06,0);
+ base.rotation.y=.26;
+ for(let i=0;i<3;i++){
+  const angle=i*2*Math.PI/3;
+  const petal=part(new THREE.OctahedronGeometry(1),veinShell,.235*Math.cos(angle),.37,.235*Math.sin(angle));
+  petal.scale.set(.155,.32,.12);petal.rotation.y=-angle;petal.rotation.z=-.22;
+ }
+ const halo=part(new THREE.TorusGeometry(.26,.014,4,8),veinSeam,0,.58,0);
+ halo.rotation.set(.83,.21,-.43);
+ const ember=part(new THREE.OctahedronGeometry(.14),veinEmber,0,.59,0);
+ ember.scale.y=1.42;
+ root.userData.crystals=[];
+ for(let i=0;i<4;i++){
+  const angle=i*Math.PI/2+.35;
+  const shard=part(new THREE.OctahedronGeometry(.105),i%2?veinCrystal:veinSeam,
+   .32*Math.cos(angle),.71+.07*(i%2),.32*Math.sin(angle));
+  shard.scale.set(.6,1.4,.75);shard.rotation.z=Math.cos(angle)*.46;
+  root.userData.crystals.push(shard);
+ }
+ updateOreVisual(root,node);
+ return root;
+}
+function updateOreVisual(root,node){
+ root.userData.remaining=node.remaining;
+ const shards=root.userData.crystals;
+ const fraction=Math.min(1,Math.max(0,node.remaining/Math.max(1,node.max||node.remaining||1)));
+ const visible=Math.ceil(fraction*shards.length);
+ shards.forEach((shard,index)=>{shard.visible=index<visible;});
 }
 function createWaterSource(source){
  const g=new THREE.Group();g.position.set(source.x+.5,source.y,source.z+.5);g.userData.waterSource=true;
@@ -261,4 +297,4 @@ const recipeCards=[
  {id:'smelter',name:'제련로',description:'기존 구현된 제련 설비.',cost:{wood:6,dirt:10},station:'basic_assembler'}
 ];
 
-export { createPlayerModel,createOreNode,createWaterSource,makeMachineModel,makeItemModel,portalModel,starshipPortalModel,stationKiosk,stationLamp,createStationStructure,recipeCards,industrialVisuals,workstationVisuals,veinCrystal };
+export { createPlayerModel,createOreNode,createWaterSource,makeMachineModel,makeItemModel,portalModel,starshipPortalModel,stationKiosk,stationLamp,createStationStructure,recipeCards,industrialVisuals,workstationVisuals,updateOreVisual };

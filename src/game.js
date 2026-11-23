@@ -1,4 +1,4 @@
-import { createPlayerModel,createOreNode,createWaterSource,makeMachineModel,makeItemModel,portalModel,starshipPortalModel,stationKiosk,stationLamp,createStationStructure,recipeCards,industrialVisuals,workstationVisuals,veinCrystal } from './model-assets.js';
+import { createPlayerModel,createOreNode,createWaterSource,makeMachineModel,makeItemModel,portalModel,starshipPortalModel,stationKiosk,stationLamp,createStationStructure,recipeCards,industrialVisuals,workstationVisuals,updateOreVisual } from './model-assets.js';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 import { createFarmerNpc } from './farmer-npc.js';
 import { isFarmTileWatered } from './farming-rules.mjs';
@@ -314,7 +314,6 @@ function makeOreNode(node){
 function makeWaterSource(source){
  const g=createWaterSource(source);worldRoot.add(g);resourceRoots.push(g);
 }
-function updateOreVisual(group,node){group.userData.remaining=node.remaining;group.traverse(o=>{if(o.material===veinCrystal)o.visible=node.remaining>0;});group.visible=true;}
 // Procedural trees depend on their chunk and seed. Keep overlapping chunks alive
 // across movement and farm updates, including trees currently hidden by a harvest.
 const generatedTreeChunks=new Map();
@@ -569,7 +568,7 @@ function updateMine(now){
   if(resourceType==='ore'&&!(world.oreNodes||[]).some(n=>n.id===resourceId&&n.remaining>0)){cancelMine();return;}
   const elapsed=Math.max(0,now-holdMining.startedAt);
   miningFill.style.width=Math.min(100,elapsed/MINING_DURATION_MS*100).toFixed(1)+'%';
-  const label=resourceType==='tree'?'나무 채집':resourceType==='wheat'||resourceType==='crop'?'작물 수확':'돌 광맥 채굴';
+  const label=resourceType==='tree'?'나무 채집':resourceType==='wheat'||resourceType==='crop'?'작물 수확':'광맥 결정 채취';
   miningLabel.textContent=label+' '+Math.min(100,Math.floor(elapsed/MINING_DURATION_MS*100))+'%';
   if(elapsed>=MINING_DURATION_MS&&holdMining.serverStarted){const mining=holdMining;holdMining=null;miningHud.hidden=true;miningFill.style.width='0%';
    const request=resourceType==='ore'?api('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'mine',targetType:'ore',resourceId,tool:mining.tool,revision:world.revision})}):api('/api/harvest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'collect',resourceType,resourceId,tool:mining.tool})});
@@ -602,7 +601,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
    const label=resource.type==='tree'?'나무 채집':'밀 수확';
    beginHoldMining('/api/harvest',{resourceType:resource.type,resourceId:resource.id,tool:selectedTool},{resourceType:resource.type,resourceId:resource.id},label);
   }else if(resource?.type==='ore'){
-   beginHoldMining('/api/mine',{targetType:'ore',resourceId:resource.id,tool:selectedTool,revision:world.revision},{resourceType:'ore',resourceId:resource.id},'돌 광맥 채굴');
+   beginHoldMining('/api/mine',{targetType:'ore',resourceId:resource.id,tool:selectedTool,revision:world.revision},{resourceType:'ore',resourceId:resource.id},'광맥 결정 채취');
   }else{
    const cell=targetBlock(e.clientX,e.clientY,'mine');
    if(!cell)return;
