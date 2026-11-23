@@ -1,16 +1,18 @@
+import { createPlayerModel,createOreNode,createWaterSource,makeMachineModel,makeItemModel,portalModel,starshipPortalModel,stationKiosk,stationLamp,createStationStructure,recipeCards,industrialVisuals,workstationVisuals,veinCrystal } from './model-assets.js';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 import { createFarmerNpc } from './farmer-npc.js';
 import { isFarmTileWatered } from './farming-rules.mjs';
 import {CHUNK_SIZE,DEFAULT_CHUNK_RADIUS,MIN_CHUNK_RADIUS,MAX_CHUNK_RADIUS,WORLD_MIN_Y,WORLD_MAX_Y,blockAt,generateChunkColumns,chunkCoord,localCoord,planChunkWindow,isChunkJobCurrent,biomeAt,heightAt,generatedWaterLevel,waterLevelAt} from './chunk-world.mjs';
 import {generateTreesForChunk} from './tree-world.mjs';
 import {cropTypeOf,seedItemForCrop,productItemForCrop} from './crop-rules.mjs';
-import {RESOURCE_LABELS,RESOURCE_KEYS,TOOL_NAMES,TREE_LOGS,TREE_SAPLINGS,CROP_TYPES,CROP_SEEDS} from './resource-catalog.mjs';
 import { COAL_BLOCK_RECIPE } from './recipe-settings.mjs';
+import {PLACEABLE_BLOCK_IDS,RESOURCE_LABELS,RESOURCE_KEYS,TOOL_NAMES,TREE_LOGS,TREE_SAPLINGS,CROP_TYPES,CROP_SEEDS} from './resource-catalog.mjs';
+
 import { createNatureMaterials, createTreeVisual, createCropVisual } from './nature-visuals.js';
-import { createTerrainAtlas } from './terrain-atlas.js';
-import { buildGreedyChunkMesh, createGreedyChunkGeometry, installGreedyAtlasShader } from './greedy-chunk-mesh.js';
-import { createWorkstationVisuals } from './workstation-visuals.js';
-import { createIndustrialVisuals } from './industrial-visuals.js';
+import { terrainAtlas, blockMaterial, blockFaceTint, blockIds } from './model-assets.js';
+import { buildGreedyChunkMesh, createGreedyChunkGeometry } from './greedy-chunk-mesh.js';
+
+
 const $=id=>document.getElementById(id);
 const terraDebug=new URLSearchParams(location.search).get('terraDebug')==='1';
 if(terraDebug)document.body.classList.add('debug-mode');
@@ -52,9 +54,8 @@ const faces=[
  {d:[0,0,-1],n:[0,0,-1],v:[[1,0,0],[0,0,0],[0,1,0],[1,1,0]]},
  {d:[0,0,1],n:[0,0,1],v:[[0,0,1],[1,0,1],[1,1,1],[0,1,1]]}
 ];
-const terrainAtlas=createTerrainAtlas(THREE);
-const grassMat=new THREE.MeshLambertMaterial({map:terrainAtlas.texture,vertexColors:true,side:THREE.FrontSide});
-installGreedyAtlasShader(grassMat);
+
+const grassMat=blockMaterial;
 const legacyTerrainMat=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.FrontSide});
 const edgesMat=new THREE.LineBasicMaterial({color:0x304b40,transparent:true,opacity:.32});
 const blockPreviewMaterials=[0x6f9d62,0x7b5742,0x79583f,0x956e4f,0x79583f,0x956e4f].map(color=>new THREE.MeshLambertMaterial({color,transparent:true,opacity:.5,depthWrite:false}));
@@ -107,6 +108,7 @@ function updateWaterStreaming(nextChunks=desiredTerrainChunks,force=false){
  desiredWaterChunks.clear();for(const chunk of next)desiredWaterChunks.add(chunk);queueWaterBuilds();
 }
 function clearStreamedTerrain(){
+ clearGeneratedTrees();
  terrainGeneration++;terrainWorkQueue=[];queuedTerrainChunks.clear();for(const entry of streamedTerrain.values())disposeTerrainChunk(entry);streamedTerrain.clear();desiredTerrainChunks.clear();dirtyTerrainChunks.clear();terrainEditedChunks.clear();chunkWorldActive=false;activeChunkWorldKey='';terrainRequestSignature='';
  waterGeneration++;waterWorkQueue=[];for(const entry of streamedWater.values())disposeWaterChunk(entry);streamedWater.clear();desiredWaterChunks.clear();dirtyWaterChunks.clear();waterWorldKey='';waterEditSnapshot=new Map();waterEditWindowKey='';indexedFluidCells=null;fluidCellsByChunk=new Map();
 }
@@ -171,16 +173,17 @@ function installWaterChunk(cx,cz,generation){
 function pumpWaterWork(){const start=performance.now();while(waterWorkQueue.length&&performance.now()-start<1.8){const job=waterWorkQueue.shift(),key=terrainChunkKey(job.cx,job.cz);if(job.generation!==waterGeneration||!desiredWaterChunks.has(key))continue;try{installWaterChunk(job.cx,job.cz,job.generation);}catch(error){console.error('Water mesh build failed:',key,error);}}}
 function configuredChunkRadius(){let requested=(navigator.maxTouchPoints||0)>0?MIN_CHUNK_RADIUS:DEFAULT_CHUNK_RADIUS;try{const value=Number(localStorage.getItem('terra.chunkRadius'));if(Number.isFinite(value)&&value>0)requested=value;}catch{}return Math.max(MIN_CHUNK_RADIUS,Math.min(MAX_CHUNK_RADIUS,Math.trunc(requested)));}
 function disposeTerrainChunk(entry){worldRoot.remove(entry.root);entry.root.traverse(object=>{if(object.geometry)object.geometry.dispose();});}
-const terrainTintCache=new Map(),terrainTintHex={plains:'#c9dbb8',forest:'#bed5c0',beach:'#e0cfad',side:'#b79878',dirt:'#ba9676',stone:'#b9c2bd',sand:'#ddc696',ore:'#d0bc9c'};
-function chunkTint(block,topFace,x,y,z,faceNumber){const cacheKey=`${world.worldSeed}:${world.worldGenVersion}`,biome=biomeAt(world.worldSeed,x,z,world.worldGenVersion);let sets=terrainTintCache.get(cacheKey);if(!sets){sets={};terrainTintCache.set(cacheKey,sets);}let set=sets[biome];if(!set){const grass=biome==='forest'?'forest':biome==='beach'?'beach':'plains';set={grass:[new THREE.Color(terrainTintHex[grass]),new THREE.Color(terrainTintHex.side)],dirt:[new THREE.Color(terrainTintHex.dirt)],sand:[new THREE.Color(terrainTintHex.sand)],ore:[new THREE.Color(terrainTintHex.ore)],stone:[new THREE.Color(terrainTintHex.stone)]};for(const values of Object.values(set)){const base=values[0];values[1]??=base.clone();values[2]=values[0].clone().multiplyScalar(.88);values[3]=values[0].clone().multiplyScalar(.68);}sets[biome]=set;}const kind=block==='grass'?'grass':block==='dirt'?'dirt':block==='sand'?'sand':['iron_ore','coal_ore','copper_ore'].includes(block)?'ore':'stone';return set[kind][faceNumber===0?0:faceNumber===1?3:kind==='grass'?1:2];}
+function chunkTint(block,topFace,x,y,z,faceNumber){
+ return blockFaceTint(block,faceNumber,biomeAt(world.worldSeed,x,z,world.worldGenVersion));
+}
 function rebuildTerrainEditIndex(){terrainEditedChunks.clear();for(const key of terrainEditSnapshot.keys()){const [x,,z]=key.split(',').map(Number);if(Number.isInteger(x)&&Number.isInteger(z))terrainEditedChunks.add(terrainChunkKey(chunkCoord(x),chunkCoord(z)));}}
 function hasNearbyTerrainEdits(cx,cz){for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)if(terrainEditedChunks.has(terrainChunkKey(cx+dx,cz+dz)))return true;return false;}
-function greedyChunkGeometry(getBlock,cx,cz,upper){
- const min=[cx*CHUNK_SIZE,WORLD_MIN_Y,cz*CHUNK_SIZE],size=[CHUNK_SIZE,Math.max(1,upper-WORLD_MIN_Y),CHUNK_SIZE];
+function greedyChunkGeometry(getBlock,cx,cz,upper,lower=WORLD_MIN_Y){
+ const min=[cx*CHUNK_SIZE,lower,cz*CHUNK_SIZE],size=[CHUNK_SIZE,Math.max(1,upper-lower),CHUNK_SIZE];
  // Greedy meshing asks for the same voxel from several face directions.
  // Resolve each world cell once per chunk instead of repeating terrain/noise
  // and edit lookups for every adjacent face test.
- const rawGetBlock=getBlock,startX=min[0]-1,startZ=min[2]-1,startY=WORLD_MIN_Y-1,width=CHUNK_SIZE+2,height=size[1]+2,blockCache=new Array(width*height*width);
+ const rawGetBlock=getBlock,startX=min[0]-1,startZ=min[2]-1,startY=lower-1,width=CHUNK_SIZE+2,height=size[1]+2,blockCache=new Array(width*height*width);
  getBlock=(x,y,z)=>{
   const ix=x-startX,iy=y-startY,iz=z-startZ;
   if(ix<0||ix>=width||iy<0||iy>=height||iz<0||iz>=width)return rawGetBlock(x,y,z);
@@ -194,15 +197,19 @@ function greedyChunkGeometry(getBlock,cx,cz,upper){
  meshData.colors=colorsOut;return createGreedyChunkGeometry(THREE,meshData);
 }
 function makeHeightfieldChunk(cx,cz,columnMap){
- const startX=cx*CHUNK_SIZE,startZ=cz*CHUNK_SIZE;let top=WORLD_MIN_Y;
- for(const column of columnMap.values())top=Math.max(top,column.surfaceY);
+ // Unedited heightfields are solid below the lowest column, including the
+ // neighbour halo. Only the surface band can contribute visible triangles.
+ let top=WORLD_MIN_Y,bottom=WORLD_MAX_Y;
+ for(const column of columnMap.values()){
+  top=Math.max(top,column.surfaceY);bottom=Math.min(bottom,column.surfaceY-1);
+ }
  const getBlock=(x,y,z)=>{
   if(y<WORLD_MIN_Y)return 'stone';if(y>WORLD_MAX_Y)return null;
   const column=columnMap.get(`${x},${z}`);if(!column)return blockAt(world,x,y,z);
   if(y>=column.surfaceY)return null;
   const depth=column.surfaceY-1-y;if(depth===0)return blockAt(world,x,y,z);if(depth<=3)return 'dirt';return blockAt(world,x,y,z);
  };
- return greedyChunkGeometry(getBlock,cx,cz,Math.min(WORLD_MAX_Y+1,top+1));
+ return greedyChunkGeometry(getBlock,cx,cz,Math.min(WORLD_MAX_Y+1,top+1),Math.max(WORLD_MIN_Y,bottom));
 }
 function makeChunkTerrain(cx,cz){
  const startX=cx*CHUNK_SIZE,startZ=cz*CHUNK_SIZE,columns=[];let top=WORLD_MIN_Y;
@@ -233,7 +240,7 @@ function updateTerrainStreaming(force=false){
  if(!force&&signature===terrainRequestSignature)return;terrainRequestSignature=signature;terrainGeneration++;
  const nextPlan=planChunkWindow(pcx,pcz,radius),next=new Set(nextPlan.map(chunk=>chunk.key));
  for(const [key,entry]of streamedTerrain)if(!next.has(key)){disposeTerrainChunk(entry);streamedTerrain.delete(key);dirtyTerrainChunks.delete(key);}
- desiredTerrainChunks.clear();for(const chunk of nextPlan)desiredTerrainChunks.add(chunk.key);queueDesiredTerrain();updateWaterStreaming(desiredTerrainChunks);if($('stats'))$('stats').textContent=`청크 ${streamedTerrain.size}/${desiredTerrainChunks.size} · 반경 ${radius}`;if(world)rebuildResources();
+ desiredTerrainChunks.clear();for(const chunk of nextPlan)desiredTerrainChunks.add(chunk.key);queueDesiredTerrain();updateWaterStreaming(desiredTerrainChunks);if($('stats'))$('stats').textContent=`청크 ${streamedTerrain.size}/${desiredTerrainChunks.size} · 반경 ${radius}`;syncGeneratedTrees();
 }
 function invalidateEditedTerrain(){
  const current=new Map(Object.entries(world.edits||{})),changed=[];
@@ -283,9 +290,6 @@ function rebuild(){
  rebuildHubObjects();
 }
 // Low-poly tree and crop parts are shared across generated entities.
-const treeTrunk=new THREE.MeshLambertMaterial({color:0x74533a}),birchTrunk=new THREE.MeshLambertMaterial({color:0xd9d0ae}),rubberTrunk=new THREE.MeshLambertMaterial({color:0x533d32});
-const treeCanopy=new THREE.MeshLambertMaterial({color:0x488469}),treeTop=new THREE.MeshLambertMaterial({color:0x66a17a}),birchCanopy=new THREE.MeshLambertMaterial({color:0x78a858}),rubberCanopy=new THREE.MeshLambertMaterial({color:0x315e4c});
-const veinRock=new THREE.MeshStandardMaterial({color:0x606c72,roughness:.95}),veinRockLight=new THREE.MeshStandardMaterial({color:0x879196,roughness:.9}),veinCrystal=new THREE.MeshStandardMaterial({color:0x69b5cf,emissive:0x14566c,emissiveIntensity:.48,roughness:.4});
 let treeGroups=[],cropGroups=[],oreGroups=[],resourceRoots=[];
 let interactionRefreshAt=0,worldPollInFlight=false;
 const natureMaterials=createNatureMaterials(THREE);
@@ -305,37 +309,62 @@ function rebuildFarmVisuals(){
  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));geometry.setAttribute('color',new THREE.Float32BufferAttribute(colorsOut,3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));geometry.setIndex(indices);farmMesh=new THREE.Mesh(geometry,farmMaterial);farmMesh.receiveShadow=true;worldRoot.add(farmMesh);
 }
 function makeOreNode(node){
- const g=new THREE.Group();g.position.set(node.x+.5,node.y,node.z+.5);g.userData.resourceId=node.id;worldRoot.add(g);resourceRoots.push(g);oreGroups.push(g);
- const stones=[[-.20,.31,0,.42,.58,.42], [.18,.25,.15,.40,.48,.38], [.03,.23,-.22,.46,.43,.37],[-.01,.48,.06,.38,.35,.39]];
- for(let i=0;i<stones.length;i++){const [x,y,z,sx,sy,sz]=stones[i];const rock=new THREE.Mesh(new THREE.IcosahedronGeometry(.5,0),i%2?veinRockLight:veinRock);rock.scale.set(sx*1.45,sy*1.45,sz*1.45);rock.position.set(x,y,z);rock.rotation.set(i*.31,i*.67,i*.19);rock.castShadow=true;rock.receiveShadow=true;g.add(rock);}
- for(const [x,y,z,w,h] of [[-.18,.38,.335,.16,.29],[.08,.26,.318,.13,.22],[.23,.40,.12,.1,.18]]){const crystal=new THREE.Mesh(new THREE.BoxGeometry(w,h,.035),veinCrystal);crystal.position.set(x,y,z);crystal.rotation.z=-.28;crystal.castShadow=true;g.add(crystal);}
- g.userData.crystals=g.children.filter(o=>o.material===veinCrystal);updateOreVisual(g,node);
+ const g=createOreNode(node);worldRoot.add(g);resourceRoots.push(g);oreGroups.push(g);updateOreVisual(g,node);
 }
-function makeWaterSource(source){const g=new THREE.Group();g.position.set(source.x,source.y,source.z);g.userData.waterSource=true;worldRoot.add(g);resourceRoots.push(g);const stone=new THREE.MeshLambertMaterial({color:0x65747a}),water=new THREE.MeshLambertMaterial({color:0x398fb0,transparent:true,opacity:.82});for(const [x,z] of [[.1,.1],[.69,.1],[.1,.69],[.69,.69]]){const wall=new THREE.Mesh(new THREE.BoxGeometry(.2,.24,.2),stone);wall.position.set(x,.12,z);wall.castShadow=true;g.add(wall);}for(const [x,z,w,d] of [[.4,.1,.6,.16],[.4,.69,.6,.16],[.1,.4,.16,.6],[.69,.4,.16,.6]]){const wall=new THREE.Mesh(new THREE.BoxGeometry(w,.28,d),stone);wall.position.set(x,.14,z);wall.castShadow=true;g.add(wall);}const surface=new THREE.Mesh(new THREE.BoxGeometry(.46,.035,.46),water);surface.position.set(.5,.12,.5);g.add(surface);}
+function makeWaterSource(source){
+ const g=createWaterSource(source);worldRoot.add(g);resourceRoots.push(g);
+}
 function updateOreVisual(group,node){group.userData.remaining=node.remaining;group.traverse(o=>{if(o.material===veinCrystal)o.visible=node.remaining>0;});group.visible=true;}
+// Procedural trees depend on their chunk and seed. Keep overlapping chunks alive
+// across movement and farm updates, including trees currently hidden by a harvest.
+const generatedTreeChunks=new Map();
+function removeTreeChunk(groups){
+ for(const group of groups){
+  worldRoot.remove(group);
+  group.traverse(o=>o.geometry?.dispose());
+ }
+}
+function clearGeneratedTrees(){
+ for(const groups of generatedTreeChunks.values())removeTreeChunk(groups);
+ generatedTreeChunks.clear();
+}
+function syncGeneratedTrees(){
+ if(!world?.worldGenVersion||world.worldKind==='shopHub'){clearGeneratedTrees();return;}
+ for(const [key,groups] of generatedTreeChunks){
+  if(desiredTerrainChunks.has(key))continue;
+  removeTreeChunk(groups);generatedTreeChunks.delete(key);
+ }
+ const harvested=new Set(world.harvestedTrees||[]);
+ for(const key of desiredTerrainChunks){
+  if(generatedTreeChunks.has(key))continue;
+  const [cx,cz]=key.split(',').map(Number);
+  const groups=generateTreesForChunk(world.worldSeed,cx,cz,surfaceHeightAt,world.worldGenVersion).map(tree=>{
+   const group=createTreeVisual(THREE,tree,natureMaterials);
+   group.visible=!harvested.has(tree.id);worldRoot.add(group);return group;
+  });
+  generatedTreeChunks.set(key,groups);
+ }
+}
 function rebuildResources(){
  for(const root of resourceRoots){worldRoot.remove(root);root.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
  resourceRoots=[];treeGroups=[];cropGroups=[];oreGroups=[];
  for(const tree of world.trees||[]){makeTree(tree);}
- if(world?.worldGenVersion){const harvested=new Set(world.harvestedTrees||[]);for(const key of desiredTerrainChunks){const [cx,cz]=key.split(',').map(Number);for(const tree of generateTreesForChunk(world.worldSeed,cx,cz,surfaceHeightAt,world.worldGenVersion))if(!harvested.has(tree.id))makeTree(tree);}}
+ syncGeneratedTrees();
  for(const crop of world.crops||[]){makeCrop(crop);}
  for(const node of world.oreNodes||[]){makeOreNode(node);}
  for(const source of world.waterSources||(world.worldVersion>=3?[{x:4,y:0,z:4}]:[])){makeWaterSource(source);}
  rebuildFarmVisuals();updateResources();
 }
 function updateResources(){
+ const harvested=new Set(world.harvestedTrees||[]);
+ for(const groups of generatedTreeChunks.values())for(const g of groups)g.visible=!harvested.has(g.userData.resourceId);
  for(const g of treeGroups){const tree=g.userData.resourceTree||world.trees.find(t=>t.id===g.userData.resourceId);g.visible=!(world.harvestedTrees||[]).includes(g.userData.resourceId)&&tree?.harvested!==true;}
  for(const g of cropGroups)g.visible=!(world.harvestedCrops||[]).includes(g.userData.resourceId);
  for(const g of oreGroups){const node=(world.oreNodes||[]).find(n=>n.id===g.userData.resourceId);if(node)updateOreVisual(g,node);}
 }
 
 // Facility appearance is isolated from placement and world-state rules.
-const machineMaterials={dark:new THREE.MeshStandardMaterial({color:0x263944,metalness:.42,roughness:.58})};
-const workstationVisuals=createWorkstationVisuals(THREE),industrialVisuals=createIndustrialVisuals(THREE);
 let machineRoots=[];const dropRoots=new Map();
-function makeMachineModel(type,options={}){
- return ['drill','conveyor','smelter'].includes(type)?industrialVisuals.create(type,options):workstationVisuals.create(type,options);
-}
 function disposeMachineVisual(root){
  if(!root)return;
  if(root.userData.terraIndustrialModel)industrialVisuals.dispose(root);
@@ -386,106 +415,27 @@ function rebuildMachines(){
  machineRoots=(world?.machines||[]).map(buildMachineMesh);
 }
 function clearHubRoots(){for(const root of hubRoots){worldRoot.remove(root);root.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose();}});}hubRoots=[];farmerModel=null;}
-function hubBox(parent,w,h,d,color,x,y,z,glow=0){const mat=new THREE.MeshStandardMaterial({color,roughness:.9,emissive:glow,emissiveIntensity:glow?0.65:0});const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;}
-function portalModel(data){const root=new THREE.Group();root.position.set(data.x+.5,data.y,data.z+.5);root.rotation.y=data.rotation||0;root.userData.portal=data;worldRoot.add(root);hubRoots.push(root);
- hubBox(root,2.5,.16,1.6,0x263c49,0,.08,0);hubBox(root,2.15,.08,1.3,0x79aeb4,0,.18,0,0x237e91);
- const ring=new THREE.Mesh(new THREE.TorusGeometry(1.08,.14,8,32),new THREE.MeshStandardMaterial({color:0x8ae3df,metalness:.45,roughness:.28,emissive:0x14758a,emissiveIntensity:1.2}));ring.position.set(0,1.35,-.1);ring.castShadow=true;root.add(ring);
- const veil=new THREE.Mesh(new THREE.PlaneGeometry(1.9,2.05),new THREE.MeshBasicMaterial({color:0x40b9cf,transparent:true,opacity:.24,side:THREE.DoubleSide,depthWrite:false}));veil.position.set(0,1.35,-.12);root.add(veil);
- hubBox(root,.18,2.25,.22,0xd1b86b,-1.02,1.25,-.12);hubBox(root,.18,2.25,.22,0xd1b86b,1.02,1.25,-.12);hubBox(root,2.35,.18,.24,0xd1b86b,0,2.45,-.12);return root;}
-function starshipPortalModel(data){
- const root=new THREE.Group();root.position.set(data.x+.5,data.y,data.z+.5);const east=surfaceHeightAt(data.x+4,data.z),west=surfaceHeightAt(data.x-4,data.z),north=surfaceHeightAt(data.x,data.z-5),south=surfaceHeightAt(data.x,data.z+5);root.rotation.order='YXZ';root.rotation.set(-Math.atan2(south-north,10),data.rotation||0,Math.atan2(east-west,8),'YXZ');root.userData.portal=data;worldRoot.add(root);hubRoots.push(root);
- const metal=new THREE.MeshStandardMaterial({color:0xc0d0cf,metalness:.58,roughness:.34}),dark=new THREE.MeshStandardMaterial({color:0x263a48,metalness:.46,roughness:.42}),gold=new THREE.MeshStandardMaterial({color:0xd4b66d,metalness:.5,roughness:.32}),glass=new THREE.MeshStandardMaterial({color:0x55c6d2,metalness:.2,roughness:.18,emissive:0x126878,emissiveIntensity:.8}),engine=new THREE.MeshBasicMaterial({color:0x70e7f2});
- const boxPart=(w,h,d,mat,x,y,z,rx=0,ry=0,rz=0)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.rotation.set(rx,ry,rz);m.castShadow=true;m.receiveShadow=true;root.add(m);return m;};
- boxPart(2.2,.72,5.8,metal,0,.58,.15);boxPart(1.65,.48,3.35,dark,0,.97,.55);
- const nose=new THREE.Mesh(new THREE.ConeGeometry(1.08,2.15,6),metal);nose.rotation.x=-Math.PI/2;nose.position.set(0,.62,-3.1);root.add(nose);nose.castShadow=true;
- boxPart(6.1,.23,1.65,metal,0,.43,1.05,0,0,.035);boxPart(4.8,.12,.42,gold,0,.55,1.0);
- for(const x of [-.68,.68]){const pod=boxPart(.48,.42,2.05,dark,x,.28,2.2);pod.rotation.x=.025;const nozzle=new THREE.Mesh(new THREE.CylinderGeometry(.26,.38,.55,10),engine);nozzle.rotation.x=Math.PI/2;nozzle.position.set(x,.3,3.35);root.add(nozzle);}
- const cockpit=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),glass);cockpit.scale.set(.74,.42,1.1);cockpit.position.set(0,1.28,-1.42);root.add(cockpit);
- const portalRing=new THREE.Mesh(new THREE.TorusGeometry(1.02,.15,9,36),new THREE.MeshStandardMaterial({color:0x91f2ed,metalness:.35,roughness:.22,emissive:0x1aa5b3,emissiveIntensity:1.6}));portalRing.position.set(0,1.45,-.04);root.add(portalRing);
- const veil=new THREE.Mesh(new THREE.CircleGeometry(.87,32),new THREE.MeshBasicMaterial({color:0x42c5dc,transparent:true,opacity:.4,side:THREE.DoubleSide,depthWrite:false}));veil.position.set(0,1.45,-.07);root.add(veil);
- hubBox(root,7.2,.12,9.4,0x304a54,0,.05,.1);for(const z of [-3.7,3.8])for(const x of [-2.8,2.8])hubBox(root,.15,.22,.15,0x80dfe0,x,.17,z,0x167783);
- return root;
-}
-function stationKiosk(shop,index){
- const palettes=[0x53a7ad,0xd6a85d,0x71a56c,0x8b82ba],accent=palettes[index%palettes.length],g=new THREE.Group();g.position.set(shop.x,0,shop.z);worldRoot.add(g);hubRoots.push(g);
- hubBox(g,9,.14,7,0x29414b,0,0,0);hubBox(g,8,.22,5.8,0x415d63,0,.2,-.25);
- for(const x of [-3.65,3.65]){hubBox(g,.24,3.1,.3,0xb2c2bd,x,1.78,-2.55);hubBox(g,.22,2.8,.3,0x8c9c99,x,1.65,2.1);}
- hubBox(g,7.5,.28,5.3,0x9aaca6,0,3.25,-.1);hubBox(g,5.8,1.25,.24,accent,0,2.52,-2.48,accent);
- hubBox(g,5.1,.12,.18,0xd9e5d8,0,2.52,-2.31);hubBox(g,4.5,.12,.18,0xd9e5d8,0,2.17,-2.31);
- hubBox(g,3.5,.72,1.15,0x273943,0,.68,.2);hubBox(g,2.5,.12,.72,accent,0,1.1,.05,accent);
- if(shop.type==='greenhouse'){
-  const pane=new THREE.MeshStandardMaterial({color:0x5fbdba,transparent:true,opacity:.24,metalness:.18,roughness:.2,side:THREE.DoubleSide});
-  for(const [x,z,w,d]of [[0,-2.1,7.2,.08],[0,2.1,7.2,.08],[-3.6,0,.08,4],[3.6,0,.08,4]]){const m=new THREE.Mesh(new THREE.BoxGeometry(w,1.8,d),pane);m.position.set(x,4.12,z);g.add(m);}
-  for(const x of [-2.4,0,2.4]){hubBox(g,.12,1.5,.12,0x719c86,x,1,.65);hubBox(g,.65,.44,.62,0x80b874,x,1.9,.65);}
- }
-}
+function addHubModel(root){worldRoot.add(root);hubRoots.push(root);}
 function buildSpaceStation(){
- const layout=world.hub.layout,{minX,maxX,minZ,maxZ}=layout.floor;
- const structure=new THREE.Group();worldRoot.add(structure);hubRoots.push(structure);
- const base=new THREE.Mesh(new THREE.BoxGeometry(maxX-minX+1,.96,maxZ-minZ+1),new THREE.MeshStandardMaterial({color:0x283942,metalness:.42,roughness:.72}));base.position.set((minX+maxX+1)/2,-.5,(minZ+maxZ+1)/2);base.receiveShadow=true;structure.add(base);
- const floorMat=new THREE.MeshStandardMaterial({color:0x54676b,metalness:.25,roughness:.7}),darkMat=new THREE.MeshStandardMaterial({color:0x35484f,metalness:.32,roughness:.62});
- for(let x=minX+4;x<=maxX-4;x+=8)for(let z=minZ+4;z<=maxZ-4;z+=8){const m=new THREE.Mesh(new THREE.BoxGeometry(7.82,.035,7.82),((Math.floor(x/8)+Math.floor(z/8))&1)?floorMat:darkMat);m.position.set(x,0,z);m.receiveShadow=true;structure.add(m);}
- // The illuminated central concourse connects the arrival plaza, markets and return gate.
- hubBox(structure,5.2,.045,48,0x34717a,0,.045,-1,0x164d5d);
- for(let z=-24;z<=22;z+=4){hubBox(structure,.12,.06,1.5,0x8ad3c8,0,.08,z,0x256a70);}
- for(const x of [-3,3])hubBox(structure,.16,.07,48,0xd1b66f,x,.08,-1,0x716038);
- // Structural ribs and observation windows frame the large public concourse.
- const frameMat=new THREE.MeshStandardMaterial({color:0x73888a,metalness:.64,roughness:.35}),glassMat=new THREE.MeshStandardMaterial({color:0x367f90,metalness:.2,roughness:.2,transparent:true,opacity:.22,side:THREE.DoubleSide});
- for(const z of [-25,-15,-5,5,15,25])for(const x of [-43,43]){const post=new THREE.Mesh(new THREE.BoxGeometry(.72,9,.72),frameMat);post.position.set(x,4.5,z);post.castShadow=true;structure.add(post);hubBox(structure,1.6,.2,1.6,0x78c8c2,x,8.8,z,0x276c70);}
- for(const x of [-43,43]){hubBox(structure,.55,.52,52,0x879a96,x,9.15,0,0x202d32);const pane=new THREE.Mesh(new THREE.BoxGeometry(.12,5.4,48),glassMat);pane.position.set(x,4.9,0);structure.add(pane);}
- for(const z of [-28,28])hubBox(structure,86,.44,.55,0x879a96,0,9.15,z,0x202d32);
- // A glazed botanical rotunda breaks the long concourse with a rounded landmark.
- const rotunda=new THREE.Group();rotunda.position.set(0,0,-14);structure.add(rotunda);
- const rotundaBase=new THREE.Mesh(new THREE.CylinderGeometry(9.2,9.5,.48,40),new THREE.MeshStandardMaterial({color:0x465d63,metalness:.56,roughness:.36}));rotundaBase.position.y=.26;rotundaBase.castShadow=true;rotunda.add(rotundaBase);
- const lowerRing=new THREE.Mesh(new THREE.TorusGeometry(9.25,.28,8,48),new THREE.MeshStandardMaterial({color:0x91cfc3,metalness:.48,roughness:.28,emissive:0x1b5552,emissiveIntensity:.65}));lowerRing.rotation.x=Math.PI/2;lowerRing.position.y=.56;rotunda.add(lowerRing);
- const dome=new THREE.Mesh(new THREE.SphereGeometry(8.8,32,18,0,Math.PI*2,0,Math.PI/2),new THREE.MeshStandardMaterial({color:0x3f9ba4,metalness:.16,roughness:.2,transparent:true,opacity:.2,side:THREE.DoubleSide,depthWrite:false}));dome.scale.y=.78;dome.position.y=.55;rotunda.add(dome);
- const halo=new THREE.Mesh(new THREE.TorusGeometry(13,.32,8,56),new THREE.MeshStandardMaterial({color:0xc5ac69,metalness:.56,roughness:.3,emissive:0x57461e,emissiveIntensity:.35}));halo.rotation.x=Math.PI/2;halo.position.y=12.2;rotunda.add(halo);
- for(let i=0;i<8;i++){const a=i*Math.PI/4,x=Math.cos(a)*7.4,z=Math.sin(a)*7.4,pillar=new THREE.Mesh(new THREE.CylinderGeometry(.2,.32,4.8,10),frameMat);pillar.position.set(x,2.75,z);pillar.castShadow=true;rotunda.add(pillar);const leaf=new THREE.Mesh(new THREE.ConeGeometry(.55,1.8,7),new THREE.MeshStandardMaterial({color:i%2?0x719d73:0x89b37b,roughness:.8}));leaf.position.set(x*.58,1.35,z*.58);leaf.scale.set(1,.75,1);rotunda.add(leaf);}
- // Market wing awnings and modular public counters.
- for(const [x,z]of [[-18,-3],[18,-3],[-18,11],[18,11]]){const awning=hubBox(structure,10,.28,8,0x718c8e,x,6.1,z,0x263e42);awning.material.roughness=.6;}
- layout.shops.forEach(stationKiosk);
- for(const d of layout.decorations){const g=new THREE.Group();g.position.set(d.x,d.y,d.z);worldRoot.add(g);hubRoots.push(g);hubBox(g,.2,4.2,.2,0x697c7e,.5,2.1,.5);hubBox(g,1.1,.3,1.1,0xe3d394,.5,4.2,.5,0x8a723c);hubBox(g,.55,.12,.55,0x80dae1,.5,3.92,.5,0x2d7b86);}
- const portal=layout.portals[0];portalModel(portal);
- const npc=layout.npcs.find(n=>n.id==='farmer');if(npc){farmerModel=createFarmerNpc(THREE);farmerModel.group.position.set(npc.x+.5,npc.y,npc.z+.5);farmerModel.group.rotation.y=Math.PI;worldRoot.add(farmerModel.group);hubRoots.push(farmerModel.group);}
+ const layout=world.hub.layout;
+ addHubModel(createStationStructure(layout));
+ layout.shops.forEach((shop,index)=>addHubModel(stationKiosk(shop,index)));
+ layout.decorations.forEach(d=>addHubModel(stationLamp(d)));
+ addHubModel(portalModel(layout.portals[0]));
+ const npc=layout.npcs.find(n=>n.id==='farmer');
+ if(npc){farmerModel=createFarmerNpc(THREE);farmerModel.group.position.set(npc.x+.5,npc.y,npc.z+.5);farmerModel.group.rotation.y=Math.PI;addHubModel(farmerModel.group);}
 }
 function rebuildHubObjects(){clearHubRoots();if(!world)return;
  if(world.worldKind==='shopHub'){
   buildSpaceStation();
- }else if(world.personalPortal){if(world.personalPortal.shape==='starship')starshipPortalModel(world.personalPortal);else portalModel(world.personalPortal);}
+ }else if(world.personalPortal){if(world.personalPortal.shape==='starship')addHubModel(starshipPortalModel(world.personalPortal,surfaceHeightAt));else addHubModel(portalModel(world.personalPortal));}
 }
-const humanoid=new THREE.Group();worldRoot.add(humanoid);const arms=[],legs=[];
-const skin=new THREE.MeshLambertMaterial({color:0xe4c6a5}),suit=new THREE.MeshLambertMaterial({color:0x3e6c82}),visor=new THREE.MeshLambertMaterial({color:0x122f43}),boots=new THREE.MeshLambertMaterial({color:0x253d4a});
-function box(parent,w,h,d,mat,x,y,z){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);o.position.set(x,y,z);o.castShadow=true;parent.add(o);return o}
-// Shared low-poly item parts feed both the held model and the cached HUD thumbnails.
-const itemMats={wood:new THREE.MeshStandardMaterial({color:0x815c3e,roughness:.9}),woodLight:new THREE.MeshStandardMaterial({color:0xb1875b,roughness:.86}),sand:new THREE.MeshStandardMaterial({color:0xd5bf83,roughness:.95}),stone:new THREE.MeshStandardMaterial({color:0x66747a,roughness:.92}),dark:new THREE.MeshStandardMaterial({color:0x293238,roughness:.9}),light:new THREE.MeshStandardMaterial({color:0xb8c5c6,metalness:.25,roughness:.52}),metal:new THREE.MeshStandardMaterial({color:0x9aabb0,metalness:.48,roughness:.5}),gold:new THREE.MeshStandardMaterial({color:0xd3ad59,metalness:.4,roughness:.48}),crystal:new THREE.MeshStandardMaterial({color:0x58a9be,metalness:.12,roughness:.32,emissive:0x123b50,emissiveIntensity:.35}),leaf:new THREE.MeshStandardMaterial({color:0x659552,roughness:.9}),food:new THREE.MeshStandardMaterial({color:0xd8b45b,roughness:.8}),carrot:new THREE.MeshLambertMaterial({color:0xe47a32}),potato:new THREE.MeshLambertMaterial({color:0x987451})};
 const toolNames=TOOL_NAMES;
-function makeItemModel(id){const g=new THREE.Group(),m=itemMats;const handle=()=>{const h=new THREE.Mesh(new THREE.BoxGeometry(.12,.78,.12),m.wood);h.position.y=-.04;h.castShadow=true;g.add(h);};
- if(['wood_pickaxe','stone_pickaxe','wood_axe','wood_shovel','hoe','scythe'].includes(id)){handle();if(id==='wood_pickaxe'||id==='stone_pickaxe'){box(g,.22,.25,.14,m.woodLight,0,.33,0);const headMat=id==='stone_pickaxe'?m.light:m.stone;box(g,.68,.19,.18,headMat,0,.43,0);box(g,.17,.16,.2,id==='stone_pickaxe'?m.metal:m.woodLight,-.27,.43,0);box(g,.17,.16,.2,id==='stone_pickaxe'?m.metal:m.woodLight,.27,.43,0);}else if(id==='wood_axe'){box(g,.23,.27,.18,m.woodLight,0,.34,0);const head=new THREE.Mesh(new THREE.BoxGeometry(.22,.48,.20),m.metal);head.position.set(.18,.42,0);head.castShadow=true;g.add(head);const edge=new THREE.Mesh(new THREE.BoxGeometry(.34,.12,.22),m.metal);edge.position.set(.24,.64,0);edge.rotation.z=-.24;g.add(edge);}else if(id==='wood_shovel'){box(g,.22,.26,.11,m.woodLight,0,.33,0);const blade=new THREE.Mesh(new THREE.BoxGeometry(.38,.34,.1),m.metal);blade.position.y=.62;blade.rotation.z=-.08;g.add(blade);box(g,.22,.08,.12,m.metal,0,.79,0);}else if(id==='hoe'){box(g,.2,.25,.13,m.woodLight,0,.34,0);box(g,.55,.11,.14,m.metal,0,.53,0);box(g,.18,.18,.16,m.metal,.22,.43,0);}else{box(g,.2,.25,.13,m.woodLight,0,.34,0);const blade=new THREE.Mesh(new THREE.TorusGeometry(.25,.045,5,8,Math.PI),m.metal);blade.position.set(.23,.47,0);blade.rotation.z=Math.PI/2;g.add(blade);}}
- else if(['stone','ore','iron_ore','coal_ore','copper_ore','coal','iron_vein_core','coal_vein_core','copper_vein_core'].includes(id)){if(id==='coal'){const coal=new THREE.Mesh(new THREE.DodecahedronGeometry(.27,0),m.dark);coal.scale.set(1,.7,.85);g.add(coal);}else for(let i=0;i<5;i++){const a=new THREE.Mesh(new THREE.IcosahedronGeometry(.19+(i%2)*.045,0),i%3===0?m.metal:m.stone);a.position.set((i-2)*.12,(i%2)*.16,((i*7)%3-1)*.09);a.rotation.set(i*.4,i*.7,i*.2);g.add(a);}if(id!=='stone'&&id!=='coal')for(const [x,y]of [[-.1,.12],[.12,.23]]){const gem=id.includes('iron')?m.gold:id.includes('copper')?m.woodLight:m.crystal,c=new THREE.Mesh(new THREE.OctahedronGeometry(.105,0),gem);c.position.set(x,y,.11);g.add(c);}}
- else if(id==='iron_ingot'||id==='ingot'){const a=new THREE.Mesh(new THREE.BoxGeometry(.62,.18,.32),m.metal);a.position.y=.05;g.add(a);const b=new THREE.Mesh(new THREE.BoxGeometry(.52,.18,.27),m.metal);b.position.y=.21;g.add(b);}
- else if(['dirt','sand','coal_block','block_dirt'].includes(id)){const a=new THREE.Mesh(new THREE.BoxGeometry(.62,.62,.62),id==='sand'?m.sand:id==='coal_block'?machineMaterials.dark:m.wood);g.add(a);if(!['sand','coal_block'].includes(id))for(const [x,y,z]of [[-.18,.2,.12],[.14,-.1,.2],[.12,.11,-.19]])box(g,.12,.1,.12,m.woodLight,x,y,z);}
- else if(id.includes('wheat')||id==='food'){for(let i=0;i<3;i++){const stem=new THREE.Mesh(new THREE.CylinderGeometry(.018,.024,.58,5),m.leaf);stem.position.set((i-1)*.12,.08,0);g.add(stem);const seed=new THREE.Mesh(new THREE.ConeGeometry(.075,.2,6),m.food);seed.position.set((i-1)*.12,.4,0);g.add(seed);}}
- else if(id.includes('carrot')){const root=new THREE.Mesh(new THREE.ConeGeometry(.2,.55,6),m.carrot);root.rotation.x=Math.PI;root.position.y=-.03;g.add(root);for(let i=0;i<3;i++){const leaf=new THREE.Mesh(new THREE.ConeGeometry(.055,.4,5),m.leaf);leaf.position.set((i-1)*.09,.3,0);leaf.rotation.z=(i-1)*.22;g.add(leaf);}}
- else if(id.includes('potato')){for(const [x,y,z]of [[-.14,0,0],[.08,.05,.1],[.02,-.07,-.1]]){const tuber=new THREE.Mesh(new THREE.IcosahedronGeometry(.16,0),m.potato);tuber.scale.set(1,.72,.8);tuber.position.set(x,y,z);g.add(tuber);}}
- else if(['oak_log','birch_log','rubberwood'].includes(id)){const bark=id==='birch_log'?birchTrunk:id==='rubberwood'?rubberTrunk:treeTrunk,woodEnd=id==='birch_log'?itemMats.light:itemMats.woodLight;const log=new THREE.Mesh(new THREE.CylinderGeometry(.20,.23,.56,7),bark);log.rotation.z=Math.PI/2;log.position.y=.02;g.add(log);const end=new THREE.Mesh(new THREE.CircleGeometry(.2,7),woodEnd);end.rotation.y=Math.PI/2;end.position.x=.281;end.position.y=.02;g.add(end);}
- else if(id==='rubber_sap'){const drop=new THREE.Mesh(new THREE.OctahedronGeometry(.22,0),m.gold);drop.scale.set(.8,1.2,.75);g.add(drop);}
- else if(id.includes('sapling')){const leaf=id.includes('birch')?birchCanopy:id.includes('rubber')?rubberCanopy:treeCanopy;box(g,.1,.48,.1,id.includes('birch')?birchTrunk:treeTrunk,0,0,0);for(const [x,y,z]of [[0,.25,0],[.13,.12,0],[-.13,.10,0]]){const l=new THREE.Mesh(new THREE.IcosahedronGeometry(.13,0),leaf);l.position.set(x,y,z);g.add(l);}}
- else if(id==='drill'||id==='conveyor'){const machine=makeMachineModel(id);g.add(machine);machine.scale.setScalar(.45);machine.rotation.x=-.35;}
- else {const a=new THREE.Mesh(new THREE.IcosahedronGeometry(.3,0),m.stone);g.add(a);}
- g.rotation.x=-.16;return g;}
 const itemThumbs=new Map();let thumbRenderer=null;const thumbScene=new THREE.Scene();thumbScene.add(new THREE.HemisphereLight(0xffffff,0x566677,2));const thumbLight=new THREE.DirectionalLight(0xffe3b5,2.3);thumbLight.position.set(-3,5,6);thumbScene.add(thumbLight);const thumbCamera=new THREE.PerspectiveCamera(34,1,.1,20);thumbCamera.position.set(1.45,1.25,2.2);thumbCamera.lookAt(0,.12,0);
-function itemThumbnail(id){if(itemThumbs.has(id))return itemThumbs.get(id);if(!thumbRenderer){thumbRenderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'});thumbRenderer.setPixelRatio(1);thumbRenderer.setSize(72,72);thumbRenderer.outputColorSpace=THREE.SRGBColorSpace;thumbRenderer.setClearColor(0x000000,0);}const model=makeItemModel(id);thumbScene.add(model);thumbRenderer.render(thumbScene,thumbCamera);const url=thumbRenderer.domElement.toDataURL('image/png');thumbScene.remove(model);model.traverse(o=>{if(o.geometry)o.geometry.dispose();});itemThumbs.set(id,url);return url;}
+function itemThumbnail(id){if(itemThumbs.has(id))return itemThumbs.get(id);if(!thumbRenderer){thumbRenderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'});thumbRenderer.setPixelRatio(1);thumbRenderer.setSize(72,72);thumbRenderer.outputColorSpace=THREE.SRGBColorSpace;thumbRenderer.setClearColor(0x000000,0);}const model=makeItemModel(id);thumbScene.add(model);thumbRenderer.render(thumbScene,thumbCamera);const url=thumbRenderer.domElement.toDataURL('image/png');thumbScene.remove(model);model.traverse(o=>{if(o.geometry&&!o.geometry.userData.terraIndustrialShared&&!o.geometry.userData.terraWorkstationShared)o.geometry.dispose();});itemThumbs.set(id,url);return url;}
 let heldToolModel=null;
-function equipHeldTool(id){if(heldToolModel){heldToolModel.parent?.remove(heldToolModel);heldToolModel=null;}if(!toolNames[id]&&!RESOURCE_KEYS.includes(id))return;heldToolModel=makeItemModel(id);heldToolModel.scale.setScalar(['dirt','sand','coal_block'].includes(id)?.56:.72);heldToolModel.position.set(.13,-.49,-.19);heldToolModel.rotation.z=-.35;(arms[1]||humanoid).add(heldToolModel);}
-// Ordinary adult proportions in metres: 1.78 m tall, ~0.68 m arm-to-arm width.
-// Feet sit at y=0, and the top of the head is exactly PLAYER_HEIGHT_METERS.
-box(humanoid,.44,.65,.25,suit,0,1.105,0); // torso: 0.78–1.43 m
-box(humanoid,.28,.28,.27,skin,0,1.64,0); // head: 1.50–1.78 m
-box(humanoid,.23,.09,.05,visor,0,1.65,-.16);
-for(const side of [-1,1]){
- const arm=new THREE.Group();arm.position.set(side*.28,1.41,0);box(arm,.12,.60,.19,suit,0,-.30,0);arms.push(arm);humanoid.add(arm);
- const leg=new THREE.Group();leg.position.set(side*.125,.78,0);box(leg,.18,.78,.22,boots,0,-.39,0);legs.push(leg);humanoid.add(leg);
-}
+function equipHeldTool(id){if(heldToolModel){heldToolModel.parent?.remove(heldToolModel);heldToolModel.traverse(o=>{if(o.geometry&&!o.geometry.userData.terraIndustrialShared&&!o.geometry.userData.terraWorkstationShared)o.geometry.dispose();});heldToolModel=null;}if(!toolNames[id]&&!RESOURCE_KEYS.includes(id))return;heldToolModel=makeItemModel(id);heldToolModel.scale.setScalar(blockIds.has(id)?.48:.72);heldToolModel.position.set(.13,-.49,-.19);heldToolModel.rotation.z=-.35;(arms[1]||humanoid).add(heldToolModel);}
+const {humanoid,arms,legs}=createPlayerModel();worldRoot.add(humanoid);
 let gaitPhase=0;function animateWalk(dt,moving){if(moving||playerSwimming)gaitPhase+=dt*(playerSwimming?5:8);const targetLeg=playerSwimming?Math.sin(gaitPhase)*.34:moving?Math.sin(gaitPhase)*.55:0,targetArm=playerSwimming?-.45+Math.sin(gaitPhase+Math.PI)*.42:-targetLeg*.75;for(let i=0;i<2;i++){legs[i].rotation.x=THREE.MathUtils.damp(legs[i].rotation.x,i===0?targetLeg:-targetLeg,10,dt);arms[i].rotation.x=THREE.MathUtils.damp(arms[i].rotation.x,i===0?targetArm:-targetArm,10,dt);}}
 const player={pos:new THREE.Vector3(.5,0,.5),grounded:true};
 let playerImmersed=false,playerSwimming=false;
@@ -494,7 +444,7 @@ const keys=new Set(),touchMove=new THREE.Vector2(0,0);let jumpQueued=false,swimQ
 let swimHeld=false,diveHeld=false,diveQueued=false;
 window.addEventListener('keydown',e=>{if(e.target instanceof HTMLElement&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();if(e.code==='Space'&&!e.repeat)jump();if(e.code==='KeyE'&&!e.repeat){if(nearInteraction)void interactWorld();else toggleInventory();return;}if(e.code==='Escape'){closeInventory();if(placingMachine){placingMachine=null;refreshActionPreview();notice('배치 취소');}if(!$('shopPanel').hidden){$('shopPanel').hidden=true;updateInteractionUi();}}if(e.code==='KeyR'&&placingMachine){machineRotation=(machineRotation+1)%4;refreshActionPreview();}const slot=e.code.match(/^Digit([1-8])$/);if(slot){selectQuickSlot(Number(slot[1])-1);return;}keys.add(e.code);});
 window.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>{keys.clear();swimHeld=false;diveHeld=false;});
-const PLACEABLE_BLOCKS=new Set(['dirt','sand','coal_block']);
+const PLACEABLE_BLOCKS=new Set(PLACEABLE_BLOCK_IDS);
 const FARM_TOOLS=new Set(['hoe','watering_can','scythe','sapling']);
 function isBlockEquipped(){return PLACEABLE_BLOCKS.has(selectedTool);}
 function isFarmEquipped(){return FARM_TOOLS.has(selectedTool);}
@@ -525,10 +475,14 @@ function sendMovement(now){
  void api('/api/move',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({x:dirX,z:dirZ,jump,swim,dive})}).then(data=>{
   if(teleportVersion!==devTeleportVersion)return;
   const previousWorld=world;if(data.world)world=data.world;else if(data.fluidCells)world={...world,fluidCells:data.fluidCells,fluidRevision:data.fluidRevision,player:{...world.player,...data.player}};syncWaterEdits(previousWorld,world);
-  player.pos.set(data.player.x,data.player.y,data.player.z);player.grounded=data.player.grounded;humanoid.position.copy(player.pos);
+  player.pos.set(data.player.x,data.player.y,data.player.z);player.grounded=data.player.grounded;
+  // A respawn or large correction must be visible immediately.
+  if(humanoid.position.distanceToSquared(player.pos)>4)humanoid.position.copy(player.pos);
   setAuthoritativeWaterState(data.player);
+  if(!$('craftPanel').hidden){
   const stationState=(world?.machines||[]).filter(m=>['t1_bench','tool_bench','agriculture_bench','farming_bench','block_bench','basic_assembler','workbench','drill'].includes(m.type)).map(m=>m.type+':'+(Math.hypot(m.x+.5-player.pos.x,m.y+.6-(player.pos.y+1),m.z+.5-player.pos.z)<=4.5)).join('|');
-  if(!$('craftPanel').hidden&&stationState!==lastCraftStationState){lastCraftStationState=stationState;updateCrafting();}
+  if(stationState!==lastCraftStationState){lastCraftStationState=stationState;updateCrafting();}
+  }
  }).catch(err=>{if(teleportVersion!==devTeleportVersion)return;if(jump)jumpQueued=true;if(swim)swimQueued=true;if(!movementBusy)return;notice('이동 동기화 실패: '+err.message);}).finally(()=>{if(teleportVersion===devTeleportVersion)movementBusy=false;});
 }
 const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
@@ -564,7 +518,7 @@ function blockPlacementError({x,y,z}){
  if(generated?(x< -4096||x>=4096||z< -4096||z>=4096||y<WORLD_MIN_Y||y>WORLD_MAX_Y):(x< -64||x>=64||z< -64||z>=64||y< -8||y>16))return '설치 범위 밖';
  const portal=world?.personalPortal;if(portal&&Math.abs(x-portal.x)<=4&&Math.abs(z-portal.z)<=5&&y>=portal.y&&y<=portal.y+4)return '우주선 포털 보호 구역';
  if(has(x,y,z))return '이미 블록이 있음';
- const placeItem=['dirt','sand','coal_block'].includes(selectedTool)?selectedTool:'dirt';if((world?.inventory?.[placeItem]||0)<1)return `${RESOURCE_LABELS[placeItem]} 부족`;
+ const placeItem=PLACEABLE_BLOCK_IDS.includes(selectedTool)?selectedTool:'dirt';if((world?.inventory?.[placeItem]||0)<1)return `${RESOURCE_LABELS[placeItem]} 부족`;
  if(Object.keys(world?.edits||{}).length>=20000&&!Object.hasOwn(world.edits,`${x},${y},${z}`))return '월드 편집 한도';
  if(!(generated&&waterLevelAt(world,x,y,z)>0)&&![[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]].some(([dx,dy,dz])=>has(x+dx,y+dy,z+dz)))return '붙일 면이 없음';
  const cx=x+.5,cy=y+.5,cz=z+.5;
@@ -579,7 +533,7 @@ function updateBlockPreview(sx,sy){
  const color=blockPlacementValid?0x79d9ad:0xe66f68;
  for(const material of blockPreviewMaterials){material.color.setHex(blockPlacementValid?0x84aa72:0xe66f68);material.emissive.setHex(blockPlacementValid?0x173b27:0x4b1718);material.emissiveIntensity=.25;}
  blockPreviewEdgeMat.color.setHex(color);blockPreviewMark.visible=!blockPlacementValid;
- const hint=$('placementHint');hint.hidden=false;hint.textContent=blockPlacementValid?'✓ '+RESOURCE_LABELS[['dirt','sand','coal_block'].includes(selectedTool)?selectedTool:'dirt']+' 설치 가능':'⊘ '+reason;
+ const hint=$('placementHint');hint.hidden=false;hint.textContent=blockPlacementValid?'✓ '+RESOURCE_LABELS[PLACEABLE_BLOCK_IDS.includes(selectedTool)?selectedTool:'dirt']+' 설치 가능':'⊘ '+reason;
 }
 function targetHarvestable(sx,sy){
  const rect=renderer.domElement.getBoundingClientRect();ndc.set(((sx-rect.left)/rect.width)*2-1,-((sy-rect.top)/rect.height)*2+1);ray.setFromCamera(ndc,camera);
@@ -592,7 +546,10 @@ function targetHarvestable(sx,sy){
   if(!inReach(point))return;const hit=ray.intersectObject(group,true)[0];if(hit&&hit.distance<=75&&(!groundHit||hit.distance<groundHit.distance)&&(!best||hit.distance<best.distance))best={id,type,distance:hit.distance};
  };
  for(const group of cropGroups)consider(group,'crop');
- if(selectedTool==='wood_axe')for(const group of treeGroups)consider(group,'tree');
+ if(selectedTool==='wood_axe'){
+  for(const group of treeGroups)consider(group,'tree');
+  for(const groups of generatedTreeChunks.values())for(const group of groups)consider(group,'tree');
+ }
  if(selectedTool==='wood_pickaxe')for(const group of oreGroups)consider(group,'ore');
  return best;
 }
@@ -746,22 +703,6 @@ function refreshShopButtons(){const coins=world?.coins||0,stock=world?.inventory
 document.querySelectorAll('[data-qty]').forEach(b=>b.addEventListener('click',()=>{shopQuantity=b.dataset.qty;document.querySelectorAll('[data-qty]').forEach(q=>q.classList.toggle('selected',q===b));refreshShopButtons();}));
 async function trade(action,item){if(interactionBusy)return;interactionBusy=true;try{const result=await api('/api/shop/trade',postJson({action,item,quantity:shopQuantity,revision:shopRevision}));shopRevision=result.world.revision;loadWorld(result.world);refreshShopButtons();notice(action==='buy'?`${RESOURCE_LABELS[item]} 구매 완료`:'밀 판매 완료');}catch(e){if(e.world)loadWorld(e.world);notice(e.message);refreshShopButtons();}finally{interactionBusy=false;}}
 document.querySelectorAll('[data-buy-seed]').forEach(button=>button.addEventListener('click',()=>void trade('buy',button.dataset.buySeed)));$('sellWheat').addEventListener('click',()=>void trade('sell','wheat'));$('shopClose').addEventListener('click',()=>{$('shopPanel').hidden=true;updateInteractionUi();});
-const recipeCards=[
- {id:'tool_bench',name:'도구 제작대',description:'모루와 수공구 걸이, 서랍이 있는 설치형 제작대.',cost:{stone:10,wood:5},station:null},
- {id:'agriculture_bench',name:'농업 제작대',description:'모종 트레이와 물통, 씨앗 수납이 있는 설치형 제작대.',cost:{wheat:10,wood:5},station:null},
- {id:'block_bench',name:'블록 제작대',description:'절단 작업판과 가공 블록, 측정자가 있는 설치형 제작대.',cost:{stone:5,wood:5},station:null},
- {id:'basic_assembler',name:'초급 조합대',description:'거친 화덕과 수동 프레스, 손잡이 크랭크가 있는 설치형 제작대.',cost:{stone:20,iron_ore:10,wood:20,coal_block:5},station:null},
- {id:'stone_pickaxe',name:'돌 곡괭이',description:'돌과 철·석탄·구리 광석을 캘 수 있는 돌 곡괭이.',cost:{wood:3,stone:3},station:'tool_bench',tool:true},
- {id:'hoe',name:'나무 괭이',description:'일반 흙을 경작지로 바꿔.',cost:{wood:2,stone:1},station:'agriculture_bench',tool:true},
- {id:'watering_can',name:'물뿌리개',description:'경작지에 물을 줘 작물 성장을 두 배로 높여.',cost:{wood:2,stone:2},station:'agriculture_bench',tool:true},
- {id:'scythe',name:'낫',description:'선택한 작물 주변 3×3×3의 성숙한 작물을 수확해.',cost:{wood:2,stone:3},station:'agriculture_bench',tool:true},
- {id:'coal_block',name:'석탄 블록',description:'밸런스 확정 전 임시 비율을 적용한 블록.',cost:{[COAL_BLOCK_RECIPE.inputItem]:COAL_BLOCK_RECIPE.inputQuantity},station:'block_bench',output:true},
- {id:'farming_bench',name:'농업 작업대 (기존)',description:'기존 저장을 위한 T1 농업 작업대 레시피.',cost:{wood:2,stone:3},station:'t1_bench'},
- {id:'workbench',name:'목공 작업대',description:'기본 T1 제작대에서 만드는 기존 작업대.',cost:{wood:8,dirt:6},station:'t1_bench'},
- {id:'drill',name:'회전식 채굴 드릴',description:'광맥을 파낼 수 있는 중형 드릴 프레임.',cost:{wood:10,dirt:12},station:'basic_assembler'},
- {id:'conveyor',name:'롤러 컨베이어',description:'광물과 부품을 옮기는 방향 전환형 벨트 타일.',cost:{wood:4,dirt:5},station:'basic_assembler'},
- {id:'smelter',name:'제련로',description:'기존 구현된 제련 설비.',cost:{wood:6,dirt:10},station:'basic_assembler'}
-];
 const stationLabels={t0:'기본 조합대',tool_bench:'도구 제작대',agriculture_bench:'농업 제작대',farming_bench:'농업 작업대 (기존)',block_bench:'블록 제작대',basic_assembler:'초급 조합대',t1_bench:'T1 제작대'};
 function updateObjective(){
  if(!world)return;const items=world.inventory.items||{},machines=world.machines||[],wood=world.inventory.wood||0,treesLeft=(world.trees||[]).filter(t=>!(world.harvestedTrees||[]).includes(t.id)).length;
@@ -844,8 +785,8 @@ async function interactCell({x,y,z},action,tool=selectedTool){
  if(action==='place'){const reason=blockPlacementError({x,y,z});if(reason){blockPlacementValid=false;blockPreviewMark.visible=blockPreview.visible;notice(reason);return;}}
  if(action==='mine'&&!has(x,y,z))return;
  busy=true;
- try{const data=await api('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:action,targetType:action==='mine'?'block':undefined,tool:action==='mine'?tool:undefined,item:action==='place'&&['dirt','sand','coal_block'].includes(selectedTool)?selectedTool:undefined,x,y,z,revision:world.revision})});
- world=data.world;inventory();rebuild();updateCrafting();notice(action==='place'?`${RESOURCE_LABELS[['dirt','sand','coal_block'].includes(selectedTool)?selectedTool:'dirt']} 블록 설치 완료 · 서버에 저장됨`:'흙 블록 회수 완료 · 서버에 저장됨');if(action==='place'&&lastBlockPreviewPoint)updateBlockPreview(lastBlockPreviewPoint.x,lastBlockPreviewPoint.y);
+ try{const data=await api('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:action,targetType:action==='mine'?'block':undefined,tool:action==='mine'?tool:undefined,item:action==='place'&&PLACEABLE_BLOCK_IDS.includes(selectedTool)?selectedTool:undefined,x,y,z,revision:world.revision})});
+ world=data.world;inventory();rebuild();updateCrafting();notice(action==='place'?`${RESOURCE_LABELS[PLACEABLE_BLOCK_IDS.includes(selectedTool)?selectedTool:'dirt']} 블록 설치 완료 · 서버에 저장됨`:'흙 블록 회수 완료 · 서버에 저장됨');if(action==='place'&&lastBlockPreviewPoint)updateBlockPreview(lastBlockPreviewPoint.x,lastBlockPreviewPoint.y);
  }catch(e){if(e.world){world=e.world;inventory();rebuild();updateCrafting();if(action==='place'&&lastBlockPreviewPoint)updateBlockPreview(lastBlockPreviewPoint.x,lastBlockPreviewPoint.y);}notice('작업 실패: '+e.message);}finally{busy=false;}
 }
 function joystick(){
@@ -865,7 +806,8 @@ function loop(now){requestAnimationFrame(loop);const rawFrameMs=Math.max(0,now-l
  updateMachineVisuals(frameDt);
  for(const entry of dropRoots.values()){entry.root.position.lerp(entry.target,Math.min(1,frameDt*10));entry.root.rotation.y+=frameDt*(entry.conveyor?.45:.65);if(!entry.conveyor)entry.root.position.y=entry.target.y+.09+Math.sin(now*.0018+entry.phase)*.055;}
  updateMine(now);
- cameraTarget.copy(player.pos);cameraTarget.y+=PLAYER_HEIGHT_METERS*.54;cameraTarget.multiplyScalar(WORLD_SCALE);
+ humanoid.position.lerp(player.pos,1-Math.exp(-30*rawFrameMs/1000));
+ cameraTarget.copy(humanoid.position);cameraTarget.y+=PLAYER_HEIGHT_METERS*.54;cameraTarget.multiplyScalar(WORLD_SCALE);
  camera.position.set(cameraTarget.x+camDistance*WORLD_SCALE*Math.sin(camYaw)*Math.cos(camPitch),cameraTarget.y+camDistance*WORLD_SCALE*Math.sin(camPitch)+2.0,cameraTarget.z+camDistance*WORLD_SCALE*Math.cos(camYaw)*Math.cos(camPitch));camera.lookAt(cameraTarget);
  const renderInterval=terraDebugFps?1000/terraDebugFps:0;if(!renderInterval||!lastRenderedAt||now-lastRenderedAt>=renderInterval){renderer.render(scene,camera);if(terraDebug){if(lastRenderedAt){renderedFrameIntervals[frameSampleIndex]=now-lastRenderedAt;frameSampleIndex=(frameSampleIndex+1)%renderedFrameIntervals.length;frameSampleCount=Math.min(frameSampleCount+1,renderedFrameIntervals.length);}lastRenderedAt=now;}}
  if(world?.worldGenVersion&&now-lastTerrainStatsAt>1000){lastTerrainStatsAt=now;const biome=biomeAt(world.worldSeed,Math.floor(player.pos.x),Math.floor(player.pos.z),world.worldGenVersion),waterMeshes=[...streamedWater.values()].filter(entry=>entry.mesh).length;let frameMetrics='';if(terraDebug&&frameSampleCount){const sorted=Array.from(renderedFrameIntervals.subarray(0,frameSampleCount)).sort((a,b)=>a-b),percentile=q=>sorted[Math.min(sorted.length-1,Math.floor((sorted.length-1)*q))],mean=sorted.reduce((sum,value)=>sum+value,0)/sorted.length;frameMetrics=` · 렌더 FPS ${(1000/mean).toFixed(1)} · 프레임 p50/p95 ${percentile(.5).toFixed(1)}/${percentile(.95).toFixed(1)}ms · 삼각형 ${renderer.info.render.triangles} · 텍스처 ${renderer.info.memory.textures}`;}$('stats').textContent=`${biome} · 청크 ${streamedTerrain.size}/${desiredTerrainChunks.size} · 물 메시 ${waterMeshes} · 반경 ${configuredChunkRadius()} · 청크 생성 ${terrainBuildLastMs.toFixed(1)}/${(terrainBuildTotalMs/Math.max(1,terrainBuildCount)).toFixed(1)}ms 평균 · RAF 간격 ${terrainFrameAvgMs.toFixed(1)}ms EMA · GPU 지오메트리 ${renderer.info.memory.geometries} · draw ${renderer.info.render.calls}${frameMetrics}`;}

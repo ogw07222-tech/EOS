@@ -1,9 +1,9 @@
 const workstationMaterials = new WeakMap();
 
 const PALETTE = Object.freeze({
-  timber: { color: 0x70513a, roughness: 0.94 }, timberLight: { color: 0xa17a50, roughness: 0.9 },
-  timberDark: { color: 0x48362b, roughness: 0.98 }, iron: { color: 0x4a5658, metalness: 0.18, roughness: 0.84 },
-  steel: { color: 0x78888a, metalness: 0.32, roughness: 0.62 }, silver: { color: 0xb7b9ae, metalness: 0.28, roughness: 0.58 },
+  timber: { color: 0x70513a, roughness: 0.94 }, timberLight: { color: 0xbb9160, roughness: 0.9 },
+  timberDark: { color: 0x48362b, roughness: 0.98 }, iron: { color: 0x314c50, metalness: 0.18, roughness: 0.84 },
+  steel: { color: 0x719995, metalness: 0.32, roughness: 0.62 }, silver: { color: 0xb7b9ae, metalness: 0.28, roughness: 0.58 },
   brass: { color: 0xb88b4b, metalness: 0.24, roughness: 0.72 }, stone: { color: 0x77766d, roughness: 1 },
   stoneDark: { color: 0x50534f, roughness: 1 }, soil: { color: 0x554333, roughness: 1 }, leaf: { color: 0x668753, roughness: 1 },
   leafLight: { color: 0x91a966, roughness: 1 }, water: { color: 0x4f91a0, roughness: 0.42 }, clay: { color: 0xa45f42, roughness: 0.92 }
@@ -82,7 +82,7 @@ export function createWorkstationVisuals(THREE) {
       }
       for (let i = 0; i < segments; i++) {
         const a = start + i * 2, b = a + 2;
-        if (axis === 'z') out.indices.push(a, b + 1, a + 1, a, b, b + 1);
+        if (axis !== 'y') out.indices.push(a, b + 1, a + 1, a, b, b + 1);
         else out.indices.push(a, a + 1, b + 1, a, b + 1, b);
       }
       for (const top of [false, true]) {
@@ -102,10 +102,11 @@ export function createWorkstationVisuals(THREE) {
     };
     const legs = () => {
       for (const x of [-0.39, 0.39]) for (const z of [-0.34, 0.34]) {
-        box('timberDark', x, 0.31, z, 0.09, 0.60, 0.09);
+        box('timberDark', x*.94, 0.31, z, 0.085, 0.60, 0.10, Math.sign(x)*.11);
         box('timberLight', x, 0.08, z, 0.14, 0.09, 0.14);
       }
-      box('timberLight', 0, 0.64, 0, 0.94, 0.09, 0.82);
+      for (const z of [-.30,0,.30]) box('timberLight', 0, .64, z, .94, .09, .28);
+      for (const x of [-.36,.36]) box('iron', x, .29, 0, .055, .065, .71);
       box('timber', 0, 0.70, 0, 0.90, 0.035, 0.78);
     };
     const toolRack = (material = 'timberDark') => {
@@ -127,6 +128,7 @@ export function createWorkstationVisuals(THREE) {
           box('timberLight', 0, y, 0.378, 0.65, 0.065, 0.018);
           box('brass', 0, y, 0.392, 0.045, 0.025, 0.022);
         }
+        box('timberLight', .22,.77,.03,.26,.10,.31);
         // Open-front joiner's vise, screw and jaw, made as tactile metal parts.
         box('iron', -0.26, 0.79, 0.22, 0.23, 0.07, 0.20);
         box('silver', -0.26, 0.84, 0.22, 0.28, 0.055, 0.09);
@@ -146,12 +148,14 @@ export function createWorkstationVisuals(THREE) {
         box('timber', 0.20, 1.01, -0.02, 0.36, 0.055, 0.07);
         cylinder('iron', 0.36, 0.83, 0.02, 0.09, 0.09, 0.045, 'z', 12);
         cylinder('timberLight', 0.36, 0.83, 0.02, 0.025, 0.025, 0.17, 'z', 8);
+        box('timber', 0,.38,-.32,.73,.09,.08);
         // One low peg rail adds a different silhouette while keeping the tool handmade.
         for (const x of [-0.35, 0.35]) box('timberDark', x, 0.91, -0.32, 0.05, 0.40, 0.05);
         box('timberLight', 0, 1.10, -0.32, 0.74, 0.06, 0.06);
       },
       tool_bench() {
         legs();
+        cylinder('stone', .23,1.01,.02,.16,.16,.09,'x',12);
         // Faceted anvil on the left and a hand-worked tool rail on the right.
         box('timberDark', 0, 0.47, 0.04, 0.75, 0.23, 0.65);
         box('iron', -0.25, 0.78, 0.03, 0.24, 0.18, 0.30);
@@ -165,6 +169,8 @@ export function createWorkstationVisuals(THREE) {
       agriculture_bench() {
         legs();
         box('timberDark', -0.19, 0.48, 0.02, 0.48, 0.22, 0.60);
+        for (const x of [-.34,.34]) box('timberLight', x,1.01,-.34,.05,.55,.05);
+        box('leafLight',0,1.26,-.26,.8,.055,.24);
         // Divided propagation tray and seedlings.
         box('timber', -0.21, 0.80, -0.01, 0.45, 0.13, 0.55);
         box('soil', -0.21, 0.87, -0.01, 0.41, 0.035, 0.50);
@@ -188,6 +194,7 @@ export function createWorkstationVisuals(THREE) {
         legs();
         box('stoneDark', 0, 0.65, 0, 0.92, 0.10, 0.80);
         box('stone', 0, 0.71, 0, 0.85, 0.035, 0.72);
+        cylinder('silver',-.21,.98,-.06,.20,.20,.045,'z',12);
         // Three prepared masonry samples and a broad diamond-cut slab.
         for (const [x,y,z,material] of [[0.29,0.79,-0.18,'stone'],[0.34,0.86,-0.18,'timberLight'],[0.28,0.92,-0.18,'stoneDark']]) box(material, x, y, z, 0.29, 0.12, 0.26);
         box('stone', -0.25, 0.81, 0.02, 0.35, 0.18, 0.44);
@@ -201,6 +208,7 @@ export function createWorkstationVisuals(THREE) {
       },
       basic_assembler() {
         legs();
+        cylinder('iron',.25,1.02,.18,.16,.16,.06,'z',10);
         // Hand-built firebox and manual press. No electronics or glowing panels.
         box('stoneDark', -0.21, 0.73, 0.02, 0.43, 0.45, 0.49);
         box('iron', -0.21, 0.73, 0.275, 0.32, 0.31, 0.028);

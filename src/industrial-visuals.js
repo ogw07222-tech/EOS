@@ -11,14 +11,14 @@ export function createIndustrialVisuals(THREE) {
 
   const materials = {
     frame: new THREE.MeshStandardMaterial({ color: 0x39464a, roughness: 0.88, metalness: 0.16 }),
-    body: new THREE.MeshStandardMaterial({ color: 0x56666a, roughness: 0.78, metalness: 0.25 }),
+    body: new THREE.MeshStandardMaterial({ color: 0xb9c5b6, roughness: 0.78, metalness: 0.25 }),
     steel: new THREE.MeshStandardMaterial({ color: 0x9aa7a4, roughness: 0.61, metalness: 0.34 }),
     dark: new THREE.MeshStandardMaterial({ color: 0x202a2d, roughness: 0.9, metalness: 0.12 }),
-    brass: new THREE.MeshStandardMaterial({ color: 0xb7894e, roughness: 0.62, metalness: 0.38 }),
+    brass: new THREE.MeshStandardMaterial({ color: 0xe58b47, roughness: 0.62, metalness: 0.38 }),
     copper: new THREE.MeshStandardMaterial({ color: 0x956044, roughness: 0.72, metalness: 0.22 }),
     belt: new THREE.MeshStandardMaterial({ color: 0x303c3d, roughness: 0.96, metalness: 0.04 }),
-    glass: new THREE.MeshStandardMaterial({ color: 0x4b8990, roughness: 0.38, metalness: 0.12 }),
-    hot: new THREE.MeshStandardMaterial({ color: 0x8f583c, emissive: 0x301509, emissiveIntensity: 0.18, roughness: 0.72 })
+    glass: new THREE.MeshStandardMaterial({ color: 0x59c4c1, roughness: 0.38, metalness: 0.12 }),
+    hot: new THREE.MeshStandardMaterial({ color: 0xd76330, emissive: 0x301509, emissiveIntensity: 0.18, roughness: 0.72 })
   };
   for (const material of Object.values(materials)) material.userData.terraIndustrialShared = true;
 
@@ -89,11 +89,15 @@ export function createIndustrialVisuals(THREE) {
     box(p,'dark',0,1.17,-.03,.7,.08,.62);
     box(p,'steel',0,1.23,-.03,.44,.035,.42);
     // Distinct front drive plate, guard, and guarded service port.
-    box(p,'frame',0,.72,.405,.67,.48,.09);
+    // Split guards leave the rotating auger visible from the front.
+    for (const side of [-1,1]) {
+      box(p,'frame',side*.245,.66,.37,.10,.52,.09,side*-.22);
+      box(p,'steel',side*.30,.46,-.20,.10,.39,.10,side*.24);
+    }
     box(p,'copper',-.27,.72,.46,.13,.33,.035);
     box(p,'copper',.27,.72,.46,.13,.33,.035);
-    box(p,'dark',0,.76,.466,.3,.22,.025);
-    box(p,'glass',0,.76,.485,.18,.08,.018);
+    box(p,'dark',0,.93,.27,.36,.17,.10);
+    box(p,'glass',0,.93,.329,.22,.055,.018);
     box(p,'brass',-.39,.29,.39,.10,.06,.11);
     box(p,'brass',.39,.29,.39,.10,.06,.11);
     return p;
@@ -111,9 +115,8 @@ export function createIndustrialVisuals(THREE) {
     for (const z of [-.34,.34]) box(p,'steel',0,centerY+.08,z,length,.13,.075,angle);
     for (const x of [-.37,.37]) for (const z of [-.31,.31]) box(p,'steel',x,.27,z,.075,.22,.075);
     // Raised direction marks help read the travel direction from above.
-    for (const x of [-.19,.10]) {
-      box(p,'brass',x,centerY+.043,0,.035,.018,.20,angle + Math.PI/4);
-      box(p,'brass',x,centerY+.043,0,.035,.018,.20,angle - Math.PI/4);
+    for (const x of [-.24,-.08,.08,.24]) {
+      box(p,'body',x*Math.cos(angle),centerY+.046+x*Math.sin(angle),0,.028,.018,.53,angle);
     }
     box(p,'glass',-.39,.39,-.39,.10,.06,.07);
     return p;
@@ -123,7 +126,10 @@ export function createIndustrialVisuals(THREE) {
     const p=[];
     box(p,'dark',0,.12,0,.94,.19,.92);
     for (const x of [-.34,.34]) for (const z of [-.31,.31]) box(p,'steel',x,.27,z,.12,.15,.12);
-    box(p,'body',0,.69,0,.82,.72,.78);
+    box(p,'body',0,.61,0,.80,.56,.76);
+    box(p,'steel',0,.91,0,.72,.12,.68);
+    box(p,'frame',0,1.01,0,.58,.10,.54);
+    for (const x of [-.13,0,.13]) box(p,'frame',x,.65,.49,.025,.24,.018);
     box(p,'frame',0,.68,.405,.70,.58,.075);
     box(p,'dark',0,.69,.45,.54,.43,.035);
     box(p,'hot',0,.69,.475,.37,.29,.022);
@@ -136,7 +142,7 @@ export function createIndustrialVisuals(THREE) {
     box(p,'brass',-.24,.94,-.18,.31,.065,.31);
     box(p,'steel',-.24,1.31,-.18,.29,.075,.29);
     box(p,'dark',.42,.69,-.12,.10,.50,.32);
-    for (let i=0;i<4;i++) box(p,i%2?'steel':'brass',.39+i*.065,.69,-.31,.035,.24,.08);
+    for (let i=0;i<4;i++) box(p,i%2?'steel':'brass',.445,.49+i*.11,-.12,.05,.035,.36);
     box(p,'dark',.35,.40,.42,.22,.15,.14);
     box(p,'glass',.35,.42,.475,.09,.045,.018);
     box(p,'brass',0,.26,.43,.12,.045,.05);

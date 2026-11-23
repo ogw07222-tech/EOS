@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 const game=await readFile(new URL('../src/game.js',import.meta.url),'utf8');
+const assets=await readFile(new URL('../src/model-assets.js',import.meta.url),'utf8');
 const workstationModels=await readFile(new URL('../src/workstation-visuals.js',import.meta.url),'utf8');
 
 test('quickbar keeps eight accessible 3D thumbnail slots with compact quantities',()=>{
@@ -35,7 +36,7 @@ test('icon controls retain accessible names and default debug stats stay hidden'
 test('resource expansion exposes crop and tree selectors, T1 pickaxe, and no emoji substitute',()=>{
  assert.match(html,/id="farmSelectors" hidden/);assert.match(html,/id="cropSelector"[\s\S]*value="carrot"[\s\S]*value="potato"/);assert.match(html,/id="treeSelector"[\s\S]*value="birch"[\s\S]*value="rubber"/);
  assert.match(html,/data-buy-seed="carrot_seed"/);assert.match(html,/data-buy-seed="potato_seed"/);
- assert.match(game,/id:'stone_pickaxe',name:'돌 곡괭이'/);assert.match(game,/seedItemForCrop\(cropType\)/);assert.match(game,/productItemForCrop\(cropTypeOf\(crop\)\)/);
+ assert.match(assets,/id:'stone_pickaxe',name:'돌 곡괭이'/);assert.match(game,/seedItemForCrop\(cropType\)/);assert.match(game,/productItemForCrop\(cropTypeOf\(crop\)\)/);
  assert.match(game,/blockType=world\.worldGenVersion\?blockAt\(world,cell\.x,cell\.y,cell\.z\)/);assert.match(game,/!\['wood_pickaxe','stone_pickaxe'\]\.includes\(selectedTool\)/);
 });
 
@@ -69,7 +70,7 @@ test('resource selection obeys server reach and farm taps stay on the selected t
 
 test('T0 workshops use dedicated cached V2-style part models within the one metre footprint',()=>{
  for(const id of ['workbench','t1_bench','tool_bench','agriculture_bench','block_bench','basic_assembler'])assert.ok(workstationModels.includes(id),`missing workstation model ${id}`);
- assert.match(game,/function makeMachineModel\(type,options=\{\}\)[\s\S]*?workstationVisuals\.create\(type,options\)/);
+ assert.match(assets,/function makeMachineModel\(type,options=\{\}\)[\s\S]*?workstationVisuals\.create\(type,options\)/);
  assert.match(workstationModels,/0\.98/);
  const assembler=workstationModels.slice(workstationModels.indexOf('basic_assembler'),workstationModels.indexOf('function createRoot'));
  assert.match(assembler,/crank|handle|gear/i);assert.doesNotMatch(assembler,/screen|display/i);
